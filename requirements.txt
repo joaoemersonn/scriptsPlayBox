@@ -1,0 +1,3 @@
+requests>=2.31.0
+# Optional: use python-dotenv if you prefer automatic .env loading
+# python-dotenv>=1.0.0
