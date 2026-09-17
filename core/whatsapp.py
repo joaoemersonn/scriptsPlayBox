@@ -1,11 +1,11 @@
 from typing import Optional
 
 from core.api_client import APIClient
-from core.config import GREENAPI_BASE_URL, GREENAPI_CHAT_ID, GREENAPI_SEND_PATH
+from core.config import GREENAPI_BASE_URL, GREENAPI_SEND_PATH
 
 
 class WhatsAppSender:
-    def __init__(self, base_url: str = GREENAPI_BASE_URL, chat_id: str = GREENAPI_CHAT_ID, send_path: str = GREENAPI_SEND_PATH, timeout: int = 30):
+    def __init__(self, base_url: str = GREENAPI_BASE_URL, chat_id: str = "", send_path: str = GREENAPI_SEND_PATH, timeout: int = 30):
         self.client = APIClient(base_url, timeout=timeout)
         self.chat_id = chat_id
         self.send_path = send_path

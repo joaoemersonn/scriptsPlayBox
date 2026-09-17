@@ -3,6 +3,7 @@ from typing import Dict, Iterable, List, Optional, Set
 
 from core.api_client import IntegrationError
 from core.config import (
+    GREENAPI_MONITOR_CHAT_ID,
     PAYXYZ_EMAIL,
     PAYXYZ_PASSWORD,
     VENDPROMAX_EMAIL,
@@ -22,7 +23,7 @@ class OfflineMonitor:
         self.vend_client = VendProMaxClient(timeout=timeout)
         self.payxyz_client = PayXYZClient(timeout=timeout)
         self.zapizi_client = ZapiziClient(timeout=timeout)
-        self.sender = WhatsAppSender(timeout=timeout)
+        self.sender = WhatsAppSender(chat_id=GREENAPI_MONITOR_CHAT_ID, timeout=timeout)
 
     @staticmethod
     def _line_set(lines: Iterable[str]) -> Set[str]:

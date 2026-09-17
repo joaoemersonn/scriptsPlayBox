@@ -47,11 +47,13 @@ VENDPROMAX_BASE_URL = "https://api.vendpromax.com.br/api"
 PAYXYZ_BASE_URL = "https://api2.payxyz.app.br/v2"
 ZAPIZI_BASE_URL = "https://portal.zapizi.com.br/v1"
 
+GREENAPI_INSTANCE = os.getenv("GREENAPI_INSTANCE", "7107645608")
 GREENAPI_BASE_URL = os.getenv(
     "GREENAPI_BASE_URL",
-    "https://7107.api.greenapi.com/waInstance7107645608",
+    f"https://7107.api.greenapi.com/waInstance{GREENAPI_INSTANCE}",
 )
 GREENAPI_SEND_PATH = os.getenv("GREENAPI_SEND_PATH", "")
-GREENAPI_CHAT_ID = os.getenv("GREENAPI_CHAT_ID", "")
+GREENAPI_MONITOR_CHAT_ID = os.getenv("GREENAPI_MONITOR_CHAT_ID", "")
+GREENAPI_REPORT_CHAT_ID = os.getenv("GREENAPI_REPORT_CHAT_ID", "")
 
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))

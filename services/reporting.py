@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from core.config import (
+    GREENAPI_REPORT_CHAT_ID,
     PAYXYZ_EMAIL,
     PAYXYZ_PASSWORD,
     VENDPROMAX_EMAIL,
@@ -57,7 +58,7 @@ class ReportGenerator:
         self.vend_client = VendProMaxClient(timeout=timeout)
         self.payxyz_client = PayXYZClient(timeout=timeout)
         self.zapizi_client = ZapiziClient(timeout=timeout)
-        self.sender = WhatsAppSender(timeout=timeout)
+        self.sender = WhatsAppSender(chat_id=GREENAPI_REPORT_CHAT_ID, timeout=timeout)
 
     def build_report_dates(self, periodo: str = "24h-anterior") -> Tuple[str, str, str]:
         hoje = datetime.now()

@@ -1,0 +1,52 @@
+[2026-08-01 16:08:57] Starting relatorio_12h_atual
+/Users/joao/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+--- Mensagem WhatsApp - Relatório das Últimas 12h (01/08/2026) ---
+*📊 Relatório das Últimas 12h (01/08/2026) 📊*
+*Resumo Geral:*
+💰 Valor Total: R$ 97,00
+🎁 Prêmios Liberados: 12 unidades
+💸 Receita/Prêmio: R$ 8,08
+
+*Detalhes por Máquina:*
+🤖 *Casa Nobre - Sertania*
+  💰 Total: R$ 0,00
+  🎁 Prêmios: 0
+  💸 Receita/Prêmio: R$ 0,00
+
+🤖 *Lan House - Custódia*
+  💰 Total: R$ 11,00
+  🎁 Prêmios: 10
+  💸 Receita/Prêmio: R$ 1,10
+
+🤖 *Pau Brasil - Custódia*
+  💰 Total: R$ 46,00
+  🎁 Prêmios: 2
+  💸 Receita/Prêmio: R$ 23,00
+
+🤖 *Posto Iguaracy*
+  💰 Total: R$ 20,00
+  🎁 Prêmios: 0
+  💸 Receita/Prêmio: R$ 0,00
+
+🤖 *Praça do Sabor - Custodia*
+  💰 Total: R$ 19,00
+  🎁 Prêmios: 0
+  💸 Receita/Prêmio: R$ 0,00
+
+🤖 *Preta - Posto Monteiro*
+  💰 Total: R$ 0,00
+  🎁 Prêmios: 0
+  💸 Receita/Prêmio: R$ 0,00
+
+🤖 *Simpsons - Espaço Villa Maravilha*
+  💰 Total: R$ 1,00
+  🎁 Prêmios: 0
+  💸 Receita/Prêmio: R$ 0,00
+
+🤖 *Time - BR Arena Monteiro*
+  💰 Total: R$ 0,00
+  🎁 Prêmios: 0
+  💸 Receita/Prêmio: R$ 0,00
+
+Mensagem WhatsApp enviada com sucesso.
