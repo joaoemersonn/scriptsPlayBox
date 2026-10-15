@@ -29,15 +29,6 @@ app:
   timeout-seconds: ${REQUEST_TIMEOUT_SECONDS:30}
   api-key: ${APP_API_KEY:${API_KEY:playbox_secure_api_key_2026}}
 
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    tagsSorter: alpha
-    tryItOutEnabled: true
-
   # WhatsApp Bot (BotWhatsApp Baileys REST no container whatsapp_bot)
   whatsapp:
     host: ${WHATSAPP_HOST:whatsapp-bot}
@@ -63,6 +54,15 @@ springdoc:
     email: ${ZAPIZI_EMAIL:}
     password: ${ZAPIZI_PASSWORD:}
     organization-id: ${ZAPIZI_ORGANIZATION_ID:3852}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
 
 logging:
   level:
