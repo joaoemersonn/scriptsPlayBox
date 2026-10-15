@@ -23,6 +23,9 @@ services:
       - WHATSAPP_MONITOR_CHAT_ID=${WHATSAPP_MONITOR_CHAT_ID:-}
       - WHATSAPP_REPORT_CHAT_ID=${WHATSAPP_REPORT_CHAT_ID:-}
 
+      # Chave de API para autenticação nos métodos da aplicação (Swagger / API REST)
+      - APP_API_KEY=${APP_API_KEY:-playbox_secure_api_key_2026}
+
       # Schedulers (cron format: second minute hour day-of-month month day-of-week)
       # Schedule monitor: every 5 minutes
       - SCHEDULE_MONITOR_CRON=${SCHEDULE_MONITOR_CRON:-0 */5 * * * *}

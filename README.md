@@ -11,19 +11,39 @@ O agendamento é executado internamente pela aplicação via **Spring Boot Sched
 1. **Java 21 LTS e Spring Boot 3**:
    - Robusto, fortemente tipado e com concorrência gerenciada.
    - Chamadas HTTP nativas e serialização/desserialização JSON com Jackson.
-2. **Integração WhatsApp Nativa via BotWhatsApp (Baileys REST)**:
+2. **Documentação Interativa com Swagger UI / OpenAPI 3**:
+   - Interface visual para testar todos os endpoints diretamente pelo navegador.
+   - Suporte a autenticação no Swagger através do botão **Authorize**.
+3. **Autenticação Obrigatória por Chave de API (`X-API-KEY`)**:
+   - Todas as chamadas aos métodos operacionais sob `/api/**` exigem o envio do cabeçalho `X-API-KEY`.
+   - Tentativas sem chave ou com chave incorreta retornam `HTTP 401 Unauthorized`.
+4. **Integração WhatsApp Nativa via BotWhatsApp (Baileys REST)**:
    - Envio direto para o container `whatsapp_bot` através da rede Docker compartilhada `whatsapp-net`.
    - Porta do bot configurável via `WHATSAPP_PORT` (padrão: `3035`).
    - Autenticação por chave de API via header `x-api-key`.
-3. **Agendamento Interno (Sem crontab no host)**:
+5. **Agendamento Interno (Sem crontab no host)**:
    - Expressões cron configuráveis no `.env` com fuso horário `America/Sao_Paulo`.
    - Monitoramento a cada 5 minutos e relatórios automáticos (24h, 12h e mensal).
-4. **Persistência de Estado Confiável**:
+6. **Persistência de Estado Confiável**:
    - Arquivos de estado (`offline_status.txt`, `last_offline_notification.txt`, `notified_back_online.txt`) são armazenados em `/app/data`, mapeados para `./data` via volume Docker.
-5. **Endpoints REST de Saúde e Disparo Manual**:
-   - Healthcheck para Docker: `GET /health`
-   - Disparo manual sob demanda de monitoramento: `POST /api/trigger/monitor`
-   - Disparo manual sob demanda de relatórios: `POST /api/trigger/report?periodo={24h-anterior|12h-atual|mes}`
+7. **Endpoints REST de Saúde e Disparo Manual**:
+   - Healthcheck para Docker: `GET /health` (público)
+   - Disparo manual sob demanda de monitoramento: `POST /api/trigger/monitor` (protegido por `X-API-KEY`)
+   - Disparo manual sob demanda de relatórios: `POST /api/trigger/report?periodo={24h-anterior|12h-atual|mes}` (protegido por `X-API-KEY`)
+
+---
+
+## 📖 Swagger UI (Documentação Interativa)
+
+Acesse no navegador:
+- **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) (ou `http://localhost:8080/swagger-ui/index.html`)
+- **Especificação OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+### Como usar o Swagger UI:
+1. Abra [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
+2. Clique no botão verde **Authorize** no canto superior direito.
+3. Digite o valor de `APP_API_KEY` (padrão: `playbox_secure_api_key_2026`) no campo `Value` e clique em **Authorize**.
+4. Teste os métodos (`/api/trigger/monitor` ou `/api/trigger/report`) clicando em **Try it out** e depois **Execute**.
 
 ---
 
@@ -31,9 +51,10 @@ O agendamento é executado internamente pela aplicação via **Spring Boot Sched
 
 A aplicação lê automaticamente o arquivo `.env` na raiz do projeto.
 
-### Credenciais e Integrações
+### Credenciais e Segurança
 | Variável | Padrão | Descrição |
 |---|---|---|
+| `APP_API_KEY` | `playbox_secure_api_key_2026` | Chave de API exigida no header `X-API-KEY` para métodos REST |
 | `VENDPROMAX_EMAIL` | - | Email de acesso à VendProMax |
 | `VENDPROMAX_PASSWORD` | - | Senha de acesso à VendProMax |
 | `PAYXYZ_EMAIL` | - | Email de acesso à PayXYZ |
@@ -41,9 +62,9 @@ A aplicação lê automaticamente o arquivo `.env` na raiz do projeto.
 | `ZAPIZI_EMAIL` | - | Email de acesso à Zapizi |
 | `ZAPIZI_PASSWORD` | - | Senha de acesso à Zapizi |
 | `ZAPIZI_ORGANIZATION_ID` | `3852` | ID da organização na Zapizi |
-| `WHATSAPP_HOST` | `whatsapp_bot` | Nome do host do container do bot WhatsApp |
+| `WHATSAPP_HOST` | `whatsapp-bot` | Nome do host do container do bot WhatsApp |
 | `WHATSAPP_PORT` | `3035` | Porta HTTP da API do BotWhatsApp |
-| `WHATSAPP_BASE_URL` | `http://whatsapp_bot:3035` | URL base da API do BotWhatsApp |
+| `WHATSAPP_BASE_URL` | `http://whatsapp-bot:3035` | URL base da API do BotWhatsApp |
 | `WHATSAPP_API_KEY` | - | Chave de autenticação (`x-api-key`) |
 | `WHATSAPP_SEND_PATH` | `/api/messages/send` | Endpoint de envio de mensagens |
 | `WHATSAPP_MONITOR_CHAT_ID` | - | Chat ID para alertas de máquinas offline |
@@ -87,26 +108,30 @@ docker compose down
 
 ---
 
-## 🔄 Disparo Manual Sob Demanda
+## 🔄 Disparo Manual Sob Demanda (cURL com Chave de API)
 
-Se você quiser testar ou forçar uma execução imediatamente sem aguardar o cron:
+Todas as requisições para `/api/**` exigem o header `X-API-KEY`:
 
 - **Executar monitoramento agora:**
   ```bash
-  curl -X POST http://localhost:8080/api/trigger/monitor
+  curl -X POST http://localhost:8080/api/trigger/monitor \
+       -H "X-API-KEY: playbox_secure_api_key_2026"
   ```
 
 - **Executar relatório 24h anterior agora:**
   ```bash
-  curl -X POST "http://localhost:8080/api/trigger/report?periodo=24h-anterior"
+  curl -X POST "http://localhost:8080/api/trigger/report?periodo=24h-anterior" \
+       -H "X-API-KEY: playbox_secure_api_key_2026"
   ```
 
 - **Executar relatório das últimas 12h agora:**
   ```bash
-  curl -X POST "http://localhost:8080/api/trigger/report?periodo=12h-atual"
+  curl -X POST "http://localhost:8080/api/trigger/report?periodo=12h-atual" \
+       -H "X-API-KEY: playbox_secure_api_key_2026"
   ```
 
 - **Executar relatório acumulado do mês agora:**
   ```bash
-  curl -X POST "http://localhost:8080/api/trigger/report?periodo=mes"
+  curl -X POST "http://localhost:8080/api/trigger/report?periodo=mes" \
+       -H "X-API-KEY: playbox_secure_api_key_2026"
   ```

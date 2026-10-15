@@ -9,6 +9,7 @@ public class AppProperties {
 
     private String dataDir = "./data";
     private int timeoutSeconds = 30;
+    private String apiKey = "playbox_secure_api_key_2026";
 
     private final Whatsapp whatsapp = new Whatsapp();
     private final Vendpromax vendpromax = new Vendpromax();
@@ -29,6 +30,14 @@ public class AppProperties {
 
     public void setTimeoutSeconds(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
     }
 
     public Whatsapp getWhatsapp() {
