@@ -30,7 +30,7 @@ app:
 
   # WhatsApp Bot (BotWhatsApp Baileys REST no container whatsapp_bot)
   whatsapp:
-    host: ${WHATSAPP_HOST:whatsapp_bot}
+    host: ${WHATSAPP_HOST:whatsapp-bot}
     port: ${WHATSAPP_PORT:3035}
     base-url: ${WHATSAPP_BASE_URL:http://${app.whatsapp.host}:${app.whatsapp.port}}
     api-key: ${WHATSAPP_API_KEY:}

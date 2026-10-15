@@ -15,9 +15,9 @@ services:
       - SCHEDULE_TIMEZONE=America/Sao_Paulo
 
       # Servidor WhatsApp Local (BotWhatsApp Baileys no container whatsapp_bot)
-      - WHATSAPP_HOST=${WHATSAPP_HOST:-whatsapp_bot}
+      - WHATSAPP_HOST=${WHATSAPP_HOST:-whatsapp-bot}
       - WHATSAPP_PORT=${WHATSAPP_PORT:-3035}
-      - WHATSAPP_BASE_URL=${WHATSAPP_BASE_URL:-http://whatsapp_bot:3035}
+      - WHATSAPP_BASE_URL=${WHATSAPP_BASE_URL:-http://whatsapp-bot:3035}
       - WHATSAPP_API_KEY=${WHATSAPP_API_KEY:-}
       - WHATSAPP_SEND_PATH=${WHATSAPP_SEND_PATH:-/api/messages/send}
       - WHATSAPP_MONITOR_CHAT_ID=${WHATSAPP_MONITOR_CHAT_ID:-}
@@ -47,3 +47,4 @@ services:
 networks:
   whatsapp-net:
     name: whatsapp-net
+    external: true

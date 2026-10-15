@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 
 public class ApiClient {
 
@@ -25,7 +26,7 @@ public class ApiClient {
     protected final Duration timeout;
     protected final ObjectMapper objectMapper;
 
-    private static final java.util.Set<String> RESTRICTED_HEADERS = java.util.Set.of(
+    private static final Set<String> RESTRICTED_HEADERS = Set.of(
             "connection",
             "content-length",
             "date",
@@ -38,13 +39,38 @@ public class ApiClient {
     );
 
     public ApiClient(String baseUrl, int timeoutSeconds, ObjectMapper objectMapper) {
-        this.baseUrl = baseUrl.replaceAll("/+$", "");
+        this.baseUrl = sanitizeBaseUrl(baseUrl);
         this.timeout = Duration.ofSeconds(timeoutSeconds);
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(this.timeout)
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+    }
+
+    private static String sanitizeBaseUrl(String url) {
+        if (url == null) return "";
+        String trimmed = url.replaceAll("/+$", "");
+        try {
+            int schemeEnd = trimmed.indexOf("://");
+            if (schemeEnd > 0) {
+                int hostStart = schemeEnd + 3;
+                int hostEnd = trimmed.indexOf(":", hostStart);
+                if (hostEnd == -1) {
+                    hostEnd = trimmed.indexOf("/", hostStart);
+                }
+                if (hostEnd == -1) {
+                    hostEnd = trimmed.length();
+                }
+                String host = trimmed.substring(hostStart, hostEnd);
+                if (host.contains("_")) {
+                    String cleanHost = host.replace('_', '-');
+                    trimmed = trimmed.substring(0, hostStart) + cleanHost + trimmed.substring(hostEnd);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return trimmed;
     }
 
     protected JsonNode request(
@@ -75,16 +101,34 @@ public class ApiClient {
         }
 
         String fullUrl = urlBuilder.toString();
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .uri(URI.create(fullUrl))
-                .timeout(timeout);
+        URI uri;
+        try {
+            uri = URI.create(fullUrl);
+        } catch (IllegalArgumentException e) {
+            log.error("URI inválida para o serviço {}: {}", serviceName, fullUrl);
+            throw new IntegrationException(serviceName, "URI inválida: " + fullUrl);
+        }
+
+        HttpRequest.Builder requestBuilder;
+        try {
+            requestBuilder = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .timeout(timeout);
+        } catch (IllegalArgumentException e) {
+            log.error("Erro ao configurar requisição para {}: {}", fullUrl, e.getMessage());
+            throw new IntegrationException(serviceName, "Erro ao configurar requisição: " + e.getMessage());
+        }
 
         if (headers != null) {
             headers.forEach((k, v) -> {
                 if (k != null && v != null && !v.isBlank()) {
                     String normalized = k.trim().toLowerCase();
                     if (!RESTRICTED_HEADERS.contains(normalized)) {
-                        requestBuilder.header(k.trim(), v);
+                        try {
+                            requestBuilder.header(k.trim(), v);
+                        } catch (IllegalArgumentException ex) {
+                            log.warn("Header ignorado para {}: {} - {}", serviceName, k, ex.getMessage());
+                        }
                     }
                 }
             });
@@ -163,4 +207,3 @@ public class ApiClient {
         return request("POST", path, headers, payload, null, serviceName);
     }
 }
-

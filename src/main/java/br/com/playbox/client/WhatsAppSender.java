@@ -64,6 +64,9 @@ public class WhatsAppSender {
         } catch (IntegrationException e) {
             log.error("Falha ao enviar mensagem via WhatsApp: {}", e.getMessage());
             return false;
+        } catch (Exception e) {
+            log.error("Erro inesperado ao enviar mensagem via WhatsApp: {}", e.getMessage(), e);
+            return false;
         }
 
         return false;

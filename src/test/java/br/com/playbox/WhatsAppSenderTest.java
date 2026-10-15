@@ -25,7 +25,7 @@ class WhatsAppSenderTest {
     @Test
     void testSenderEmptyMessage() {
         WhatsAppSender sender = new WhatsAppSender(
-                "http://whatsapp_bot:3035",
+                "http://whatsapp-bot:3035",
                 "my-secret-key",
                 "120363430600021348@g.us",
                 "/api/messages/send",
@@ -41,7 +41,7 @@ class WhatsAppSenderTest {
     @Test
     void testSenderEmptyChatId() {
         WhatsAppSender sender = new WhatsAppSender(
-                "http://whatsapp_bot:3035",
+                "http://whatsapp-bot:3035",
                 "my-secret-key",
                 "",
                 "/api/messages/send",
@@ -50,5 +50,23 @@ class WhatsAppSenderTest {
         );
 
         assertFalse(sender.sendMessage("Hello"));
+    }
+
+    @Test
+    void testHostnameSanitizationDoesNotThrow() {
+        // Verifies that a hostname with an underscore (like docker container name whatsapp_bot)
+        // is sanitized and does not throw IllegalArgumentException ("unsupported URI")
+        WhatsAppSender sender = new WhatsAppSender(
+                "http://whatsapp_bot:3035",
+                "my-secret-key",
+                "120363430600021348@g.us",
+                "/api/messages/send",
+                1,
+                null
+        );
+
+        // sendMessage will fail to connect (since no server is running at that address during unit tests),
+        // but it must return false gracefully and NOT throw IllegalArgumentException!
+        assertFalse(sender.sendMessage("Hello test"));
     }
 }

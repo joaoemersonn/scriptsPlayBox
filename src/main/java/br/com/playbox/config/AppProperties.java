@@ -48,9 +48,9 @@ public class AppProperties {
     }
 
     public static class Whatsapp {
-        private String host = "whatsapp_bot";
+        private String host = "whatsapp-bot";
         private int port = 3035;
-        private String baseUrl = "http://whatsapp_bot:3035";
+        private String baseUrl = "http://whatsapp-bot:3035";
         private String apiKey = "";
         private String sendPath = "/api/messages/send";
         private String monitorChatId = "";
