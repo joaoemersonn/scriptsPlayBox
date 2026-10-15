@@ -89,9 +89,11 @@ public class OfflineMonitorService {
         Path offlineTimestampsFile = dataDir.resolve("offline_timestamps.json");
 
         Set<String> previousOffline = loadFileSet(previousOfflineFile);
+        previousOffline.removeIf(m -> m.toLowerCase().contains("sem loja"));
         String previousMessage = loadFileText(previousMessageFile);
         Set<String> notifiedBackOnline = loadFileSet(notifiedBackOnlineFile);
         Map<String, String> offlineTimestamps = loadOfflineTimestamps(offlineTimestampsFile);
+        offlineTimestamps.keySet().removeIf(m -> m.toLowerCase().contains("sem loja"));
 
         Map<String, String> vendOffline;
         Map<String, String> payOffline;
@@ -262,6 +264,9 @@ public class OfflineMonitorService {
                 }
 
                 if (name != null && !name.isBlank()) {
+                    if (name.toLowerCase().contains("sem loja")) {
+                        continue;
+                    }
                     String rawTs = null;
                     if (machine.hasNonNull("dataStatusMaquina") && !machine.get("dataStatusMaquina").asText().isBlank()) {
                         rawTs = machine.get("dataStatusMaquina").asText();

@@ -91,4 +91,29 @@ class OfflineMonitorServiceTest {
         assertEquals("14/10/2026 21:18", mapWithTimestamps.get("Casa Nobre"));
         assertEquals("28/09/2026 15:46", mapWithTimestamps.get("Time - BR Arena"));
     }
+
+    @Test
+    void testIgnoreSemLojaMachines() {
+        ArrayNode machines = objectMapper.createArrayNode();
+
+        ObjectNode m1 = objectMapper.createObjectNode();
+        m1.put("nome", "Sem Loja");
+        m1.put("status", "OFFLINE");
+        m1.put("dataStatusMaquina", "2026-10-15T00:18:03.656Z");
+        machines.add(m1);
+
+        ObjectNode m2 = objectMapper.createObjectNode();
+        m2.put("locationName", "Totem Sem Loja SP");
+        m2.put("status", "OFFLINE");
+        machines.add(m2);
+
+        ObjectNode m3 = objectMapper.createObjectNode();
+        m3.put("nome", "Casa Nobre");
+        m3.put("status", "OFFLINE");
+        machines.add(m3);
+
+        List<String> offline = monitorService.getOfflineMachineNames(List.of(m1, m2, m3));
+        assertEquals(1, offline.size());
+        assertEquals("Casa Nobre", offline.get(0));
+    }
 }
