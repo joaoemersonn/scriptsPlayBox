@@ -1,0 +1,62 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: playbox-scheduler
+  main:
+    banner-mode: console
+
+# Scheduling configuration with sensible defaults and override via environment variables
+schedule:
+  timezone: ${SCHEDULE_TIMEZONE:America/Sao_Paulo}
+  monitor:
+    enabled: ${SCHEDULE_MONITOR_ENABLED:true}
+    cron: ${SCHEDULE_MONITOR_CRON:0 */5 * * * *}
+  report:
+    report-24h:
+      enabled: ${SCHEDULE_REPORT_24H_ENABLED:true}
+      cron: ${SCHEDULE_REPORT_24H_CRON:0 0 8 * * *}
+    report-12h:
+      enabled: ${SCHEDULE_REPORT_12H_ENABLED:true}
+      cron: ${SCHEDULE_REPORT_12H_CRON:0 0 12,0 * * *}
+    report-mes:
+      enabled: ${SCHEDULE_REPORT_MES_ENABLED:true}
+      cron: ${SCHEDULE_REPORT_MES_CRON:0 0 9 1 * *}
+
+app:
+  data-dir: ${APP_DATA_DIR:./data}
+  timeout-seconds: ${REQUEST_TIMEOUT_SECONDS:30}
+
+  # WhatsApp Bot (BotWhatsApp Baileys REST no container whatsapp_bot)
+  whatsapp:
+    host: ${WHATSAPP_HOST:whatsapp_bot}
+    port: ${WHATSAPP_PORT:3035}
+    base-url: ${WHATSAPP_BASE_URL:http://${app.whatsapp.host}:${app.whatsapp.port}}
+    api-key: ${WHATSAPP_API_KEY:}
+    send-path: ${WHATSAPP_SEND_PATH:/api/messages/send}
+    monitor-chat-id: ${WHATSAPP_MONITOR_CHAT_ID:}
+    report-chat-id: ${WHATSAPP_REPORT_CHAT_ID:}
+
+  vendpromax:
+    base-url: ${VENDPROMAX_BASE_URL:https://api.vendpromax.com.br/api}
+    email: ${VENDPROMAX_EMAIL:}
+    password: ${VENDPROMAX_PASSWORD:}
+
+  payxyz:
+    base-url: ${PAYXYZ_BASE_URL:https://api2.payxyz.app.br/v2}
+    email: ${PAYXYZ_EMAIL:}
+    password: ${PAYXYZ_PASSWORD:}
+
+  zapizi:
+    base-url: ${ZAPIZI_BASE_URL:https://portal.zapizi.com.br/v1}
+    email: ${ZAPIZI_EMAIL:}
+    password: ${ZAPIZI_PASSWORD:}
+    organization-id: ${ZAPIZI_ORGANIZATION_ID:3852}
+
+logging:
+  level:
+    root: INFO
+    br.com.playbox: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

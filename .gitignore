@@ -2,3 +2,7 @@
 services/last_offline_notification.txt
 services/notified_back_online.txt
 services/offline_status.txt
+target/
+data/
+.DS_Store
+

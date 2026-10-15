@@ -1,0 +1,49 @@
+services:
+  playbox-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playbox-scheduler
+    restart: unless-stopped
+    networks:
+      - whatsapp-net
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+      - APP_DATA_DIR=/app/data
+      - SCHEDULE_TIMEZONE=America/Sao_Paulo
+
+      # Servidor WhatsApp Local (BotWhatsApp Baileys no container whatsapp_bot)
+      - WHATSAPP_HOST=${WHATSAPP_HOST:-whatsapp_bot}
+      - WHATSAPP_PORT=${WHATSAPP_PORT:-3035}
+      - WHATSAPP_BASE_URL=${WHATSAPP_BASE_URL:-http://whatsapp_bot:3035}
+      - WHATSAPP_API_KEY=${WHATSAPP_API_KEY:-}
+      - WHATSAPP_SEND_PATH=${WHATSAPP_SEND_PATH:-/api/messages/send}
+      - WHATSAPP_MONITOR_CHAT_ID=${WHATSAPP_MONITOR_CHAT_ID:-}
+      - WHATSAPP_REPORT_CHAT_ID=${WHATSAPP_REPORT_CHAT_ID:-}
+
+      # Schedulers (cron format: second minute hour day-of-month month day-of-week)
+      # Schedule monitor: every 5 minutes
+      - SCHEDULE_MONITOR_CRON=${SCHEDULE_MONITOR_CRON:-0 */5 * * * *}
+      # Schedule 24h report: daily at 08:00
+      - SCHEDULE_REPORT_24H_CRON=${SCHEDULE_REPORT_24H_CRON:-0 0 8 * * *}
+      # Schedule 12h report: daily at 12:00 e 00:00
+      - SCHEDULE_REPORT_12H_CRON=${SCHEDULE_REPORT_12H_CRON:-0 0 12,0 * * *}
+      # Schedule month report: 1º dia do mês às 09:00
+      - SCHEDULE_REPORT_MES_CRON=${SCHEDULE_REPORT_MES_CRON:-0 0 9 1 * *}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  whatsapp-net:
+    name: whatsapp-net

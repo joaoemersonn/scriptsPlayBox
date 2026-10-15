@@ -1,0 +1,12 @@
+target/
+.git/
+.gitignore
+.DS_Store
+*.log
+logs/
+data/
+tests/
+__pycache__/
+*.pyc
+services/*.txt
+
