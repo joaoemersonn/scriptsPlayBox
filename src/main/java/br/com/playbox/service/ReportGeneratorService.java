@@ -385,6 +385,9 @@ public class ReportGeneratorService {
         } catch (IntegrationException error) {
             log.error("Erro na integração ao gerar relatório: {}", error.getMessage());
             sender.sendMessage(error.getMessage());
+        } catch (Exception error) {
+            log.error("Erro inesperado ao gerar relatório: {}", error.getMessage(), error);
+            sender.sendMessage("Erro inesperado ao gerar relatório: " + error.getMessage());
         }
     }
 }

@@ -25,6 +25,18 @@ public class ApiClient {
     protected final Duration timeout;
     protected final ObjectMapper objectMapper;
 
+    private static final java.util.Set<String> RESTRICTED_HEADERS = java.util.Set.of(
+            "connection",
+            "content-length",
+            "date",
+            "expect",
+            "from",
+            "host",
+            "upgrade",
+            "via",
+            "warning"
+    );
+
     public ApiClient(String baseUrl, int timeoutSeconds, ObjectMapper objectMapper) {
         this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.timeout = Duration.ofSeconds(timeoutSeconds);
@@ -70,7 +82,10 @@ public class ApiClient {
         if (headers != null) {
             headers.forEach((k, v) -> {
                 if (k != null && v != null && !v.isBlank()) {
-                    requestBuilder.header(k, v);
+                    String normalized = k.trim().toLowerCase();
+                    if (!RESTRICTED_HEADERS.contains(normalized)) {
+                        requestBuilder.header(k.trim(), v);
+                    }
                 }
             });
         }

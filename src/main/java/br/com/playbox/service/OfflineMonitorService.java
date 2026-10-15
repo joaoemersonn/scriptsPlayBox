@@ -130,6 +130,10 @@ public class OfflineMonitorService {
         } catch (IntegrationException error) {
             sendIntegrationError(error.getServiceName(), error.getDetails());
             return;
+        } catch (Exception error) {
+            log.error("Erro inesperado durante monitoramento: {}", error.getMessage(), error);
+            sendIntegrationError("Sistema", error.getMessage());
+            return;
         }
 
         Set<String> currentOfflineSet = new TreeSet<>();
