@@ -329,12 +329,32 @@ public class OfflineMonitorService {
     }
 
     public String buildOfflineMessage(String title, Collection<String> machineNames, Map<String, String> timestamps) {
+        Comparator<String> dateComparator = (m1, m2) -> {
+            String ts1 = (timestamps != null) ? timestamps.get(m1) : null;
+            String ts2 = (timestamps != null) ? timestamps.get(m2) : null;
+
+            LocalDateTime dt1 = parseFormattedDate(ts1);
+            LocalDateTime dt2 = parseFormattedDate(ts2);
+
+            if (dt1 != null && dt2 != null) {
+                int cmp = dt1.compareTo(dt2);
+                if (cmp != 0) {
+                    return cmp;
+                }
+            } else if (dt1 != null) {
+                return -1; // Com data conhecida tem prioridade sobre desconhecida
+            } else if (dt2 != null) {
+                return 1;
+            }
+            return m1.compareToIgnoreCase(m2);
+        };
+
         List<String> names = machineNames.stream()
                 .filter(Objects::nonNull)
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .distinct()
-                .sorted()
+                .sorted(dateComparator)
                 .toList();
 
         if (names.isEmpty()) {
@@ -352,6 +372,17 @@ public class OfflineMonitorService {
             }
         }
         return String.join("\n", lines);
+    }
+
+    private static LocalDateTime parseFormattedDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(dateStr.trim(), DATE_TIME_FORMATTER);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public void sendStatusAlert(String message) {

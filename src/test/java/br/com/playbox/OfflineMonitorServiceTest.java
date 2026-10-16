@@ -37,14 +37,16 @@ class OfflineMonitorServiceTest {
 
     @Test
     void testBuildOfflineMessageWithTimestamps() {
-        List<String> names = List.of("Lan House - Custódia", "Casa Nobre - Sertania");
+        List<String> names = List.of("Casa Nobre - Sertania", "Lan House - Custódia", "Menininho");
         Map<String, String> timestamps = Map.of(
                 "Casa Nobre - Sertania", "15/10/2026 10:30",
-                "Lan House - Custódia", "14/10/2026 21:00"
+                "Lan House - Custódia", "14/10/2026 21:00",
+                "Menininho", "12/10/2026 08:15"
         );
         String message = monitorService.buildOfflineMessage("*🔴OFFLINE:*", names, timestamps);
 
-        String expected = "*🔴OFFLINE:*\n• Casa Nobre - Sertania - 15/10/2026 10:30\n• Lan House - Custódia - 14/10/2026 21:00";
+        // Menininho (12/10) < Lan House (14/10) < Casa Nobre (15/10)
+        String expected = "*🔴OFFLINE:*\n• Menininho - 12/10/2026 08:15\n• Lan House - Custódia - 14/10/2026 21:00\n• Casa Nobre - Sertania - 15/10/2026 10:30";
         assertEquals(expected, message);
     }
 
