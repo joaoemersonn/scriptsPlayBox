@@ -95,10 +95,15 @@ public class OfflineMonitorService {
         Map<String, String> offlineTimestamps = loadOfflineTimestamps(offlineTimestampsFile);
         offlineTimestamps.keySet().removeIf(m -> m.toLowerCase().contains("sem loja"));
 
-        Map<String, String> vendOffline;
-        Map<String, String> payOffline;
-        Map<String, String> zapOffline;
+        Path failingIntegrationsFile = dataDir.resolve("failing_integrations.txt");
+        Set<String> previousFailingIntegrations = loadFileSet(failingIntegrationsFile);
+        Set<String> currentFailingIntegrations = new TreeSet<>();
 
+        Map<String, String> vendOffline = Collections.emptyMap();
+        Map<String, String> payOffline = Collections.emptyMap();
+        Map<String, String> zapOffline = Collections.emptyMap();
+
+        // 1. VendProMax
         try {
             String vendToken = vendClient.login(
                     properties.getVendpromax().getEmail(),
@@ -106,7 +111,15 @@ public class OfflineMonitorService {
             );
             List<JsonNode> vendMachines = vendClient.getMachines(vendToken);
             vendOffline = getOfflineMachinesWithTimestamps(vendMachines, zoneId);
+        } catch (IntegrationException error) {
+            handleIntegrationFailure("VendProMax", error.getDetails(), previousFailingIntegrations, currentFailingIntegrations);
+        } catch (Exception error) {
+            log.error("Erro inesperado em VendProMax: {}", error.getMessage(), error);
+            handleIntegrationFailure("VendProMax", error.getMessage(), previousFailingIntegrations, currentFailingIntegrations);
+        }
 
+        // 2. PayXYZ
+        try {
             String payToken = payxyzClient.login(
                     properties.getPayxyz().getEmail(),
                     properties.getPayxyz().getPassword(),
@@ -114,7 +127,15 @@ public class OfflineMonitorService {
             );
             List<JsonNode> payMachines = payxyzClient.getMachines(payToken);
             payOffline = getOfflineMachinesWithTimestamps(payMachines, zoneId);
+        } catch (IntegrationException error) {
+            handleIntegrationFailure("PayXYZ", error.getDetails(), previousFailingIntegrations, currentFailingIntegrations);
+        } catch (Exception error) {
+            log.error("Erro inesperado em PayXYZ: {}", error.getMessage(), error);
+            handleIntegrationFailure("PayXYZ", error.getMessage(), previousFailingIntegrations, currentFailingIntegrations);
+        }
 
+        // 3. Zapizi
+        try {
             JsonNode zapTokenData = zapiziClient.login(
                     properties.getZapizi().getEmail(),
                     properties.getZapizi().getPassword(),
@@ -139,13 +160,18 @@ public class OfflineMonitorService {
                     List.of()
             );
             zapOffline = getOfflineMachinesWithTimestamps(zapMachines, zoneId);
-
         } catch (IntegrationException error) {
-            sendIntegrationError(error.getServiceName(), error.getDetails());
-            return;
+            handleIntegrationFailure("Zapizi", error.getDetails(), previousFailingIntegrations, currentFailingIntegrations);
         } catch (Exception error) {
-            log.error("Erro inesperado durante monitoramento: {}", error.getMessage(), error);
-            sendIntegrationError("Sistema", error.getMessage());
+            log.error("Erro inesperado em Zapizi: {}", error.getMessage(), error);
+            handleIntegrationFailure("Zapizi", error.getMessage(), previousFailingIntegrations, currentFailingIntegrations);
+        }
+
+        saveFileSet(failingIntegrationsFile, currentFailingIntegrations);
+
+        // Se todas as integrações falharam, não há máquinas para validar
+        if (currentFailingIntegrations.size() >= 3) {
+            log.warn("Todas as integrações falharam no monitoramento.");
             return;
         }
 
@@ -401,6 +427,21 @@ public class OfflineMonitorService {
         }
         log.error("Alerta de erro de integração: {}", message);
         sender.sendMessage(message);
+    }
+
+    private void handleIntegrationFailure(
+            String serviceName,
+            String details,
+            Set<String> previousFailing,
+            Set<String> currentFailing
+    ) {
+        currentFailing.add(serviceName);
+        if (!previousFailing.contains(serviceName)) {
+            log.warn("Integração falhou pela primeira vez: {}. Enviando alerta.", serviceName);
+            sendIntegrationError(serviceName, details);
+        } else {
+            log.info("Integração {} continua com falha. Alerta repetido suprimido.", serviceName);
+        }
     }
 
     private Path resolveDataDirectory() {
