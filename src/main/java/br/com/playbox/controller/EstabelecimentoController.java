@@ -4,6 +4,7 @@ import br.com.playbox.config.OpenApiConfig;
 import br.com.playbox.entity.Estabelecimento;
 import br.com.playbox.entity.Maquina;
 import br.com.playbox.entity.MeioPagamento;
+import br.com.playbox.repository.AluguelRepasseRepository;
 import br.com.playbox.repository.EstabelecimentoRepository;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.repository.MeioPagamentoRepository;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,15 +28,18 @@ public class EstabelecimentoController {
     private final EstabelecimentoRepository repository;
     private final MaquinaRepository maquinaRepository;
     private final MeioPagamentoRepository meioPagamentoRepository;
+    private final AluguelRepasseRepository aluguelRepasseRepository;
 
     public EstabelecimentoController(
             EstabelecimentoRepository repository,
             MaquinaRepository maquinaRepository,
-            MeioPagamentoRepository meioPagamentoRepository
+            MeioPagamentoRepository meioPagamentoRepository,
+            AluguelRepasseRepository aluguelRepasseRepository
     ) {
         this.repository = repository;
         this.maquinaRepository = maquinaRepository;
         this.meioPagamentoRepository = meioPagamentoRepository;
+        this.aluguelRepasseRepository = aluguelRepasseRepository;
     }
 
     @GetMapping
@@ -93,6 +98,27 @@ public class EstabelecimentoController {
             est.setAtivo(true);
             return ResponseEntity.ok(repository.save(est));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Excluir estabelecimento (desvincula máquinas e remove cobranças e meios de pagamento associados)")
+    @Transactional
+    public ResponseEntity<Void> excluir(@PathVariable Long id) {
+        if (!repository.existsById(id)) return ResponseEntity.notFound().build();
+
+        // Desvincular máquinas associadas
+        List<Maquina> maquinas = maquinaRepository.findByEstabelecimentoId(id);
+        for (Maquina m : maquinas) {
+            m.setEstabelecimento(null);
+            maquinaRepository.save(m);
+        }
+
+        // Excluir aluguéis/repasses vinculados
+        aluguelRepasseRepository.deleteByEstabelecimentoId(id);
+
+        // Excluir estabelecimento (meios de pagamento excluídos via cascade)
+        repository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     // --- Meios de Pagamento do Estabelecimento ---

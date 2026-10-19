@@ -25,4 +25,9 @@ public interface AluguelRepasseRepository extends JpaRepository<AluguelRepasse, 
     List<AluguelRepasse> findVencendoAte(@Param("dataLimite") LocalDate dataLimite);
 
     List<AluguelRepasse> findByMesAno(String mesAno);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM AluguelRepasse a WHERE a.estabelecimento.id = :estabelecimentoId")
+    void deleteByEstabelecimentoId(@Param("estabelecimentoId") Long estabelecimentoId);
 }
