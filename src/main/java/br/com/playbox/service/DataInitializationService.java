@@ -3,6 +3,7 @@ package br.com.playbox.service;
 import br.com.playbox.entity.Estabelecimento;
 import br.com.playbox.entity.MeioPagamento;
 import br.com.playbox.repository.EstabelecimentoRepository;
+import br.com.playbox.repository.MeioPagamentoRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
