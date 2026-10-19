@@ -113,13 +113,13 @@ public class AppScheduler {
         }
     }
 
-    @Scheduled(cron = "${schedule.estoque-alerta.cron:0 */15 * * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
+    @Scheduled(cron = "${schedule.estoque-alerta.cron:0 20 18 * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
     public void scheduleEstoqueAlerta() {
         if (!estoqueAlertaEnabled) {
-            log.info("Verificação agendada de alerta de estoque desabilitada.");
+            log.info("Envio diário agendado de alerta de estoque desabilitado.");
             return;
         }
-        log.info("[SCHEDULE] Executando verificação periódica de estoque baixo (< 30)...");
+        log.info("[SCHEDULE] Executando envio diário de alerta de estoque para reabastecimento (18:20)...");
         try {
             estoqueAlertaService.verificarEEnviarAlertas();
         } catch (Exception e) {

@@ -75,57 +75,32 @@ public class EstoqueAlertaService {
     }
 
     /**
-     * Verifica todas as máquinas ativas que estão com estoque abaixo do limite (padrão < 30)
-     * e dispara um alerta consolidado no WhatsApp para máquinas que ainda não foram notificadas
-     * ou cuja notificação tenha mais de 24 horas.
+     * Envia o relatório diário consolidado das lojas que necessitam de reabastecimento (estoque < 30).
+     * Executado diariamente por volta das 18h20.
+     * Se nenhuma loja estiver abaixo do limite mínimo, não envia mensagem para não poluir o grupo.
      */
     @Transactional
     public int verificarEEnviarAlertas() {
         List<Maquina> baixas = maquinaRepository.findMaquinasComEstoqueBaixo();
         if (baixas.isEmpty()) {
-            log.info("[ALERTA ESTOQUE] Nenhuma máquina com estoque baixo encontrada.");
+            log.info("[ALERTA ESTOQUE] Nenhuma loja com estoque baixo (< 30) para reabastecimento hoje.");
             return 0;
         }
 
         LocalDateTime agora = LocalDateTime.now();
-        List<Maquina> paraNotificar = new ArrayList<>();
-
-        for (Maquina m : baixas) {
-            LocalDateTime ultNotif = m.getUltimaNotificacaoEstoqueBaixo();
-            LocalDateTime ultEntrada = m.getUltimaEntradaEstoque();
-
-            boolean precisaNotificar = false;
-            if (ultNotif == null) {
-                precisaNotificar = true;
-            } else if (ultEntrada != null && ultEntrada.isAfter(ultNotif)) {
-                precisaNotificar = true;
-            } else if (ultNotif.isBefore(agora.minusHours(24))) {
-                precisaNotificar = true; // Lembrete diário para máquinas que continuam sem abastecimento
-            }
-
-            if (precisaNotificar) {
-                paraNotificar.add(m);
-            }
-        }
-
-        if (paraNotificar.isEmpty()) {
-            log.info("[ALERTA ESTOQUE] {} máquinas estão abaixo de 30, mas todas já foram notificadas recentemente.", baixas.size());
-            return 0;
-        }
-
-        String mensagem = formatarMensagemConsolidada(paraNotificar, agora);
+        String mensagem = formatarMensagemConsolidada(baixas, agora);
         boolean enviado = whatsAppSender.sendMessage(getTargetChatId(), mensagem);
 
         if (enviado) {
-            for (Maquina m : paraNotificar) {
+            for (Maquina m : baixas) {
                 m.setUltimaNotificacaoEstoqueBaixo(agora);
                 maquinaRepository.save(m);
             }
-            log.info("[ALERTA ESTOQUE] Alerta enviado com sucesso para {} máquinas no grupo {}",
-                    paraNotificar.size(), getTargetChatId());
-            return paraNotificar.size();
+            log.info("[ALERTA ESTOQUE] Relatório diário de reabastecimento enviado com sucesso para {} lojas no grupo {}",
+                    baixas.size(), getTargetChatId());
+            return baixas.size();
         } else {
-            log.error("[ALERTA ESTOQUE] Falha ao enviar alerta de estoque via WhatsApp.");
+            log.error("[ALERTA ESTOQUE] Falha ao enviar relatório diário de reabastecimento via WhatsApp.");
             return 0;
         }
     }
@@ -193,23 +168,28 @@ public class EstoqueAlertaService {
 
     private String formatarMensagemConsolidada(List<Maquina> lista, LocalDateTime dataHora) {
         StringBuilder sb = new StringBuilder();
-        sb.append("⚠️ *ALERTA DE ESTOQUE BAIXO - PLAYBOX* ⚠️\n\n");
-        sb.append("Atenção! As seguintes máquinas estão com estoque crítico (*< 30 pelúcias*):\n\n");
+        sb.append("📦 *RELATÓRIO DIÁRIO DE REABASTECIMENTO - PLAYBOX* 📦\n\n");
+        sb.append("Lojas com estoque crítico (*< 30 pelúcias*):\n\n");
 
         for (Maquina m : lista) {
             Estabelecimento est = m.getEstabelecimento();
-            String nomeLoja = est != null ? est.getNome() : (m.getNomeIntegracao() != null ? m.getNomeIntegracao() : "Sem Loja");
-            String cidade = (est != null && est.getCidade() != null) ? est.getCidade() : "-";
+            String nomeLoja = (est != null && est.getNome() != null && !est.getNome().isBlank())
+                    ? est.getNome()
+                    : (m.getNomeIntegracao() != null ? m.getNomeIntegracao() : "Sem Loja");
+            String cidade = (est != null && est.getCidade() != null && !est.getCidade().isBlank()) ? est.getCidade() : "-";
             int atual = m.getEstoqueAtual();
             int cap = m.getCapacidadeMaxima();
 
             sb.append("• *").append(nomeLoja).append("* (").append(cidade).append("): ")
-                    .append("*").append(atual).append(" pelúcias*")
-                    .append(" _[Cap: ").append(cap).append(" | ").append(m.getIntegracao()).append("]_\n");
+                    .append("*").append(atual).append(" pelúcias*");
+            if (cap > 0) {
+                sb.append(" _[Capacidade: ").append(cap).append("]_");
+            }
+            sb.append("\n");
         }
 
         sb.append("\n⏱️ *Horário:* ").append(dataHora.format(FORMATTER)).append("\n");
-        sb.append("🚨 _Favor programar rota de reabastecimento._");
+        sb.append("🚨 _Favor programar a rota de reabastecimento._");
 
         return sb.toString();
     }

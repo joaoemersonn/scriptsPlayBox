@@ -78,6 +78,24 @@ public class MaquinaController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    @PutMapping("/{id}/desativar")
+    @Operation(summary = "Desativar máquina")
+    public ResponseEntity<Maquina> desativar(@PathVariable Long id) {
+        return maquinaRepository.findById(id).map(maq -> {
+            maq.setAtivo(false);
+            return ResponseEntity.ok(maquinaRepository.save(maq));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/ativar")
+    @Operation(summary = "Reativar máquina")
+    public ResponseEntity<Maquina> ativar(@PathVariable Long id) {
+        return maquinaRepository.findById(id).map(maq -> {
+            maq.setAtivo(true);
+            return ResponseEntity.ok(maquinaRepository.save(maq));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @PutMapping("/{id}/alocar/{estabelecimentoId}")
     @Operation(summary = "Mudar ou associar a máquina a um estabelecimento específico")
     public ResponseEntity<Maquina> alocarEstabelecimento(@PathVariable Long id, @PathVariable Long estabelecimentoId) {

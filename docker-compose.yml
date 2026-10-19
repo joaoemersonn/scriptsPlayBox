@@ -36,6 +36,8 @@ services:
       - SCHEDULE_REPORT_12H_ENABLED=${SCHEDULE_REPORT_12H_ENABLED:-false}
       # Schedule month report: daily at 08:00
       - SCHEDULE_REPORT_MES_CRON=${SCHEDULE_REPORT_MES_CRON:-0 0 8 * * *}
+      # Schedule estoque alerta: daily at 18:20
+      - SCHEDULE_ESTOQUE_ALERTA_CRON=${SCHEDULE_ESTOQUE_ALERTA_CRON:-0 20 18 * * *}
     ports:
       - "8080:8080"
     volumes:

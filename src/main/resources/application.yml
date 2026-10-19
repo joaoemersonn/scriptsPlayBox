@@ -34,7 +34,7 @@ schedule:
       cron: ${SCHEDULE_REPORT_MES_CRON:0 0 8 * * *}
   estoque-alerta:
     enabled: ${SCHEDULE_ESTOQUE_ALERTA_ENABLED:true}
-    cron: ${SCHEDULE_ESTOQUE_ALERTA_CRON:0 */15 * * * *}
+    cron: ${SCHEDULE_ESTOQUE_ALERTA_CRON:0 20 18 * * *}
 
 app:
   data-dir: ${APP_DATA_DIR:./data}

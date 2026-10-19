@@ -20,7 +20,10 @@ public interface MaquinaRepository extends JpaRepository<Maquina, Long> {
 
     List<Maquina> findByIntegracao(String integracao);
 
-    @Query("SELECT m FROM Maquina m WHERE m.ativo = true AND COALESCE(m.estoqueAtual, 0) < COALESCE(m.estoqueMinimoAlerta, 30)")
+    @Query("SELECT m FROM Maquina m LEFT JOIN m.estabelecimento e WHERE m.ativo = true " +
+           "AND (e IS NULL OR e.ativo = true) " +
+           "AND COALESCE(m.estoqueAtual, 0) < COALESCE(m.estoqueMinimoAlerta, 30) " +
+           "ORDER BY COALESCE(m.estoqueAtual, 0) ASC")
     List<Maquina> findMaquinasComEstoqueBaixo();
 
     @Query("SELECT m FROM Maquina m LEFT JOIN m.estabelecimento e WHERE m.ativo = true " +

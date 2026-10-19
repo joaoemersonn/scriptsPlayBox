@@ -37,7 +37,7 @@ class EstoqueAlertaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve enviar alerta consolidado para máquinas com estoque abaixo de 30")
+    @DisplayName("Deve enviar relatório diário consolidado para lojas com estoque abaixo de 30")
     void testVerificarEEnviarAlertas() {
         Estabelecimento est = new Estabelecimento();
         est.setNome("Loja Centro");
@@ -65,12 +65,13 @@ class EstoqueAlertaServiceTest {
         ArgumentCaptor<String> msgCaptor = ArgumentCaptor.forClass(String.class);
         verify(whatsAppSender).sendMessage(eq("120363423381929568@g.us"), msgCaptor.capture());
         String msg = msgCaptor.getValue();
-        assertTrue(msg.contains("ALERTA DE ESTOQUE BAIXO"));
+        assertTrue(msg.contains("RELATÓRIO DIÁRIO DE REABASTECIMENTO"));
         assertTrue(msg.contains("22 pelúcias"));
+        assertTrue(msg.contains("Loja Centro"));
     }
 
     @Test
-    @DisplayName("Deve notificar imediatamente quando estoque cair abaixo de 30")
+    @DisplayName("Deve notificar imediatamente quando chamado especificamente")
     void testNotificarQuedaEstoque() {
         Maquina m = new Maquina();
         m.setId(2L);
@@ -93,15 +94,9 @@ class EstoqueAlertaServiceTest {
     }
 
     @Test
-    @DisplayName("Não deve reenviar alerta se já foi notificada recentemente (< 24h)")
-    void testNaoReenviarSeNotificadaRecentemente() {
-        Maquina m = new Maquina();
-        m.setId(3L);
-        m.setEstoqueAtual(15);
-        m.setEstoqueMinimoAlerta(30);
-        m.setUltimaNotificacaoEstoqueBaixo(LocalDateTime.now().minusHours(2)); // notificada há 2 horas
-
-        when(maquinaRepository.findMaquinasComEstoqueBaixo()).thenReturn(List.of(m));
+    @DisplayName("Não deve enviar mensagem quando nenhuma loja estiver com estoque baixo")
+    void testNaoEnviarSeNenhumaLojaComEstoqueBaixo() {
+        when(maquinaRepository.findMaquinasComEstoqueBaixo()).thenReturn(List.of());
 
         int notificadas = alertaService.verificarEEnviarAlertas();
 
