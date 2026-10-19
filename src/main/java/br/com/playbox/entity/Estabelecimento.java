@@ -1,7 +1,10 @@
 package br.com.playbox.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "estabelecimentos")
@@ -18,11 +21,8 @@ public class Estabelecimento {
 
     private String responsavel;
 
-    @Column(name = "chave_pix")
-    private String chavePix;
-
     @Column(name = "dia_pagamento")
-    private String diaPagamento;
+    private String diaPagamento; // ex: "Dia 01", "Dia 21" ou "01", "21"
 
     @Column(name = "valor_acordado")
     private Double valorAcordado;
@@ -32,6 +32,13 @@ public class Estabelecimento {
 
     private boolean ativo = true;
 
+    @OneToMany(mappedBy = "estabelecimento", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<MeioPagamento> meiosPagamento = new ArrayList<>();
+
+    @OneToMany(mappedBy = "estabelecimento", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("estabelecimento")
+    private List<Maquina> maquinas = new ArrayList<>();
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -40,11 +47,10 @@ public class Estabelecimento {
 
     public Estabelecimento() {}
 
-    public Estabelecimento(String nome, String cidade, String responsavel, String chavePix, String diaPagamento, Double valorAcordado, String dataInicio) {
+    public Estabelecimento(String nome, String cidade, String responsavel, String diaPagamento, Double valorAcordado, String dataInicio) {
         this.nome = nome;
         this.cidade = cidade;
         this.responsavel = responsavel;
-        this.chavePix = chavePix;
         this.diaPagamento = diaPagamento;
         this.valorAcordado = valorAcordado;
         this.dataInicio = dataInicio;
@@ -56,6 +62,16 @@ public class Estabelecimento {
     @PreUpdate
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void addMeioPagamento(MeioPagamento meio) {
+        meiosPagamento.add(meio);
+        meio.setEstabelecimento(this);
+    }
+
+    public void removeMeioPagamento(MeioPagamento meio) {
+        meiosPagamento.remove(meio);
+        meio.setEstabelecimento(null);
     }
 
     public Long getId() {
@@ -90,14 +106,6 @@ public class Estabelecimento {
         this.responsavel = responsavel;
     }
 
-    public String getChavePix() {
-        return chavePix;
-    }
-
-    public void setChavePix(String chavePix) {
-        this.chavePix = chavePix;
-    }
-
     public String getDiaPagamento() {
         return diaPagamento;
     }
@@ -128,6 +136,22 @@ public class Estabelecimento {
 
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public List<MeioPagamento> getMeiosPagamento() {
+        return meiosPagamento;
+    }
+
+    public void setMeiosPagamento(List<MeioPagamento> meiosPagamento) {
+        this.meiosPagamento = meiosPagamento;
+    }
+
+    public List<Maquina> getMaquinas() {
+        return maquinas;
+    }
+
+    public void setMaquinas(List<Maquina> maquinas) {
+        this.maquinas = maquinas;
     }
 
     public LocalDateTime getCreatedAt() {

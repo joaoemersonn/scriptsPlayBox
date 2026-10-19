@@ -1,12 +1,14 @@
 package br.com.playbox.service;
 
 import br.com.playbox.entity.Estabelecimento;
+import br.com.playbox.entity.MeioPagamento;
 import br.com.playbox.repository.EstabelecimentoRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.YearMonth;
 import java.util.List;
 
 @Service
@@ -16,19 +18,22 @@ public class DataInitializationService {
 
     private final EstabelecimentoRepository estabelecimentoRepository;
     private final MachineSyncService machineSyncService;
+    private final AluguelService aluguelService;
 
     public DataInitializationService(
             EstabelecimentoRepository estabelecimentoRepository,
-            MachineSyncService machineSyncService
+            MachineSyncService machineSyncService,
+            AluguelService aluguelService
     ) {
         this.estabelecimentoRepository = estabelecimentoRepository;
         this.machineSyncService = machineSyncService;
+        this.aluguelService = aluguelService;
     }
 
     @PostConstruct
     public void init() {
         if (estabelecimentoRepository.count() == 0) {
-            log.info("Inicializando estabelecimentos da planilha no banco de dados...");
+            log.info("Inicializando estabelecimentos e meios de pagamento da planilha no banco de dados...");
             seedEstabelecimentos();
         }
 
@@ -38,28 +43,38 @@ public class DataInitializationService {
         } catch (Exception e) {
             log.warn("Não foi possível sincronizar máquinas no startup (APIs podem estar indisponíveis): {}", e.getMessage());
         }
+
+        // Gerar aluguéis do mês atual caso não existam
+        try {
+            aluguelService.gerarCobrancasMes(YearMonth.now());
+        } catch (Exception e) {
+            log.warn("Não foi possível gerar cobranças de aluguel no startup: {}", e.getMessage());
+        }
     }
 
     private void seedEstabelecimentos() {
-        List<Estabelecimento> list = List.of(
-                new Estabelecimento("Pau Brasil", "Custódia", "Diogo (87) 99670-6876", "13638774457", "Dia 01", 150.0, "2026-07-31"),
-                new Estabelecimento("Br Arena", "Monteiro", "Gabrielly (83) 99850-8298", "055.824.914-06", "Dia 02", 150.0, "2026-06-02"),
-                new Estabelecimento("Praça do Sabor", "Custódia", "Gabriel (87) 99681-9232", "Em Espécie💵", "Dia 06", 150.0, "2025-01-01"),
-                new Estabelecimento("Espaço Villa", "Maravilha", "Daniela (87) 98127-0450", "pix cpf", "Dia 06", 150.0, "2025-01-01"),
-                new Estabelecimento("Posto Iguracy", "Iguaracy", "Paulinho (87) 99677-4513", "33.802.987.0001-26", "Dia 08", 200.0, "2026-04-08"),
-                new Estabelecimento("Posto FAN", "Monteiro", "Barbara (83) 99635-0786", "barbrinha_celene@hotmail.com", "Dia 17", 150.0, "2026-04-17"),
-                new Estabelecimento("Casa Nobre", "Sertânia", "Paulão (87) 98811-0445", "Em Espécie💵", "Dia 21", 150.0, "2026-04-21"),
-                new Estabelecimento("Lan House Wolrd Player", "Custódia", "Matheus (87) 99680-9497", "Em Espécie💵 matheus_olive97@hotmail.com", "Dia 21", 150.0, "2026-07-21"),
-                new Estabelecimento("Shopping25", "Sertânia", "Adenilma (83) 99693-5828", "(83)9 9693-5828", "Dia 21", 150.0, "2026-07-21"),
-                new Estabelecimento("Menininho", "Monteiro", "Joao Victor (83) 9 9988-6453", "16475785407", "Dia 21", 150.0, "2026-08-22"),
-                new Estabelecimento("Adega Sumé", "Sumé", "Daniel (83) 99817-9768", "", "Dia 02", 150.0, "2026-10-02"),
-                new Estabelecimento("PingMel", "Custódia", "", "", "Dia 06", 150.0, ""),
-                new Estabelecimento("San Marino", "Custódia", "", "", "Dia 11", 63.0, "2026-04-11"),
-                new Estabelecimento("PitStop", "Sertânia", "", "", "Dia 18", 150.0, "2026-05-18"),
-                new Estabelecimento("Lan. Dois Irmaõs", "Custódia", "", "", "Dia 07", 150.0, "2026-04-07")
-        );
+        createAndSave("Pau Brasil", "Custódia", "Diogo (87) 99670-6876", "Dia 01", 150.0, "2026-07-31", "PIX", "13638774457");
+        createAndSave("Br Arena", "Monteiro", "Gabrielly (83) 99850-8298", "Dia 02", 150.0, "2026-06-02", "PIX", "055.824.914-06");
+        createAndSave("Praça do Sabor", "Custódia", "Gabriel (87) 99681-9232", "Dia 06", 150.0, "2025-01-01", "ESPECIE", "Em Espécie💵");
+        createAndSave("Espaço Villa", "Maravilha", "Daniela (87) 98127-0450", "Dia 06", 150.0, "2025-01-01", "PIX", "pix cpf");
+        createAndSave("Posto Iguracy", "Iguaracy", "Paulinho (87) 99677-4513", "Dia 08", 200.0, "2026-04-08", "PIX", "33.802.987.0001-26");
+        createAndSave("Posto FAN", "Monteiro", "Barbara (83) 99635-0786", "Dia 17", 150.0, "2026-04-17", "PIX", "barbrinha_celene@hotmail.com");
+        createAndSave("Casa Nobre", "Sertânia", "Paulão (87) 98811-0445", "Dia 21", 150.0, "2026-04-21", "ESPECIE", "Em Espécie💵");
+        createAndSave("Lan House Wolrd Player", "Custódia", "Matheus (87) 99680-9497", "Dia 21", 150.0, "2026-07-21", "PIX", "matheus_olive97@hotmail.com");
+        createAndSave("Shopping25", "Sertânia", "Adenilma (83) 99693-5828", "Dia 21", 150.0, "2026-07-21", "PIX", "(83)9 9693-5828");
+        createAndSave("Menininho", "Monteiro", "Joao Victor (83) 9 9988-6453", "Dia 21", 150.0, "2026-08-22", "PIX", "16475785407");
+        createAndSave("Adega Sumé", "Sumé", "Daniel (83) 99817-9768", "Dia 02", 150.0, "2026-10-02", "ESPECIE", "Em Espécie💵");
+        createAndSave("PingMel", "Custódia", "", "Dia 06", 150.0, "", "ESPECIE", "Em Espécie💵");
+        createAndSave("San Marino", "Custódia", "", "Dia 11", 63.0, "2026-04-11", "ESPECIE", "Em Espécie💵");
+        createAndSave("PitStop", "Sertânia", "", "Dia 18", 150.0, "2026-05-18", "ESPECIE", "Em Espécie💵");
+        createAndSave("Lan. Dois Irmaõs", "Custódia", "", "Dia 07", 150.0, "2026-04-07", "ESPECIE", "Em Espécie💵");
+    }
 
-        estabelecimentoRepository.saveAll(list);
-        log.info("{} estabelecimentos cadastrados com sucesso.", list.size());
+    private void createAndSave(String nome, String cidade, String responsavel, String diaPagamento, Double valor, String dataInicio, String tipoMeio, String chaveOuDetalhe) {
+        Estabelecimento est = new Estabelecimento(nome, cidade, responsavel, diaPagamento, valor, dataInicio);
+        if (chaveOuDetalhe != null && !chaveOuDetalhe.isBlank()) {
+            est.addMeioPagamento(new MeioPagamento(est, tipoMeio, chaveOuDetalhe, "Principal", true));
+        }
+        estabelecimentoRepository.save(est);
     }
 }
