@@ -143,7 +143,8 @@ public class RelatorioOperacoesService {
                         double debito = (pagamentosNode != null && pagamentosNode.hasNonNull("debito")) ? pagamentosNode.get("debito").asDouble() : 0.0;
                         int qtdPremios = (premiosNode != null && premiosNode.hasNonNull("quantidade")) ? premiosNode.get("quantidade").asInt() : 0;
 
-                        double maquininha = pix + credito + debito;
+                        // Entradas representam o faturamento bruto (estornos são deduzidos na seção de Saídas)
+                        double maquininha = pix + credito + debito + estornos;
 
                         dto.setEntradasEspecie(dto.getEntradasEspecie() + cash);
                         dto.setEntradasMaquininha(dto.getEntradasMaquininha() + maquininha);
