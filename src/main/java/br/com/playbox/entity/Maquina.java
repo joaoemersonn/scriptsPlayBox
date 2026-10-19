@@ -33,6 +33,21 @@ public class Maquina {
 
     private boolean ativo = true;
 
+    @Column(name = "estoque_atual")
+    private Integer estoqueAtual = 0;
+
+    @Column(name = "estoque_minimo_alerta")
+    private Integer estoqueMinimoAlerta = 15;
+
+    @Column(name = "capacidade_maxima")
+    private Integer capacidadeMaxima = 100;
+
+    @Column(name = "ultima_entrada_estoque")
+    private LocalDateTime ultimaEntradaEstoque;
+
+    @Column(name = "ultima_saida_estoque")
+    private LocalDateTime ultimaSaidaEstoque;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -136,5 +151,49 @@ public class Maquina {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getEstoqueAtual() {
+        return estoqueAtual != null ? estoqueAtual : 0;
+    }
+
+    public void setEstoqueAtual(Integer estoqueAtual) {
+        this.estoqueAtual = estoqueAtual;
+    }
+
+    public Integer getEstoqueMinimoAlerta() {
+        return estoqueMinimoAlerta != null ? estoqueMinimoAlerta : 15;
+    }
+
+    public void setEstoqueMinimoAlerta(Integer estoqueMinimoAlerta) {
+        this.estoqueMinimoAlerta = estoqueMinimoAlerta;
+    }
+
+    public Integer getCapacidadeMaxima() {
+        return capacidadeMaxima != null ? capacidadeMaxima : 100;
+    }
+
+    public void setCapacidadeMaxima(Integer capacidadeMaxima) {
+        this.capacidadeMaxima = capacidadeMaxima;
+    }
+
+    public LocalDateTime getUltimaEntradaEstoque() {
+        return ultimaEntradaEstoque;
+    }
+
+    public void setUltimaEntradaEstoque(LocalDateTime ultimaEntradaEstoque) {
+        this.ultimaEntradaEstoque = ultimaEntradaEstoque;
+    }
+
+    public LocalDateTime getUltimaSaidaEstoque() {
+        return ultimaSaidaEstoque;
+    }
+
+    public void setUltimaSaidaEstoque(LocalDateTime ultimaSaidaEstoque) {
+        this.ultimaSaidaEstoque = ultimaSaidaEstoque;
+    }
+
+    public boolean isEstoqueBaixo() {
+        return getEstoqueAtual() <= getEstoqueMinimoAlerta();
     }
 }

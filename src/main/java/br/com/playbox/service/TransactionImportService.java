@@ -36,6 +36,7 @@ public class TransactionImportService {
     private final AppProperties properties;
     private final MaquinaRepository maquinaRepository;
     private final TransacaoRepository transacaoRepository;
+    private final EstoqueService estoqueService;
 
     public TransactionImportService(
             VendProMaxClient vendClient,
@@ -43,7 +44,8 @@ public class TransactionImportService {
             ZapiziClient zapiziClient,
             AppProperties properties,
             MaquinaRepository maquinaRepository,
-            TransacaoRepository transacaoRepository
+            TransacaoRepository transacaoRepository,
+            EstoqueService estoqueService
     ) {
         this.vendClient = vendClient;
         this.payxyzClient = payxyzClient;
@@ -51,6 +53,7 @@ public class TransactionImportService {
         this.properties = properties;
         this.maquinaRepository = maquinaRepository;
         this.transacaoRepository = transacaoRepository;
+        this.estoqueService = estoqueService;
     }
 
     @Transactional
@@ -296,6 +299,17 @@ public class TransactionImportService {
                     quantidadePremios
             );
             transacaoRepository.save(tx);
+        }
+
+        // Atualização automática de estoque caso haja prêmios saídos
+        if (maquina != null && quantidadePremios != null && quantidadePremios > 0) {
+            estoqueService.processarSaidaAutomatica(
+                    maquina,
+                    timestamp != null ? timestamp.toLocalDate() : LocalDate.now(),
+                    quantidadePremios.intValue(),
+                    integracao,
+                    externalTxId
+            );
         }
     }
 }
