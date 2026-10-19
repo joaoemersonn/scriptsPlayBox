@@ -6,6 +6,7 @@ import br.com.playbox.model.MachineReport;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.DecimalFormat;
@@ -28,6 +29,7 @@ public class ReportGeneratorService {
     private final RelatorioService relatorioService;
     private final TransactionImportService transactionImportService;
 
+    @Autowired
     public ReportGeneratorService(
             VendProMaxClient vendClient,
             PayXYZClient payxyzClient,
