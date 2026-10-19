@@ -25,4 +25,26 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    long countByTimestampBetween(LocalDateTime start, LocalDateTime end);
+
+    @Query("""
+        SELECT t FROM Transacao t
+        LEFT JOIN t.maquina m
+        LEFT JOIN t.estabelecimento e
+        WHERE t.timestamp >= :inicio AND t.timestamp <= :fim
+          AND (:estabelecimentoId IS NULL OR e.id = :estabelecimentoId)
+          AND (:cidade IS NULL OR LOWER(e.cidade) = LOWER(:cidade))
+          AND (:maquinaId IS NULL OR m.id = :maquinaId)
+          AND (:integracao IS NULL OR UPPER(t.integracao) = UPPER(:integracao))
+        ORDER BY t.timestamp DESC
+    """)
+    List<Transacao> findFiltered(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("estabelecimentoId") Long estabelecimentoId,
+            @Param("cidade") String cidade,
+            @Param("maquinaId") Long maquinaId,
+            @Param("integracao") String integracao
+    );
 }

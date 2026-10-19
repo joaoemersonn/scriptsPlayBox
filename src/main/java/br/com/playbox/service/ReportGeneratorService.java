@@ -25,6 +25,38 @@ public class ReportGeneratorService {
     private final ZapiziClient zapiziClient;
     private final WhatsAppSender sender;
     private final AppProperties properties;
+    private final RelatorioService relatorioService;
+    private final TransactionImportService transactionImportService;
+
+    public ReportGeneratorService(
+            VendProMaxClient vendClient,
+            PayXYZClient payxyzClient,
+            ZapiziClient zapiziClient,
+            AppProperties properties,
+            RelatorioService relatorioService,
+            TransactionImportService transactionImportService
+    ) {
+        this.vendClient = vendClient;
+        this.payxyzClient = payxyzClient;
+        this.zapiziClient = zapiziClient;
+        this.properties = properties;
+        this.relatorioService = relatorioService;
+        this.transactionImportService = transactionImportService;
+        AppProperties.Whatsapp wa = properties != null ? properties.getWhatsapp() : null;
+        String baseUrl = wa != null && wa.getBaseUrl() != null ? wa.getBaseUrl() : "http://whatsapp_bot:3035";
+        String sendPath = wa != null && wa.getSendPath() != null ? wa.getSendPath() : "/api/messages/send";
+        String chatId = wa != null && wa.getReportChatId() != null ? wa.getReportChatId() : "";
+        String apiKey = wa != null && wa.getApiKey() != null ? wa.getApiKey() : "";
+
+        this.sender = new WhatsAppSender(
+                baseUrl,
+                apiKey,
+                chatId,
+                sendPath,
+                properties != null ? properties.getTimeoutSeconds() : 30,
+                null
+        );
+    }
 
     public ReportGeneratorService(
             VendProMaxClient vendClient,
@@ -32,24 +64,7 @@ public class ReportGeneratorService {
             ZapiziClient zapiziClient,
             AppProperties properties
     ) {
-        this.vendClient = vendClient;
-        this.payxyzClient = payxyzClient;
-        this.zapiziClient = zapiziClient;
-        this.properties = properties;
-        AppProperties.Whatsapp wa = properties.getWhatsapp();
-        String baseUrl = wa != null ? wa.getBaseUrl() : "http://whatsapp_bot:3035";
-        String sendPath = wa != null ? wa.getSendPath() : "/api/messages/send";
-        String chatId = wa != null && wa.getReportChatId() != null ? wa.getReportChatId() : "";
-        String apiKey = wa != null ? wa.getApiKey() : "";
-
-        this.sender = new WhatsAppSender(
-                baseUrl,
-                apiKey,
-                chatId,
-                sendPath,
-                properties.getTimeoutSeconds(),
-                null
-        );
+        this(vendClient, payxyzClient, zapiziClient, properties, null, null);
     }
 
     public record ReportPeriod(String title, String startDate, String endDate) {}
@@ -373,13 +388,29 @@ public class ReportGeneratorService {
                 periodo, reportPeriod.title(), reportPeriod.startDate(), reportPeriod.endDate());
 
         try {
-            List<MachineReport> vendReport = buildVendProMaxReport(reportPeriod.startDate(), reportPeriod.endDate());
-            List<MachineReport> payReport = buildPayXYZReport(reportPeriod.startDate(), reportPeriod.endDate());
-            List<MachineReport> zapiziReport = buildZapiziReport(reportPeriod.startDate(), reportPeriod.endDate());
+            List<MachineReport> unified = null;
 
-            List<MachineReport> unified = unifyReports(vendReport, payReport, zapiziReport);
+            // 1. Prioriza geração a partir do banco de dados local com import automático do período
+            if (relatorioService != null && transactionImportService != null) {
+                RelatorioService.PeriodoCalculado p = relatorioService.calcularPeriodo(periodo, null, null);
+                try {
+                    transactionImportService.ensureTransactionsImported(p.inicio().toLocalDate(), p.fim().toLocalDate());
+                } catch (Exception e) {
+                    log.warn("Falha ao sincronizar transações antes do relatório: {}", e.getMessage());
+                }
+                unified = relatorioService.getMachineReportsFromDatabase(p.inicio(), p.fim(), null, null, null, null);
+            }
+
+            // 2. Se o banco não tiver dados para o período ou serviços não estiverem disponíveis, fallback direto nas APIs
+            if (unified == null || unified.isEmpty()) {
+                log.info("Banco local sem dados para o período. Executando consulta direta nas APIs integradoras (fallback)...");
+                List<MachineReport> vendReport = buildVendProMaxReport(reportPeriod.startDate(), reportPeriod.endDate());
+                List<MachineReport> payReport = buildPayXYZReport(reportPeriod.startDate(), reportPeriod.endDate());
+                List<MachineReport> zapiziReport = buildZapiziReport(reportPeriod.startDate(), reportPeriod.endDate());
+                unified = unifyReports(vendReport, payReport, zapiziReport);
+            }
+
             String message = formatWhatsAppMessage(unified, reportPeriod.title());
-
             log.info("--- Mensagem WhatsApp - {} ---\n{}", reportPeriod.title(), message);
             sender.sendMessage(message);
         } catch (IntegrationException error) {

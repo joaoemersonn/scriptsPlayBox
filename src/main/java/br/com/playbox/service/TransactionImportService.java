@@ -102,7 +102,8 @@ public class TransactionImportService {
                 }
 
                 String externalTxId = "VENDPROMAX_" + extId + "_" + dayId;
-                saveOrUpdateTransaction("VENDPROMAX", externalTxId, extId, timestamp, "CONSOLIDADO", totalValor, valorEstornos, quantPremios);
+                saveOrUpdateTransaction("VENDPROMAX", externalTxId, extId, timestamp, "CONSOLIDADO",
+                        totalValor, valorCash, valorPix, valorCredito, valorDebito, valorEstornos, quantPremios);
                 count++;
             }
         } catch (Exception e) {
@@ -133,14 +134,26 @@ public class TransactionImportService {
 
                 double valorTotal = 0.0;
                 double valorEstornos = 0.0;
+                double valorEspecie = 0.0;
+                double valorPix = 0.0;
+                double valorCredito = 0.0;
+                double valorDebito = 0.0;
                 double quantPremios = 0.0;
 
                 if (item.hasNonNull("vendasByPaymentType") && item.get("vendasByPaymentType").isArray()) {
                     for (JsonNode p : item.get("vendasByPaymentType")) {
+                        String forma = p.hasNonNull("formaDePagamento") ? p.get("formaDePagamento").asText() : "";
                         JsonNode dados = p.hasNonNull("dados") ? p.get("dados") : null;
                         if (dados != null) {
-                            valorTotal += dados.hasNonNull("valorTotal") ? dados.get("valorTotal").asDouble() : 0.0;
-                            valorEstornos += dados.hasNonNull("valorTotalEstorno") ? dados.get("valorTotalEstorno").asDouble() : 0.0;
+                            double vt = dados.hasNonNull("valorTotal") ? dados.get("valorTotal").asDouble() : 0.0;
+                            double ve = dados.hasNonNull("valorTotalEstorno") ? dados.get("valorTotalEstorno").asDouble() : 0.0;
+                            valorTotal += vt;
+                            valorEstornos += ve;
+
+                            if ("especie".equalsIgnoreCase(forma)) valorEspecie += vt;
+                            else if ("pix".equalsIgnoreCase(forma)) valorPix += vt;
+                            else if ("credito".equalsIgnoreCase(forma)) valorCredito += vt;
+                            else if ("debito".equalsIgnoreCase(forma)) valorDebito += vt;
                         }
                     }
                 }
@@ -158,7 +171,8 @@ public class TransactionImportService {
                 }
 
                 String externalTxId = "PAYXYZ_" + extId + "_" + dayId;
-                saveOrUpdateTransaction("PAYXYZ", externalTxId, extId, timestamp, "CONSOLIDADO", valorTotal, valorEstornos, quantPremios);
+                saveOrUpdateTransaction("PAYXYZ", externalTxId, extId, timestamp, "CONSOLIDADO",
+                        valorTotal, valorEspecie, valorPix, valorCredito, valorDebito, valorEstornos, quantPremios);
                 count++;
             }
         } catch (Exception e) {
@@ -202,7 +216,8 @@ public class TransactionImportService {
                     }
 
                     String externalTxId = "ZAPIZI_" + extId + "_" + dayId;
-                    saveOrUpdateTransaction("ZAPIZI", externalTxId, extId, timestamp, "CONSOLIDADO", total, refund, delivered);
+                    saveOrUpdateTransaction("ZAPIZI", externalTxId, extId, timestamp, "CONSOLIDADO",
+                            total, cash, pix, credit, debit, refund, delivered);
                     count++;
                 }
             }
@@ -212,6 +227,27 @@ public class TransactionImportService {
         return count;
     }
 
+    @Transactional
+    public int importTransactionsRange(LocalDate start, LocalDate end) {
+        log.info("Iniciando importação de transações no intervalo de {} a {}...", start, end);
+        int total = 0;
+        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+            total += importDailyTransactions(date);
+        }
+        log.info("Importação de {} a {} finalizada. Total de transações gravadas/atualizadas: {}", start, end, total);
+        return total;
+    }
+
+    public void ensureTransactionsImported(LocalDate start, LocalDate end) {
+        LocalDateTime startDt = start.atStartOfDay();
+        LocalDateTime endDt = end.atTime(LocalTime.MAX);
+        long count = transacaoRepository.countByTimestampBetween(startDt, endDt);
+        if (count == 0) {
+            log.info("Nenhuma transação encontrada no banco entre {} e {}. Disparando importação automática...", start, end);
+            importTransactionsRange(start, end);
+        }
+    }
+
     private void saveOrUpdateTransaction(
             String integracao,
             String externalTxId,
@@ -219,6 +255,10 @@ public class TransactionImportService {
             LocalDateTime timestamp,
             String tipoPagamento,
             Double valor,
+            Double valorCash,
+            Double valorPix,
+            Double valorCredito,
+            Double valorDebito,
             Double valorEstorno,
             Double quantidadePremios
     ) {
@@ -230,6 +270,10 @@ public class TransactionImportService {
         if (existing.isPresent()) {
             Transacao tx = existing.get();
             tx.setValor(valor);
+            tx.setValorCash(valorCash);
+            tx.setValorPix(valorPix);
+            tx.setValorCredito(valorCredito);
+            tx.setValorDebito(valorDebito);
             tx.setValorEstorno(valorEstorno);
             tx.setQuantidadePremios(quantidadePremios);
             if (maquina != null) tx.setMaquina(maquina);
@@ -244,6 +288,10 @@ public class TransactionImportService {
                     timestamp,
                     tipoPagamento,
                     valor,
+                    valorCash,
+                    valorPix,
+                    valorCredito,
+                    valorDebito,
                     valorEstorno,
                     quantidadePremios
             );

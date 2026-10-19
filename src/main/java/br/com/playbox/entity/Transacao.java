@@ -23,11 +23,11 @@ public class Transacao {
     @Column(nullable = false)
     private String integracao; // VENDPROMAX, PAYXYZ, ZAPIZI
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "maquina_id")
     private Maquina maquina;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "estabelecimento_id")
     private Estabelecimento estabelecimento;
 
@@ -35,10 +35,22 @@ public class Transacao {
     private LocalDateTime timestamp;
 
     @Column(name = "tipo_pagamento")
-    private String tipoPagamento; // PIX, CREDITO, DEBITO, CASH, etc.
+    private String tipoPagamento; // CONSOLIDADO, PIX, etc.
+
+    @Column(name = "valor_cash")
+    private Double valorCash = 0.0;
+
+    @Column(name = "valor_pix")
+    private Double valorPix = 0.0;
+
+    @Column(name = "valor_credito")
+    private Double valorCredito = 0.0;
+
+    @Column(name = "valor_debito")
+    private Double valorDebito = 0.0;
 
     @Column(nullable = false)
-    private Double valor = 0.0;
+    private Double valor = 0.0; // Total faturado bruto
 
     @Column(name = "valor_estorno")
     private Double valorEstorno = 0.0;
@@ -52,7 +64,8 @@ public class Transacao {
     public Transacao() {}
 
     public Transacao(String externalTxId, String integracao, Maquina maquina, Estabelecimento estabelecimento,
-                     LocalDateTime timestamp, String tipoPagamento, Double valor, Double valorEstorno, Double quantidadePremios) {
+                     LocalDateTime timestamp, String tipoPagamento, Double valor, Double valorCash,
+                     Double valorPix, Double valorCredito, Double valorDebito, Double valorEstorno, Double quantidadePremios) {
         this.externalTxId = externalTxId;
         this.integracao = integracao;
         this.maquina = maquina;
@@ -60,9 +73,18 @@ public class Transacao {
         this.timestamp = timestamp;
         this.tipoPagamento = tipoPagamento;
         this.valor = valor != null ? valor : 0.0;
+        this.valorCash = valorCash != null ? valorCash : 0.0;
+        this.valorPix = valorPix != null ? valorPix : 0.0;
+        this.valorCredito = valorCredito != null ? valorCredito : 0.0;
+        this.valorDebito = valorDebito != null ? valorDebito : 0.0;
         this.valorEstorno = valorEstorno != null ? valorEstorno : 0.0;
         this.quantidadePremios = quantidadePremios != null ? quantidadePremios : 0.0;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public Transacao(String externalTxId, String integracao, Maquina maquina, Estabelecimento estabelecimento,
+                     LocalDateTime timestamp, String tipoPagamento, Double valor, Double valorEstorno, Double quantidadePremios) {
+        this(externalTxId, integracao, maquina, estabelecimento, timestamp, tipoPagamento, valor, 0.0, 0.0, 0.0, 0.0, valorEstorno, quantidadePremios);
     }
 
     public Long getId() {
@@ -119,6 +141,38 @@ public class Transacao {
 
     public void setTipoPagamento(String tipoPagamento) {
         this.tipoPagamento = tipoPagamento;
+    }
+
+    public Double getValorCash() {
+        return valorCash != null ? valorCash : 0.0;
+    }
+
+    public void setValorCash(Double valorCash) {
+        this.valorCash = valorCash;
+    }
+
+    public Double getValorPix() {
+        return valorPix != null ? valorPix : 0.0;
+    }
+
+    public void setValorPix(Double valorPix) {
+        this.valorPix = valorPix;
+    }
+
+    public Double getValorCredito() {
+        return valorCredito != null ? valorCredito : 0.0;
+    }
+
+    public void setValorCredito(Double valorCredito) {
+        this.valorCredito = valorCredito;
+    }
+
+    public Double getValorDebito() {
+        return valorDebito != null ? valorDebito : 0.0;
+    }
+
+    public void setValorDebito(Double valorDebito) {
+        this.valorDebito = valorDebito;
     }
 
     public Double getValor() {

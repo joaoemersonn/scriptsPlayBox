@@ -21,17 +21,23 @@ public class DataInitializationService {
     private final MeioPagamentoRepository meioPagamentoRepository;
     private final MachineSyncService machineSyncService;
     private final AluguelService aluguelService;
+    private final TransactionImportService transactionImportService;
+    private final br.com.playbox.repository.TransacaoRepository transacaoRepository;
 
     public DataInitializationService(
             EstabelecimentoRepository estabelecimentoRepository,
             MeioPagamentoRepository meioPagamentoRepository,
             MachineSyncService machineSyncService,
-            AluguelService aluguelService
+            AluguelService aluguelService,
+            TransactionImportService transactionImportService,
+            br.com.playbox.repository.TransacaoRepository transacaoRepository
     ) {
         this.estabelecimentoRepository = estabelecimentoRepository;
         this.meioPagamentoRepository = meioPagamentoRepository;
         this.machineSyncService = machineSyncService;
         this.aluguelService = aluguelService;
+        this.transactionImportService = transactionImportService;
+        this.transacaoRepository = transacaoRepository;
     }
 
     @PostConstruct
@@ -56,6 +62,21 @@ public class DataInitializationService {
             aluguelService.gerarCobrancasMes(YearMonth.now());
         } catch (Exception e) {
             log.warn("Não foi possível gerar cobranças de aluguel no startup: {}", e.getMessage());
+        }
+
+        // Importa transações do mês atual se banco estiver vazio
+        try {
+            if (transacaoRepository.count() == 0) {
+                java.time.LocalDate hoje = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+                java.time.LocalDate inicioMes = hoje.withDayOfMonth(1);
+                java.time.LocalDate ontem = hoje.minusDays(1);
+                if (!inicioMes.isAfter(ontem)) {
+                    log.info("Banco sem transações. Inicializando importação do mês atual ({} a {})...", inicioMes, ontem);
+                    transactionImportService.importTransactionsRange(inicioMes, ontem);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível importar transações no startup: {}", e.getMessage());
         }
     }
 

@@ -15,6 +15,7 @@ public class AppScheduler {
 
     private final OfflineMonitorService monitorService;
     private final ReportGeneratorService reportService;
+    private final br.com.playbox.service.TransactionImportService transactionImportService;
 
     @Value("${schedule.monitor.enabled:true}")
     private boolean monitorEnabled;
@@ -28,9 +29,26 @@ public class AppScheduler {
     @Value("${schedule.report.report-mes.enabled:true}")
     private boolean reportMesEnabled;
 
-    public AppScheduler(OfflineMonitorService monitorService, ReportGeneratorService reportService) {
+    public AppScheduler(
+            OfflineMonitorService monitorService,
+            ReportGeneratorService reportService,
+            br.com.playbox.service.TransactionImportService transactionImportService
+    ) {
         this.monitorService = monitorService;
         this.reportService = reportService;
+        this.transactionImportService = transactionImportService;
+    }
+
+    @Scheduled(cron = "${schedule.import-transactions.cron:0 30 * * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
+    public void schedulePeriodicTransactionImport() {
+        try {
+            java.time.LocalDate hoje = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+            log.info("[SCHEDULE] Executando sincronização horária de transações (ontem e hoje)...");
+            transactionImportService.importDailyTransactions(hoje.minusDays(1));
+            transactionImportService.importDailyTransactions(hoje);
+        } catch (Exception e) {
+            log.warn("[SCHEDULE] Falha na sincronização periódica de transações: {}", e.getMessage());
+        }
     }
 
     @Scheduled(cron = "${schedule.monitor.cron:0 */5 * * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
