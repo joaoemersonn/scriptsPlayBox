@@ -22,7 +22,7 @@ public class AppScheduler {
     @Value("${schedule.report.report-24h.enabled:true}")
     private boolean report24hEnabled;
 
-    @Value("${schedule.report.report-12h.enabled:true}")
+    @Value("${schedule.report.report-12h.enabled:false}")
     private boolean report12hEnabled;
 
     @Value("${schedule.report.report-mes.enabled:true}")
@@ -47,7 +47,7 @@ public class AppScheduler {
         }
     }
 
-    @Scheduled(cron = "${schedule.report.report-24h.cron:0 0 8 * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
+    @Scheduled(cron = "${schedule.report.report-24h.cron:0 0 0 * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
     public void scheduleReport24h() {
         if (!report24hEnabled) {
             log.info("Relatório 24h agendado desabilitado.");
@@ -75,7 +75,7 @@ public class AppScheduler {
         }
     }
 
-    @Scheduled(cron = "${schedule.report.report-mes.cron:0 0 9 1 * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
+    @Scheduled(cron = "${schedule.report.report-mes.cron:0 0 8 * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
     public void scheduleReportMes() {
         if (!reportMesEnabled) {
             log.info("Relatório mês agendado desabilitado.");

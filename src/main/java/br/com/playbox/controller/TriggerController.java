@@ -25,10 +25,16 @@ public class TriggerController {
 
     private final OfflineMonitorService monitorService;
     private final ReportGeneratorService reportService;
+    private final br.com.playbox.service.TransactionImportService transactionImportService;
 
-    public TriggerController(OfflineMonitorService monitorService, ReportGeneratorService reportService) {
+    public TriggerController(
+            OfflineMonitorService monitorService,
+            ReportGeneratorService reportService,
+            br.com.playbox.service.TransactionImportService transactionImportService
+    ) {
         this.monitorService = monitorService;
         this.reportService = reportService;
+        this.transactionImportService = transactionImportService;
     }
 
     @GetMapping("/health")
@@ -60,6 +66,36 @@ public class TriggerController {
             return ResponseEntity.ok(Map.of("message", "Monitoramento executado com sucesso"));
         } catch (Exception e) {
             log.error("Erro ao executar trigger monitor: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "ERROR",
+                    "message", e.getMessage() != null ? e.getMessage() : "Erro desconhecido"
+            ));
+        }
+    }
+
+    @PostMapping("/api/trigger/import-transactions")
+    @Operation(
+            summary = "Disparar importação manual de transações",
+            description = "Importa e sincroniza as transações de todas as máquinas para a data especificada (padrão: ontem).",
+            security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    )
+    public ResponseEntity<Map<String, Object>> triggerImport(
+            @Parameter(description = "Data no formato YYYY-MM-DD (ex: 2026-10-18). Padrão: ontem", example = "2026-10-18")
+            @RequestParam(required = false) String data
+    ) {
+        try {
+            java.time.LocalDate targetDate = (data != null && !data.isBlank())
+                    ? java.time.LocalDate.parse(data.trim())
+                    : java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).minusDays(1);
+
+            int imported = transactionImportService.importDailyTransactions(targetDate);
+            return ResponseEntity.ok(Map.of(
+                    "status", "SUCCESS",
+                    "data", targetDate.toString(),
+                    "registrosImportados", imported
+            ));
+        } catch (Exception e) {
+            log.error("Erro ao importar transações manualmente: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "status", "ERROR",
                     "message", e.getMessage() != null ? e.getMessage() : "Erro desconhecido"

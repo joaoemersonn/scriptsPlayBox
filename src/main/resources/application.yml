@@ -6,6 +6,15 @@ spring:
     name: playbox-scheduler
   main:
     banner-mode: console
+  datasource:
+    url: jdbc:sqlite:${app.data-dir}/playbox.db
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
 
 # Scheduling configuration with sensible defaults and override via environment variables
 schedule:
@@ -16,13 +25,13 @@ schedule:
   report:
     report-24h:
       enabled: ${SCHEDULE_REPORT_24H_ENABLED:true}
-      cron: ${SCHEDULE_REPORT_24H_CRON:0 0 8 * * *}
+      cron: ${SCHEDULE_REPORT_24H_CRON:0 0 0 * * *}
     report-12h:
-      enabled: ${SCHEDULE_REPORT_12H_ENABLED:true}
+      enabled: ${SCHEDULE_REPORT_12H_ENABLED:false}
       cron: ${SCHEDULE_REPORT_12H_CRON:0 0 12,0 * * *}
     report-mes:
       enabled: ${SCHEDULE_REPORT_MES_ENABLED:true}
-      cron: ${SCHEDULE_REPORT_MES_CRON:0 0 9 1 * *}
+      cron: ${SCHEDULE_REPORT_MES_CRON:0 0 8 * * *}
 
 app:
   data-dir: ${APP_DATA_DIR:./data}

@@ -29,12 +29,12 @@ services:
       # Schedulers (cron format: second minute hour day-of-month month day-of-week)
       # Schedule monitor: every 5 minutes
       - SCHEDULE_MONITOR_CRON=${SCHEDULE_MONITOR_CRON:-0 */5 * * * *}
-      # Schedule 24h report: daily at 08:00
-      - SCHEDULE_REPORT_24H_CRON=${SCHEDULE_REPORT_24H_CRON:-0 0 8 * * *}
-      # Schedule 12h report: daily at 12:00 e 00:00
-      - SCHEDULE_REPORT_12H_CRON=${SCHEDULE_REPORT_12H_CRON:-0 0 12,0 * * *}
-      # Schedule month report: 1º dia do mês às 09:00
-      - SCHEDULE_REPORT_MES_CRON=${SCHEDULE_REPORT_MES_CRON:-0 0 9 1 * *}
+      # Schedule 24h report: daily at 00:00
+      - SCHEDULE_REPORT_24H_CRON=${SCHEDULE_REPORT_24H_CRON:-0 0 0 * * *}
+      # Schedule 12h report: disabled
+      - SCHEDULE_REPORT_12H_ENABLED=${SCHEDULE_REPORT_12H_ENABLED:-false}
+      # Schedule month report: daily at 08:00
+      - SCHEDULE_REPORT_MES_CRON=${SCHEDULE_REPORT_MES_CRON:-0 0 8 * * *}
     ports:
       - "8080:8080"
     volumes:
