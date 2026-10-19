@@ -20,14 +20,14 @@ public interface MaquinaRepository extends JpaRepository<Maquina, Long> {
 
     List<Maquina> findByIntegracao(String integracao);
 
-    @Query("SELECT m FROM Maquina m WHERE m.ativo = true AND m.estoqueAtual <= m.estoqueMinimoAlerta")
+    @Query("SELECT m FROM Maquina m WHERE m.ativo = true AND COALESCE(m.estoqueAtual, 0) <= COALESCE(m.estoqueMinimoAlerta, 15)")
     List<Maquina> findMaquinasComEstoqueBaixo();
 
     @Query("SELECT m FROM Maquina m LEFT JOIN m.estabelecimento e WHERE m.ativo = true " +
            "AND (:estabelecimentoId IS NULL OR e.id = :estabelecimentoId) " +
            "AND (:cidade IS NULL OR LOWER(e.cidade) = LOWER(:cidade)) " +
            "AND (:maquinaId IS NULL OR m.id = :maquinaId) " +
-           "AND (:apenasEstoqueBaixo = false OR m.estoqueAtual <= m.estoqueMinimoAlerta) " +
+           "AND (:apenasEstoqueBaixo = false OR COALESCE(m.estoqueAtual, 0) <= COALESCE(m.estoqueMinimoAlerta, 15)) " +
            "ORDER BY m.id ASC")
     List<Maquina> filtrarEstoque(
             @Param("estabelecimentoId") Long estabelecimentoId,
