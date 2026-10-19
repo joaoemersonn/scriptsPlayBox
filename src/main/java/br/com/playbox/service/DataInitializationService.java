@@ -64,20 +64,23 @@ public class DataInitializationService {
             log.warn("Não foi possível gerar cobranças de aluguel no startup: {}", e.getMessage());
         }
 
-        // Importa transações do mês atual se banco estiver vazio
-        try {
-            if (transacaoRepository.count() == 0) {
-                java.time.LocalDate hoje = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
-                java.time.LocalDate inicioMes = hoje.withDayOfMonth(1);
-                java.time.LocalDate ontem = hoje.minusDays(1);
-                if (!inicioMes.isAfter(ontem)) {
-                    log.info("Banco sem transações. Inicializando importação do mês atual ({} a {})...", inicioMes, ontem);
-                    transactionImportService.importTransactionsRange(inicioMes, ontem);
+        // Importa transações do mês atual em background para não bloquear o startup do Tomcat
+        new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+                if (transacaoRepository.count() == 0) {
+                    java.time.LocalDate hoje = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+                    java.time.LocalDate inicioMes = hoje.withDayOfMonth(1);
+                    java.time.LocalDate ontem = hoje.minusDays(1);
+                    if (!inicioMes.isAfter(ontem)) {
+                        log.info("Banco sem transações. Inicializando importação em background do mês atual ({} a {})...", inicioMes, ontem);
+                        transactionImportService.importTransactionsRange(inicioMes, ontem);
+                    }
                 }
+            } catch (Exception e) {
+                log.warn("Não foi possível importar transações no background: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Não foi possível importar transações no startup: {}", e.getMessage());
-        }
+        }, "bg-tx-import").start();
     }
 
     private void seedEstabelecimentos() {
