@@ -17,15 +17,18 @@ public class DataInitializationService {
     private static final Logger log = LoggerFactory.getLogger(DataInitializationService.class);
 
     private final EstabelecimentoRepository estabelecimentoRepository;
+    private final MeioPagamentoRepository meioPagamentoRepository;
     private final MachineSyncService machineSyncService;
     private final AluguelService aluguelService;
 
     public DataInitializationService(
             EstabelecimentoRepository estabelecimentoRepository,
+            MeioPagamentoRepository meioPagamentoRepository,
             MachineSyncService machineSyncService,
             AluguelService aluguelService
     ) {
         this.estabelecimentoRepository = estabelecimentoRepository;
+        this.meioPagamentoRepository = meioPagamentoRepository;
         this.machineSyncService = machineSyncService;
         this.aluguelService = aluguelService;
     }
@@ -35,6 +38,9 @@ public class DataInitializationService {
         if (estabelecimentoRepository.count() == 0) {
             log.info("Inicializando estabelecimentos e meios de pagamento da planilha no banco de dados...");
             seedEstabelecimentos();
+        } else if (meioPagamentoRepository.count() == 0) {
+            log.info("Populando meios de pagamento para estabelecimentos já existentes...");
+            seedMeiosPagamentoParaExistentes();
         }
 
         // Tenta sincronizar máquinas existentes das integrações no startup
@@ -68,6 +74,35 @@ public class DataInitializationService {
         createAndSave("San Marino", "Custódia", "", "Dia 11", 63.0, "2026-04-11", "ESPECIE", "Em Espécie💵");
         createAndSave("PitStop", "Sertânia", "", "Dia 18", 150.0, "2026-05-18", "ESPECIE", "Em Espécie💵");
         createAndSave("Lan. Dois Irmaõs", "Custódia", "", "Dia 07", 150.0, "2026-04-07", "ESPECIE", "Em Espécie💵");
+    }
+
+    private void seedMeiosPagamentoParaExistentes() {
+        java.util.Map<String, String[]> defaults = java.util.Map.ofEntries(
+                java.util.Map.entry("Pau Brasil", new String[]{"PIX", "13638774457"}),
+                java.util.Map.entry("Br Arena", new String[]{"PIX", "055.824.914-06"}),
+                java.util.Map.entry("Praça do Sabor", new String[]{"ESPECIE", "Em Espécie💵"}),
+                java.util.Map.entry("Espaço Villa", new String[]{"PIX", "pix cpf"}),
+                java.util.Map.entry("Posto Iguracy", new String[]{"PIX", "33.802.987.0001-26"}),
+                java.util.Map.entry("Posto FAN", new String[]{"PIX", "barbrinha_celene@hotmail.com"}),
+                java.util.Map.entry("Casa Nobre", new String[]{"ESPECIE", "Em Espécie💵"}),
+                java.util.Map.entry("Lan House Wolrd Player", new String[]{"PIX", "matheus_olive97@hotmail.com"}),
+                java.util.Map.entry("Shopping25", new String[]{"PIX", "(83)9 9693-5828"}),
+                java.util.Map.entry("Menininho", new String[]{"PIX", "16475785407"}),
+                java.util.Map.entry("Adega Sumé", new String[]{"ESPECIE", "Em Espécie💵"}),
+                java.util.Map.entry("PingMel", new String[]{"ESPECIE", "Em Espécie💵"}),
+                java.util.Map.entry("San Marino", new String[]{"ESPECIE", "Em Espécie💵"}),
+                java.util.Map.entry("PitStop", new String[]{"ESPECIE", "Em Espécie💵"}),
+                java.util.Map.entry("Lan. Dois Irmaõs", new String[]{"ESPECIE", "Em Espécie💵"})
+        );
+
+        for (Estabelecimento est : estabelecimentoRepository.findAll()) {
+            if (est.getMeiosPagamento() == null || est.getMeiosPagamento().isEmpty()) {
+                String[] def = defaults.get(est.getNome());
+                if (def != null) {
+                    meioPagamentoRepository.save(new MeioPagamento(est, def[0], def[1], "Principal", true));
+                }
+            }
+        }
     }
 
     private void createAndSave(String nome, String cidade, String responsavel, String diaPagamento, Double valor, String dataInicio, String tipoMeio, String chaveOuDetalhe) {

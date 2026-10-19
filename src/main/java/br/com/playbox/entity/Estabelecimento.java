@@ -1,5 +1,6 @@
 package br.com.playbox.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -36,7 +37,7 @@ public class Estabelecimento {
     private List<MeioPagamento> meiosPagamento = new ArrayList<>();
 
     @OneToMany(mappedBy = "estabelecimento", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties("estabelecimento")
+    @JsonIgnore
     private List<Maquina> maquinas = new ArrayList<>();
 
     @Column(name = "created_at")
