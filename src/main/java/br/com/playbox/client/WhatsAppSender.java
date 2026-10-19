@@ -32,12 +32,18 @@ public class WhatsAppSender {
     }
 
     public boolean sendMessage(String message) {
+        return sendMessage(this.chatId, message);
+    }
+
+    public boolean sendMessage(String targetChatId, String message) {
         if (message == null || message.isBlank()) {
             log.warn("Mensagem WhatsApp vazia, nenhum envio realizado.");
             return false;
         }
 
-        if (chatId.isBlank()) {
+        String to = (targetChatId != null && !targetChatId.isBlank()) ? targetChatId.trim() : this.chatId;
+
+        if (to.isBlank()) {
             log.warn("chatId de destino do WhatsApp não configurado, mensagem não enviada.");
             return false;
         }
@@ -49,16 +55,16 @@ public class WhatsAppSender {
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("to", chatId);
+        payload.put("to", to);
         payload.put("message", message);
 
         String serviceName = "WhatsAppBot";
 
         try {
-            log.info("Enviando mensagem via WhatsAppBot para {}", chatId);
+            log.info("Enviando mensagem via WhatsAppBot para {}", to);
             JsonNode response = client.post(sendPath, headers, payload, serviceName);
             if (response != null) {
-                log.info("Mensagem WhatsApp enviada com sucesso.");
+                log.info("Mensagem WhatsApp enviada com sucesso para {}.", to);
                 return true;
             }
         } catch (IntegrationException e) {

@@ -64,6 +64,7 @@ public class AppProperties {
         private String sendPath = "/api/messages/send";
         private String monitorChatId = "";
         private String reportChatId = "";
+        private String estoqueChatId = "120363423381929568@g.us";
 
         public String getHost() {
             return host;
@@ -119,6 +120,14 @@ public class AppProperties {
 
         public void setReportChatId(String reportChatId) {
             this.reportChatId = reportChatId;
+        }
+
+        public String getEstoqueChatId() {
+            return estoqueChatId;
+        }
+
+        public void setEstoqueChatId(String estoqueChatId) {
+            this.estoqueChatId = estoqueChatId;
         }
     }
 

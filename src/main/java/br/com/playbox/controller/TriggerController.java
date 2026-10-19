@@ -26,15 +26,18 @@ public class TriggerController {
     private final OfflineMonitorService monitorService;
     private final ReportGeneratorService reportService;
     private final br.com.playbox.service.TransactionImportService transactionImportService;
+    private final br.com.playbox.service.EstoqueAlertaService estoqueAlertaService;
 
     public TriggerController(
             OfflineMonitorService monitorService,
             ReportGeneratorService reportService,
-            br.com.playbox.service.TransactionImportService transactionImportService
+            br.com.playbox.service.TransactionImportService transactionImportService,
+            br.com.playbox.service.EstoqueAlertaService estoqueAlertaService
     ) {
         this.monitorService = monitorService;
         this.reportService = reportService;
         this.transactionImportService = transactionImportService;
+        this.estoqueAlertaService = estoqueAlertaService;
     }
 
     @GetMapping("/health")
@@ -129,6 +132,28 @@ public class TriggerController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "status", "ERROR",
                     "periodo", periodo,
+                    "message", e.getMessage() != null ? e.getMessage() : "Erro desconhecido"
+            ));
+        }
+    }
+
+    @PostMapping("/api/trigger/alerta-estoque")
+    @Operation(
+            summary = "Disparar verificação e alerta de estoque baixo",
+            description = "Verifica máquinas com estoque < 30 pelúcias e envia notificação no WhatsApp caso haja máquinas pendentes de alerta.",
+            security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    )
+    public ResponseEntity<Map<String, Object>> triggerEstoqueAlerta() {
+        try {
+            int notificadas = estoqueAlertaService.verificarEEnviarAlertas();
+            return ResponseEntity.ok(Map.of(
+                    "status", "SUCCESS",
+                    "maquinasNotificadas", notificadas
+            ));
+        } catch (Exception e) {
+            log.error("Erro ao disparar alerta de estoque manualmente: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "ERROR",
                     "message", e.getMessage() != null ? e.getMessage() : "Erro desconhecido"
             ));
         }

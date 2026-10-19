@@ -37,7 +37,7 @@ public class Maquina {
     private Integer estoqueAtual = 0;
 
     @Column(name = "estoque_minimo_alerta")
-    private Integer estoqueMinimoAlerta = 15;
+    private Integer estoqueMinimoAlerta = 30;
 
     @Column(name = "capacidade_maxima")
     private Integer capacidadeMaxima = 100;
@@ -47,6 +47,9 @@ public class Maquina {
 
     @Column(name = "ultima_saida_estoque")
     private LocalDateTime ultimaSaidaEstoque;
+
+    @Column(name = "ultima_notificacao_estoque_baixo")
+    private LocalDateTime ultimaNotificacaoEstoqueBaixo;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -162,7 +165,7 @@ public class Maquina {
     }
 
     public Integer getEstoqueMinimoAlerta() {
-        return estoqueMinimoAlerta != null ? estoqueMinimoAlerta : 15;
+        return estoqueMinimoAlerta != null ? estoqueMinimoAlerta : 30;
     }
 
     public void setEstoqueMinimoAlerta(Integer estoqueMinimoAlerta) {
@@ -193,7 +196,15 @@ public class Maquina {
         this.ultimaSaidaEstoque = ultimaSaidaEstoque;
     }
 
+    public LocalDateTime getUltimaNotificacaoEstoqueBaixo() {
+        return ultimaNotificacaoEstoqueBaixo;
+    }
+
+    public void setUltimaNotificacaoEstoqueBaixo(LocalDateTime ultimaNotificacaoEstoqueBaixo) {
+        this.ultimaNotificacaoEstoqueBaixo = ultimaNotificacaoEstoqueBaixo;
+    }
+
     public boolean isEstoqueBaixo() {
-        return getEstoqueAtual() <= getEstoqueMinimoAlerta();
+        return getEstoqueAtual() < getEstoqueMinimoAlerta();
     }
 }

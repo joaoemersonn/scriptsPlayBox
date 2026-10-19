@@ -16,6 +16,7 @@ public class AppScheduler {
     private final OfflineMonitorService monitorService;
     private final ReportGeneratorService reportService;
     private final br.com.playbox.service.TransactionImportService transactionImportService;
+    private final br.com.playbox.service.EstoqueAlertaService estoqueAlertaService;
 
     @Value("${schedule.monitor.enabled:true}")
     private boolean monitorEnabled;
@@ -29,14 +30,19 @@ public class AppScheduler {
     @Value("${schedule.report.report-mes.enabled:true}")
     private boolean reportMesEnabled;
 
+    @Value("${schedule.estoque-alerta.enabled:true}")
+    private boolean estoqueAlertaEnabled;
+
     public AppScheduler(
             OfflineMonitorService monitorService,
             ReportGeneratorService reportService,
-            br.com.playbox.service.TransactionImportService transactionImportService
+            br.com.playbox.service.TransactionImportService transactionImportService,
+            br.com.playbox.service.EstoqueAlertaService estoqueAlertaService
     ) {
         this.monitorService = monitorService;
         this.reportService = reportService;
         this.transactionImportService = transactionImportService;
+        this.estoqueAlertaService = estoqueAlertaService;
     }
 
     @Scheduled(cron = "${schedule.import-transactions.cron:0 30 * * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
@@ -104,6 +110,20 @@ public class AppScheduler {
             reportService.generateAndSendReport("mes");
         } catch (Exception e) {
             log.error("[SCHEDULE] Erro inesperado ao executar relatório mês: {}", e.getMessage(), e);
+        }
+    }
+
+    @Scheduled(cron = "${schedule.estoque-alerta.cron:0 */15 * * * *}", zone = "${schedule.timezone:America/Sao_Paulo}")
+    public void scheduleEstoqueAlerta() {
+        if (!estoqueAlertaEnabled) {
+            log.info("Verificação agendada de alerta de estoque desabilitada.");
+            return;
+        }
+        log.info("[SCHEDULE] Executando verificação periódica de estoque baixo (< 30)...");
+        try {
+            estoqueAlertaService.verificarEEnviarAlertas();
+        } catch (Exception e) {
+            log.error("[SCHEDULE] Erro inesperado ao verificar alertas de estoque: {}", e.getMessage(), e);
         }
     }
 }

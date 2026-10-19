@@ -32,6 +32,9 @@ schedule:
     report-mes:
       enabled: ${SCHEDULE_REPORT_MES_ENABLED:true}
       cron: ${SCHEDULE_REPORT_MES_CRON:0 0 8 * * *}
+  estoque-alerta:
+    enabled: ${SCHEDULE_ESTOQUE_ALERTA_ENABLED:true}
+    cron: ${SCHEDULE_ESTOQUE_ALERTA_CRON:0 */15 * * * *}
 
 app:
   data-dir: ${APP_DATA_DIR:./data}
@@ -47,6 +50,7 @@ app:
     send-path: ${WHATSAPP_SEND_PATH:/api/messages/send}
     monitor-chat-id: ${WHATSAPP_MONITOR_CHAT_ID:}
     report-chat-id: ${WHATSAPP_REPORT_CHAT_ID:}
+    estoque-chat-id: ${WHATSAPP_ESTOQUE_CHAT_ID:120363423381929568@g.us}
 
   vendpromax:
     base-url: ${VENDPROMAX_BASE_URL:https://api.vendpromax.com.br/api}

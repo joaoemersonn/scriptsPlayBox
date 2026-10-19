@@ -28,6 +28,22 @@ public class EstoqueService {
     private final MovimentacaoEstoqueRepository movimentacaoRepository;
     private final VendProMaxClient vendClient;
     private final AppProperties properties;
+    private final EstoqueAlertaService estoqueAlertaService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public EstoqueService(
+            MaquinaRepository maquinaRepository,
+            MovimentacaoEstoqueRepository movimentacaoRepository,
+            VendProMaxClient vendClient,
+            AppProperties properties,
+            EstoqueAlertaService estoqueAlertaService
+    ) {
+        this.maquinaRepository = maquinaRepository;
+        this.movimentacaoRepository = movimentacaoRepository;
+        this.vendClient = vendClient;
+        this.properties = properties;
+        this.estoqueAlertaService = estoqueAlertaService;
+    }
 
     public EstoqueService(
             MaquinaRepository maquinaRepository,
@@ -35,10 +51,7 @@ public class EstoqueService {
             VendProMaxClient vendClient,
             AppProperties properties
     ) {
-        this.maquinaRepository = maquinaRepository;
-        this.movimentacaoRepository = movimentacaoRepository;
-        this.vendClient = vendClient;
-        this.properties = properties;
+        this(maquinaRepository, movimentacaoRepository, vendClient, properties, null);
     }
 
     /**
@@ -89,6 +102,10 @@ public class EstoqueService {
                 null
         );
 
+        if (estoqueAlertaService != null) {
+            estoqueAlertaService.notificarQuedaEstoque(maquina, estoqueAnterior, estoqueNovo);
+        }
+
         return movimentacaoRepository.save(mov);
     }
 
@@ -125,6 +142,10 @@ public class EstoqueService {
                 LocalDateTime.now(),
                 null
         );
+
+        if (estoqueAlertaService != null) {
+            estoqueAlertaService.notificarQuedaEstoque(maquina, estoqueAnterior, novoEstoque);
+        }
 
         return movimentacaoRepository.save(mov);
     }
@@ -190,6 +211,10 @@ public class EstoqueService {
             movimentacaoRepository.save(mov);
             log.info("Saída automática de {} prêmio(s) registrada para máquina {} (Estoque {} -> {})",
                     quantidadePremios, maquina.getId(), anterior, novo);
+
+            if (estoqueAlertaService != null) {
+                estoqueAlertaService.notificarQuedaEstoque(maquina, anterior, novo);
+            }
         } else {
             MovimentacaoEstoque mov = existing.get();
             int qtdRegistradaAnterior = Math.abs(mov.getQuantidade());
@@ -206,6 +231,10 @@ public class EstoqueService {
                 movimentacaoRepository.save(mov);
                 log.info("Atualização de saída de prêmios para máquina {}: alterado de {} para {} (Novo estoque: {})",
                         maquina.getId(), qtdRegistradaAnterior, quantidadePremios, novo);
+
+                if (estoqueAlertaService != null) {
+                    estoqueAlertaService.notificarQuedaEstoque(maquina, anterior, novo);
+                }
             }
         }
     }
@@ -255,6 +284,10 @@ public class EstoqueService {
                             );
                             movimentacaoRepository.save(mov);
                             atualizadas.add(maq);
+
+                            if (estoqueAlertaService != null) {
+                                estoqueAlertaService.notificarQuedaEstoque(maq, anterior, estoqueNativo);
+                            }
                         }
                     }
                 }
