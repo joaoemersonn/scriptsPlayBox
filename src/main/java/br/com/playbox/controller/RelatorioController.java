@@ -20,9 +20,113 @@ import java.util.Map;
 public class RelatorioController {
 
     private final RelatorioService relatorioService;
+    private final br.com.playbox.service.RelatorioOperacoesService relatorioOperacoesService;
 
-    public RelatorioController(RelatorioService relatorioService) {
+    public RelatorioController(
+            RelatorioService relatorioService,
+            br.com.playbox.service.RelatorioOperacoesService relatorioOperacoesService
+    ) {
         this.relatorioService = relatorioService;
+        this.relatorioOperacoesService = relatorioOperacoesService;
+    }
+
+    @GetMapping(value = "/pdf", produces = "application/pdf")
+    @Operation(
+            summary = "Gerar Relatório Mensal de Operações em PDF (idêntico ao modelo com custos, métricas e histórico)",
+            description = "Gera o PDF com os quadros de Métricas de Pelúcia, Entradas (Espécie / Maquininha), Saídas detalhadas, Lucro Total, Repasse (%) e Histórico de Movimentações."
+    )
+    public ResponseEntity<byte[]> gerarRelatorioPdf(
+            @Parameter(description = "ID do estabelecimento (ex: 3 para Praça do Sabor)")
+            @RequestParam(required = false) Long estabelecimentoId,
+
+            @Parameter(description = "ID da máquina no banco (opcional)")
+            @RequestParam(required = false) Long maquinaId,
+
+            @Parameter(description = "Período predefinido: 'mes', '24h-anterior', '12h-atual', 'hoje' ou 'custom'", example = "mes")
+            @RequestParam(required = false) String periodo,
+
+            @Parameter(description = "Data inicial no formato YYYY-MM-DD (ex: 2026-09-01)", example = "2026-09-01")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+
+            @Parameter(description = "Data final no formato YYYY-MM-DD (ex: 2026-09-30)", example = "2026-09-30")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+
+            @Parameter(description = "Valor unitário da pelúcia (default: 19.90)", example = "19.90")
+            @RequestParam(required = false, defaultValue = "19.90") Double valorUnitarioPelucia,
+
+            @Parameter(description = "Percentual da taxa de maquininha (default: 4.99%)", example = "4.99")
+            @RequestParam(required = false, defaultValue = "4.99") Double taxaMaquininhaPercentual,
+
+            @Parameter(description = "Mensalidade do sistema de telemetria (default: 69.90)", example = "69.90")
+            @RequestParam(required = false, defaultValue = "69.90") Double mensalidadeTelemetria,
+
+            @Parameter(description = "Visitas técnicas e manutenções (default: 350.00)", example = "350.00")
+            @RequestParam(required = false, defaultValue = "350.00") Double visitasManutencao,
+
+            @Parameter(description = "Percentual de repasse/comissão sobre o lucro (default: 25.0%)", example = "25.0")
+            @RequestParam(required = false, defaultValue = "25.0") Double percentualRepasse,
+
+            @Parameter(description = "Título customizado da unidade (ex: 'Unidade 02-Praça do Sabor')")
+            @RequestParam(required = false) String tituloUnidade,
+
+            @Parameter(description = "Incluir tabela com histórico de movimentações detalhado (default: true)")
+            @RequestParam(required = false, defaultValue = "true") boolean incluirHistorico
+    ) {
+        byte[] pdf = relatorioOperacoesService.gerarPdf(
+                estabelecimentoId,
+                maquinaId,
+                periodo,
+                dataInicio,
+                dataFim,
+                valorUnitarioPelucia,
+                taxaMaquininhaPercentual,
+                mensalidadeTelemetria,
+                visitasManutencao,
+                percentualRepasse,
+                tituloUnidade,
+                incluirHistorico
+        );
+
+        String filename = "relatorio-operacoes" + (estabelecimentoId != null ? "-estab-" + estabelecimentoId : "") + ".pdf";
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/pdf")
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .body(pdf);
+    }
+
+    @GetMapping("/operacoes/json")
+    @Operation(
+            summary = "Consultar dados calculados do Relatório de Operações em formato JSON",
+            description = "Retorna os mesmos dados estruturados que alimentam o relatório em PDF (métricas, entradas, saídas, lucro e histórico)."
+    )
+    public ResponseEntity<br.com.playbox.model.RelatorioOperacoesDTO> obterDadosOperacoesJson(
+            @RequestParam(required = false) Long estabelecimentoId,
+            @RequestParam(required = false) Long maquinaId,
+            @RequestParam(required = false) String periodo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            @RequestParam(required = false, defaultValue = "19.90") Double valorUnitarioPelucia,
+            @RequestParam(required = false, defaultValue = "4.99") Double taxaMaquininhaPercentual,
+            @RequestParam(required = false, defaultValue = "69.90") Double mensalidadeTelemetria,
+            @RequestParam(required = false, defaultValue = "350.00") Double visitasManutencao,
+            @RequestParam(required = false, defaultValue = "25.0") Double percentualRepasse,
+            @RequestParam(required = false) String tituloUnidade
+    ) {
+        br.com.playbox.model.RelatorioOperacoesDTO dto = relatorioOperacoesService.compilarRelatorio(
+                estabelecimentoId,
+                maquinaId,
+                periodo,
+                dataInicio,
+                dataFim,
+                valorUnitarioPelucia,
+                taxaMaquininhaPercentual,
+                mensalidadeTelemetria,
+                visitasManutencao,
+                percentualRepasse,
+                tituloUnidade
+        );
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping

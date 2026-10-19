@@ -78,4 +78,15 @@ public class VendProMaxClient extends ApiClient {
 
         return post(endpoint, defaultHeaders(token), payload, "VendProMax");
     }
+
+    public JsonNode getPagamentosPeriodo(String token, Object maquinaId, String dataInicio, String dataFim) {
+        if (token == null || token.isBlank() || maquinaId == null) {
+            return null;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("dataInicio", dataInicio);
+        payload.put("dataFim", dataFim);
+
+        return post("pagamentos-periodo/" + maquinaId, defaultHeaders(token), payload, "VendProMax");
+    }
 }
