@@ -31,7 +31,8 @@ class EstoqueAlertaServiceTest {
         maquinaRepository = mock(MaquinaRepository.class);
         whatsAppSender = mock(WhatsAppSender.class);
         properties = new AppProperties();
-        properties.getWhatsapp().setEstoqueChatId("120363423381929568@g.us");
+        properties.getWhatsapp().setReportChatId("120363411732539594@g.us");
+        properties.getWhatsapp().setEstoqueChatId(null);
 
         alertaService = new EstoqueAlertaService(maquinaRepository, properties, whatsAppSender);
     }
@@ -54,7 +55,7 @@ class EstoqueAlertaServiceTest {
         m1.setEstabelecimento(est);
 
         when(maquinaRepository.findMaquinasComEstoqueBaixo()).thenReturn(List.of(m1));
-        when(whatsAppSender.sendMessage(eq("120363423381929568@g.us"), any(String.class))).thenReturn(true);
+        when(whatsAppSender.sendMessage(eq("120363411732539594@g.us"), any(String.class))).thenReturn(true);
         when(maquinaRepository.save(any(Maquina.class))).thenAnswer(i -> i.getArgument(0));
 
         int notificadas = alertaService.verificarEEnviarAlertas();
@@ -63,7 +64,7 @@ class EstoqueAlertaServiceTest {
         assertNotNull(m1.getUltimaNotificacaoEstoqueBaixo());
 
         ArgumentCaptor<String> msgCaptor = ArgumentCaptor.forClass(String.class);
-        verify(whatsAppSender).sendMessage(eq("120363423381929568@g.us"), msgCaptor.capture());
+        verify(whatsAppSender).sendMessage(eq("120363411732539594@g.us"), msgCaptor.capture());
         String msg = msgCaptor.getValue();
         assertTrue(msg.contains("RELATÓRIO DIÁRIO DE REABASTECIMENTO"));
         assertTrue(msg.contains("22 pelúcias"));
@@ -82,7 +83,7 @@ class EstoqueAlertaServiceTest {
         m.setEstoqueMinimoAlerta(30);
         m.setCapacidadeMaxima(100);
 
-        when(whatsAppSender.sendMessage(eq("120363423381929568@g.us"), any(String.class))).thenReturn(true);
+        when(whatsAppSender.sendMessage(eq("120363411732539594@g.us"), any(String.class))).thenReturn(true);
         when(maquinaRepository.save(any(Maquina.class))).thenAnswer(i -> i.getArgument(0));
 
         // Transição: antes estava 32 (>= 30) e agora caiu para 25 (< 30)
@@ -90,7 +91,7 @@ class EstoqueAlertaServiceTest {
 
         assertTrue(notificado);
         assertNotNull(m.getUltimaNotificacaoEstoqueBaixo());
-        verify(whatsAppSender).sendMessage(eq("120363423381929568@g.us"), any(String.class));
+        verify(whatsAppSender).sendMessage(eq("120363411732539594@g.us"), any(String.class));
     }
 
     @Test

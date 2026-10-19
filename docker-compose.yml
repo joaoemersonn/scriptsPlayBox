@@ -22,7 +22,7 @@ services:
       - WHATSAPP_SEND_PATH=${WHATSAPP_SEND_PATH:-/api/messages/send}
       - WHATSAPP_MONITOR_CHAT_ID=${WHATSAPP_MONITOR_CHAT_ID:-}
       - WHATSAPP_REPORT_CHAT_ID=${WHATSAPP_REPORT_CHAT_ID:-}
-      - WHATSAPP_ESTOQUE_CHAT_ID=${WHATSAPP_ESTOQUE_CHAT_ID:-120363423381929568@g.us}
+      - WHATSAPP_ESTOQUE_CHAT_ID=${WHATSAPP_ESTOQUE_CHAT_ID:-${WHATSAPP_REPORT_CHAT_ID:-}}
 
       # Chave de API para autenticação nos métodos da aplicação (Swagger / API REST)
       - APP_API_KEY=${APP_API_KEY:-playbox_secure_api_key_2026}

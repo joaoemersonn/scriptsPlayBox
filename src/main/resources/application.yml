@@ -50,7 +50,7 @@ app:
     send-path: ${WHATSAPP_SEND_PATH:/api/messages/send}
     monitor-chat-id: ${WHATSAPP_MONITOR_CHAT_ID:}
     report-chat-id: ${WHATSAPP_REPORT_CHAT_ID:}
-    estoque-chat-id: ${WHATSAPP_ESTOQUE_CHAT_ID:120363423381929568@g.us}
+    estoque-chat-id: ${WHATSAPP_ESTOQUE_CHAT_ID:${app.whatsapp.report-chat-id}}
 
   vendpromax:
     base-url: ${VENDPROMAX_BASE_URL:https://api.vendpromax.com.br/api}

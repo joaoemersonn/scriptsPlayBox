@@ -22,7 +22,7 @@ public class EstoqueAlertaService {
 
     private static final Logger log = LoggerFactory.getLogger(EstoqueAlertaService.class);
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    public static final String DEFAULT_ESTOQUE_CHAT_ID = "120363423381929568@g.us";
+    public static final String DEFAULT_ESTOQUE_CHAT_ID = "120363411732539594@g.us";
 
     private final MaquinaRepository maquinaRepository;
     private final WhatsAppSender whatsAppSender;
@@ -41,9 +41,7 @@ public class EstoqueAlertaService {
         String baseUrl = (wa != null && wa.getBaseUrl() != null) ? wa.getBaseUrl() : "http://whatsapp-bot:3035";
         String sendPath = (wa != null && wa.getSendPath() != null) ? wa.getSendPath() : "/api/messages/send";
         String apiKey = (wa != null && wa.getApiKey() != null) ? wa.getApiKey() : "";
-        String chatId = (wa != null && wa.getEstoqueChatId() != null && !wa.getEstoqueChatId().isBlank())
-                ? wa.getEstoqueChatId()
-                : DEFAULT_ESTOQUE_CHAT_ID;
+        String chatId = resolveChatId(wa);
 
         this.whatsAppSender = new WhatsAppSender(
                 baseUrl,
@@ -54,7 +52,7 @@ public class EstoqueAlertaService {
                 (objectMapper != null) ? objectMapper : new ObjectMapper()
         );
 
-        log.info("EstoqueAlertaService inicializado para o grupo: {}", chatId);
+        log.info("EstoqueAlertaService inicializado para o grupo de relatórios: {}", chatId);
     }
 
     public EstoqueAlertaService(
@@ -68,8 +66,15 @@ public class EstoqueAlertaService {
     }
 
     private String getTargetChatId() {
-        if (properties.getWhatsapp() != null && properties.getWhatsapp().getEstoqueChatId() != null && !properties.getWhatsapp().getEstoqueChatId().isBlank()) {
-            return properties.getWhatsapp().getEstoqueChatId();
+        return resolveChatId(properties != null ? properties.getWhatsapp() : null);
+    }
+
+    private String resolveChatId(AppProperties.Whatsapp wa) {
+        if (wa != null && wa.getEstoqueChatId() != null && !wa.getEstoqueChatId().isBlank()) {
+            return wa.getEstoqueChatId();
+        }
+        if (wa != null && wa.getReportChatId() != null && !wa.getReportChatId().isBlank()) {
+            return wa.getReportChatId();
         }
         return DEFAULT_ESTOQUE_CHAT_ID;
     }
