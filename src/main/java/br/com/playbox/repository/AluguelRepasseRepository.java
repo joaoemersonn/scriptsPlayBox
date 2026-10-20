@@ -17,11 +17,12 @@ public interface AluguelRepasseRepository extends JpaRepository<AluguelRepasse, 
 
     List<AluguelRepasse> findByEstabelecimentoIdOrderByDataVencimentoDesc(Long estabelecimentoId);
 
+    @Query("SELECT a FROM AluguelRepasse a WHERE a.pago = false AND a.estabelecimento.ativo = true ORDER BY a.dataVencimento ASC")
     List<AluguelRepasse> findByPagoFalseOrderByDataVencimentoAsc();
 
     List<AluguelRepasse> findByPagoTrueOrderByDataPagamentoDesc();
 
-    @Query("SELECT a FROM AluguelRepasse a WHERE a.pago = false AND a.dataVencimento <= :dataLimite ORDER BY a.dataVencimento ASC")
+    @Query("SELECT a FROM AluguelRepasse a WHERE a.pago = false AND a.estabelecimento.ativo = true AND a.dataVencimento <= :dataLimite ORDER BY a.dataVencimento ASC")
     List<AluguelRepasse> findVencendoAte(@Param("dataLimite") LocalDate dataLimite);
 
     List<AluguelRepasse> findByMesAno(String mesAno);
@@ -30,4 +31,14 @@ public interface AluguelRepasseRepository extends JpaRepository<AluguelRepasse, 
     @org.springframework.transaction.annotation.Transactional
     @Query("DELETE FROM AluguelRepasse a WHERE a.estabelecimento.id = :estabelecimentoId")
     void deleteByEstabelecimentoId(@Param("estabelecimentoId") Long estabelecimentoId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM AluguelRepasse a WHERE a.estabelecimento.id = :estabelecimentoId AND a.pago = false")
+    void deleteByEstabelecimentoIdAndPagoFalse(@Param("estabelecimentoId") Long estabelecimentoId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM AluguelRepasse a WHERE a.pago = false AND a.estabelecimento.ativo = false")
+    void deleteByEstabelecimentoAtivoFalseAndPagoFalse();
 }

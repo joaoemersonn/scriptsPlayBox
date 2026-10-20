@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface EstabelecimentoRepository extends JpaRepository<Estabelecimento, Long> {
 
     Optional<Estabelecimento> findByNomeIgnoreCase(String nome);
+
+    java.util.List<Estabelecimento> findByAtivoTrue();
 }

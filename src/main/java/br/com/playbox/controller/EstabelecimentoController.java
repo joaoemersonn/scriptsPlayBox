@@ -69,6 +69,7 @@ public class EstabelecimentoController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar dados do estabelecimento (cidade, responsável, dia de pagamento, valor acordado, etc.)")
+    @Transactional
     public ResponseEntity<Estabelecimento> atualizar(@PathVariable Long id, @RequestBody Estabelecimento dados) {
         return repository.findById(id).map(existente -> {
             if (dados.getNome() != null) existente.setNome(dados.getNome());
@@ -77,6 +78,9 @@ public class EstabelecimentoController {
             if (dados.getDiaPagamento() != null) existente.setDiaPagamento(dados.getDiaPagamento());
             if (dados.getValorAcordado() != null) existente.setValorAcordado(dados.getValorAcordado());
             if (dados.getDataInicio() != null) existente.setDataInicio(dados.getDataInicio());
+            if (existente.isAtivo() && !dados.isAtivo()) {
+                aluguelRepasseRepository.deleteByEstabelecimentoIdAndPagoFalse(id);
+            }
             existente.setAtivo(dados.isAtivo());
             return ResponseEntity.ok(repository.save(existente));
         }).orElse(ResponseEntity.notFound().build());
@@ -84,9 +88,11 @@ public class EstabelecimentoController {
 
     @PutMapping("/{id}/desativar")
     @Operation(summary = "Desativar estabelecimento")
+    @Transactional
     public ResponseEntity<Estabelecimento> desativar(@PathVariable Long id) {
         return repository.findById(id).map(est -> {
             est.setAtivo(false);
+            aluguelRepasseRepository.deleteByEstabelecimentoIdAndPagoFalse(id);
             return ResponseEntity.ok(repository.save(est));
         }).orElse(ResponseEntity.notFound().build());
     }

@@ -57,11 +57,12 @@ public class DataInitializationService {
             log.warn("Não foi possível sincronizar máquinas no startup (APIs podem estar indisponíveis): {}", e.getMessage());
         }
 
-        // Gerar aluguéis do mês atual caso não existam
+        // Limpar pendências de inativos e gerar aluguéis do mês atual caso não existam
         try {
+            aluguelService.removerCobrancasPendentesDeInativos();
             aluguelService.gerarCobrancasMes(YearMonth.now());
         } catch (Exception e) {
-            log.warn("Não foi possível gerar cobranças de aluguel no startup: {}", e.getMessage());
+            log.warn("Não foi possível processar cobranças de aluguel no startup: {}", e.getMessage());
         }
 
         // Importa transações do mês atual em background para não bloquear o startup do Tomcat

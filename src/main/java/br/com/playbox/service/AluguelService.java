@@ -41,8 +41,11 @@ public class AluguelService {
 
     @Transactional
     public List<AluguelRepasse> gerarCobrancasMes(YearMonth anoMes) {
+        // Assegura que estabelecimentos inativos não possuam cobranças pendentes
+        aluguelRepository.deleteByEstabelecimentoAtivoFalseAndPagoFalse();
+
         String mesAnoStr = anoMes.toString(); // YYYY-MM
-        List<Estabelecimento> estabelecimentos = estabelecimentoRepository.findAll();
+        List<Estabelecimento> estabelecimentos = estabelecimentoRepository.findByAtivoTrue();
         List<AluguelRepasse> criados = new ArrayList<>();
 
         for (Estabelecimento est : estabelecimentos) {
@@ -66,6 +69,11 @@ public class AluguelService {
 
         log.info("Gerados {} novos registros de repasse/aluguel para o mês {}", criados.size(), mesAnoStr);
         return criados;
+    }
+
+    @Transactional
+    public void removerCobrancasPendentesDeInativos() {
+        aluguelRepository.deleteByEstabelecimentoAtivoFalseAndPagoFalse();
     }
 
     public List<AluguelRepasse> listarVencendoAte(int diasAFrente) {
