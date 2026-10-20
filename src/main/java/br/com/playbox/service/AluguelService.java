@@ -80,8 +80,9 @@ public class AluguelService {
 
             if (isDinamico) {
                 pctRepasse = est.getPercentualRepasse() != null ? est.getPercentualRepasse() : 25.0;
-                LocalDate inicioMes = anoMes.atDay(1);
-                LocalDate fimMes = anoMes.atEndOfMonth();
+                YearMonth mesFechado = anoMes.minusMonths(1);
+                LocalDate inicioMes = mesFechado.atDay(1);
+                LocalDate fimMes = mesFechado.atEndOfMonth();
                 try {
                     RelatorioOperacoesDTO dto = relatorioOperacoesService.compilarRelatorio(
                             est.getId(), null, null, inicioMes, fimMes,
@@ -99,6 +100,7 @@ public class AluguelService {
 
             AluguelRepasse aluguel = new AluguelRepasse(est, mesAnoStr, dataVencimento, valorAluguel);
             aluguel.setTipoAluguel(tipo);
+            aluguel.setMesCompetencia(isDinamico ? anoMes.minusMonths(1).toString() : null);
             aluguel.setLucroCalculado(lucroCalc);
             aluguel.setPercentualRepasse(pctRepasse);
             aluguel.setValorManual(false);
@@ -113,8 +115,9 @@ public class AluguelService {
     private void atualizarValorDinamico(AluguelRepasse aluguel, YearMonth anoMes) {
         Estabelecimento est = aluguel.getEstabelecimento();
         Double pctRepasse = est.getPercentualRepasse() != null ? est.getPercentualRepasse() : 25.0;
-        LocalDate inicioMes = anoMes.atDay(1);
-        LocalDate fimMes = anoMes.atEndOfMonth();
+        YearMonth mesFechado = anoMes.minusMonths(1);
+        LocalDate inicioMes = mesFechado.atDay(1);
+        LocalDate fimMes = mesFechado.atEndOfMonth();
         try {
             RelatorioOperacoesDTO dto = relatorioOperacoesService.compilarRelatorio(
                     est.getId(), null, null, inicioMes, fimMes,
@@ -123,6 +126,7 @@ public class AluguelService {
             aluguel.setLucroCalculado(dto.getLucroTotal());
             aluguel.setPercentualRepasse(pctRepasse);
             aluguel.setTipoAluguel("DINAMICO");
+            aluguel.setMesCompetencia(mesFechado.toString());
             aluguel.setValor(Math.max(0.0, Math.round(dto.getValorRepasse() * 100.0) / 100.0));
             aluguelRepository.save(aluguel);
         } catch (Exception e) {
@@ -144,8 +148,10 @@ public class AluguelService {
 
         Estabelecimento est = aluguel.getEstabelecimento();
         YearMonth ym = YearMonth.parse(aluguel.getMesAno());
-        LocalDate inicioMes = ym.atDay(1);
-        LocalDate fimMes = ym.atEndOfMonth();
+        // O aluguel a pagar no mês (ex: 2026-10) baseia-se nas operações do mês fechado anterior (ex: 2026-09)
+        YearMonth mesFechado = ym.minusMonths(1);
+        LocalDate inicioMes = mesFechado.atDay(1);
+        LocalDate fimMes = mesFechado.atEndOfMonth();
 
         double pct = percentualRepasse != null ? percentualRepasse
                 : (est.getPercentualRepasse() != null ? est.getPercentualRepasse() : 25.0);
@@ -162,6 +168,7 @@ public class AluguelService {
         double valorCalculado = Math.max(0.0, Math.round(dto.getValorRepasse() * 100.0) / 100.0);
         aluguel.setValor(valorCalculado);
         aluguel.setTipoAluguel("DINAMICO");
+        aluguel.setMesCompetencia(mesFechado.toString());
         aluguel.setLucroCalculado(dto.getLucroTotal());
         aluguel.setPercentualRepasse(pct);
         aluguel.setValorManual(false);

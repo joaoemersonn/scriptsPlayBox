@@ -88,7 +88,8 @@ class AluguelServiceTest {
         dto.setValorRepasse(248.24);
 
         when(estabelecimentoRepository.findByAtivoTrue()).thenReturn(List.of(praca));
-        when(aluguelRepository.findByEstabelecimentoIdAndMesAno(3L, "2026-07")).thenReturn(Optional.empty());
+        when(aluguelRepository.findByEstabelecimentoIdAndMesAno(3L, "2026-08")).thenReturn(Optional.empty());
+        // Cobrança a ser paga em 2026-08 baseia-se nas operações do mês fechado anterior: 2026-07
         when(relatorioOperacoesService.compilarRelatorio(
                 eq(3L), isNull(), isNull(),
                 eq(LocalDate.of(2026, 7, 1)), eq(LocalDate.of(2026, 7, 31)),
@@ -96,11 +97,12 @@ class AluguelServiceTest {
         )).thenReturn(dto);
         when(aluguelRepository.save(any(AluguelRepasse.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        List<AluguelRepasse> criados = service.gerarCobrancasMes(YearMonth.of(2026, 7));
+        List<AluguelRepasse> criados = service.gerarCobrancasMes(YearMonth.of(2026, 8));
 
         assertEquals(1, criados.size());
         AluguelRepasse repasse = criados.get(0);
         assertEquals("DINAMICO", repasse.getTipoAluguel());
+        assertEquals("2026-07", repasse.getMesCompetencia());
         assertEquals(248.24, repasse.getValor());
         assertEquals(992.98, repasse.getLucroCalculado());
         assertEquals(25.0, repasse.getPercentualRepasse());

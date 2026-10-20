@@ -42,6 +42,9 @@ public class AluguelRepasse {
     @Column(name = "tipo_aluguel")
     private String tipoAluguel = "FIXO"; // "FIXO" ou "DINAMICO"
 
+    @Column(name = "mes_competencia")
+    private String mesCompetencia; // Mês fechado anterior cujas operações serviram de base para o repasse
+
     @Column(name = "lucro_calculado")
     private Double lucroCalculado;
 
@@ -176,6 +179,14 @@ public class AluguelRepasse {
 
     public void setLucroCalculado(Double lucroCalculado) {
         this.lucroCalculado = lucroCalculado;
+    }
+
+    public String getMesCompetencia() {
+        return mesCompetencia;
+    }
+
+    public void setMesCompetencia(String mesCompetencia) {
+        this.mesCompetencia = mesCompetencia;
     }
 
     public Double getPercentualRepasse() {
