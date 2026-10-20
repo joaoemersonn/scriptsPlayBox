@@ -2,10 +2,12 @@ package br.com.playbox;
 
 import br.com.playbox.entity.AluguelRepasse;
 import br.com.playbox.entity.Estabelecimento;
+import br.com.playbox.model.RelatorioOperacoesDTO;
 import br.com.playbox.repository.AluguelRepasseRepository;
 import br.com.playbox.repository.EstabelecimentoRepository;
 import br.com.playbox.repository.MeioPagamentoRepository;
 import br.com.playbox.service.AluguelService;
+import br.com.playbox.service.RelatorioOperacoesService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,11 +37,19 @@ class AluguelServiceTest {
     @Mock
     private MeioPagamentoRepository meioPagamentoRepository;
 
+    @Mock
+    private RelatorioOperacoesService relatorioOperacoesService;
+
     private AluguelService service;
 
     @BeforeEach
     void setUp() {
-        service = new AluguelService(estabelecimentoRepository, aluguelRepository, meioPagamentoRepository);
+        service = new AluguelService(
+                estabelecimentoRepository,
+                aluguelRepository,
+                meioPagamentoRepository,
+                relatorioOperacoesService
+        );
     }
 
     @Test
@@ -47,12 +58,8 @@ class AluguelServiceTest {
         Estabelecimento ativo = new Estabelecimento("Loja Ativa", "Custódia", "João", "Dia 10", 150.0, "2026-01-01");
         ativo.setId(1L);
         ativo.setAtivo(true);
+        ativo.setTipoAluguel("FIXO");
 
-        Estabelecimento inativo = new Estabelecimento("Loja Inativa", "Sertânia", "Paulo", "Dia 10", 150.0, "2026-01-01");
-        inativo.setId(2L);
-        inativo.setAtivo(false);
-
-        // findByAtivoTrue retorna apenas a loja ativa
         when(estabelecimentoRepository.findByAtivoTrue()).thenReturn(List.of(ativo));
         when(aluguelRepository.findByEstabelecimentoIdAndMesAno(1L, "2026-10")).thenReturn(Optional.empty());
         when(aluguelRepository.save(any(AluguelRepasse.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -61,7 +68,60 @@ class AluguelServiceTest {
 
         assertEquals(1, criados.size());
         assertEquals("Loja Ativa", criados.get(0).getEstabelecimento().getNome());
+        assertEquals(150.0, criados.get(0).getValor());
+        assertEquals("FIXO", criados.get(0).getTipoAluguel());
         verify(aluguelRepository, times(1)).deleteByEstabelecimentoAtivoFalseAndPagoFalse();
+    }
+
+    @Test
+    @DisplayName("Deve gerar aluguel dinâmico (25% sobre o lucro) para loja configurada como DINAMICO")
+    void testGerarAluguelDinamico() {
+        Estabelecimento praca = new Estabelecimento("Praça do Sabor", "Custódia", "Gabriel", "Dia 06", 150.0, "2025-01-01");
+        praca.setId(3L);
+        praca.setAtivo(true);
+        praca.setTipoAluguel("DINAMICO");
+        praca.setPercentualRepasse(25.0);
+
+        RelatorioOperacoesDTO dto = new RelatorioOperacoesDTO();
+        dto.setLucroTotal(992.98);
+        dto.setPercentualRepasse(25.0);
+        dto.setValorRepasse(248.24);
+
+        when(estabelecimentoRepository.findByAtivoTrue()).thenReturn(List.of(praca));
+        when(aluguelRepository.findByEstabelecimentoIdAndMesAno(3L, "2026-07")).thenReturn(Optional.empty());
+        when(relatorioOperacoesService.compilarRelatorio(
+                eq(3L), isNull(), isNull(),
+                eq(LocalDate.of(2026, 7, 1)), eq(LocalDate.of(2026, 7, 31)),
+                eq(19.90), eq(4.99), eq(69.90), eq(350.00), eq(25.0), isNull()
+        )).thenReturn(dto);
+        when(aluguelRepository.save(any(AluguelRepasse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<AluguelRepasse> criados = service.gerarCobrancasMes(YearMonth.of(2026, 7));
+
+        assertEquals(1, criados.size());
+        AluguelRepasse repasse = criados.get(0);
+        assertEquals("DINAMICO", repasse.getTipoAluguel());
+        assertEquals(248.24, repasse.getValor());
+        assertEquals(992.98, repasse.getLucroCalculado());
+        assertEquals(25.0, repasse.getPercentualRepasse());
+        assertFalse(repasse.getValorManual());
+    }
+
+    @Test
+    @DisplayName("Deve permitir definir valor manual do aluguel")
+    void testDefinirValorManual() {
+        Estabelecimento est = new Estabelecimento("Loja", "Cidade", "Resp", "Dia 10", 150.0, "2026-01-01");
+        AluguelRepasse aluguel = new AluguelRepasse(est, "2026-10", LocalDate.of(2026, 10, 10), 150.0);
+        aluguel.setId(5L);
+
+        when(aluguelRepository.findById(5L)).thenReturn(Optional.of(aluguel));
+        when(aluguelRepository.save(any(AluguelRepasse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AluguelRepasse atualizado = service.definirValorAluguel(5L, 320.0, "Acordo extraordinário");
+
+        assertEquals(320.0, atualizado.getValor());
+        assertTrue(atualizado.getValorManual());
+        assertEquals("Acordo extraordinário", atualizado.getComprovanteOuObs());
     }
 
     @Test

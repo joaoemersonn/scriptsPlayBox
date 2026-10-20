@@ -28,6 +28,12 @@ public class Estabelecimento {
     @Column(name = "valor_acordado")
     private Double valorAcordado;
 
+    @Column(name = "tipo_aluguel")
+    private String tipoAluguel = "FIXO"; // "FIXO" ou "DINAMICO"
+
+    @Column(name = "percentual_repasse")
+    private Double percentualRepasse = 25.0; // Padrão 25% sobre o lucro
+
     @Column(name = "data_inicio")
     private String dataInicio;
 
@@ -169,5 +175,25 @@ public class Estabelecimento {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getTipoAluguel() {
+        return tipoAluguel;
+    }
+
+    public void setTipoAluguel(String tipoAluguel) {
+        this.tipoAluguel = tipoAluguel;
+    }
+
+    public Double getPercentualRepasse() {
+        return percentualRepasse;
+    }
+
+    public void setPercentualRepasse(Double percentualRepasse) {
+        this.percentualRepasse = percentualRepasse;
+    }
+
+    public boolean isAluguelDinamico() {
+        return "DINAMICO".equalsIgnoreCase(tipoAluguel);
     }
 }

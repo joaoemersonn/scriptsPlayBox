@@ -39,6 +39,18 @@ public class AluguelRepasse {
     @Column(name = "comprovante_ou_obs")
     private String comprovanteOuObs;
 
+    @Column(name = "tipo_aluguel")
+    private String tipoAluguel = "FIXO"; // "FIXO" ou "DINAMICO"
+
+    @Column(name = "lucro_calculado")
+    private Double lucroCalculado;
+
+    @Column(name = "percentual_repasse")
+    private Double percentualRepasse;
+
+    @Column(name = "valor_manual")
+    private Boolean valorManual = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -148,5 +160,37 @@ public class AluguelRepasse {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getTipoAluguel() {
+        return tipoAluguel;
+    }
+
+    public void setTipoAluguel(String tipoAluguel) {
+        this.tipoAluguel = tipoAluguel;
+    }
+
+    public Double getLucroCalculado() {
+        return lucroCalculado;
+    }
+
+    public void setLucroCalculado(Double lucroCalculado) {
+        this.lucroCalculado = lucroCalculado;
+    }
+
+    public Double getPercentualRepasse() {
+        return percentualRepasse;
+    }
+
+    public void setPercentualRepasse(Double percentualRepasse) {
+        this.percentualRepasse = percentualRepasse;
+    }
+
+    public Boolean getValorManual() {
+        return valorManual;
+    }
+
+    public void setValorManual(Boolean valorManual) {
+        this.valorManual = valorManual;
     }
 }

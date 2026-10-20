@@ -57,6 +57,16 @@ public class DataInitializationService {
             log.warn("Não foi possível sincronizar máquinas no startup (APIs podem estar indisponíveis): {}", e.getMessage());
         }
 
+        // Configura Praça do Sabor com aluguel dinâmico (25% sobre o lucro)
+        estabelecimentoRepository.findByNomeIgnoreCase("Praça do Sabor").ifPresent(est -> {
+            if (!est.isAluguelDinamico()) {
+                est.setTipoAluguel("DINAMICO");
+                est.setPercentualRepasse(25.0);
+                estabelecimentoRepository.save(est);
+                log.info("Estabelecimento Praça do Sabor configurado com aluguel dinâmico (25% sobre lucro)");
+            }
+        });
+
         // Limpar pendências de inativos e gerar aluguéis do mês atual caso não existam
         try {
             aluguelService.removerCobrancasPendentesDeInativos();

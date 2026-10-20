@@ -87,4 +87,78 @@ public class AluguelController {
         AluguelRepasse atualizado = aluguelService.estornarPagamento(id);
         return ResponseEntity.ok(atualizado);
     }
+
+    @PutMapping("/{id}/valor")
+    @Operation(
+            summary = "Definir valor manual do aluguel de um registro",
+            description = "Permite fixar ou ajustar o valor do aluguel a ser pago no mês (ex: 'o aluguel desse mês vai ser pago tanto')."
+    )
+    public ResponseEntity<AluguelRepasse> definirValor(
+            @PathVariable Long id,
+            @Parameter(description = "Novo valor do aluguel a ser cobrado/pago", example = "248.24")
+            @RequestParam Double valor,
+            @Parameter(description = "Observação ou motivo do ajuste (opcional)")
+            @RequestParam(required = false) String obs
+    ) {
+        AluguelRepasse atualizado = aluguelService.definirValorAluguel(id, valor, obs);
+        return ResponseEntity.ok(atualizado);
+    }
+
+    @PutMapping("/definir-valor")
+    @Operation(
+            summary = "Definir ou ajustar valor de aluguel por Estabelecimento e Mês",
+            description = "Permite definir o valor do aluguel para uma loja e mês específicos (ex: estabelecimentoId=3, mesAno=2026-10, valor=248.24)."
+    )
+    public ResponseEntity<AluguelRepasse> definirValorPorEstabelecimento(
+            @Parameter(description = "ID do estabelecimento (ex: 3 para Praça do Sabor)")
+            @RequestParam Long estabelecimentoId,
+            @Parameter(description = "Mês no formato YYYY-MM (ex: 2026-10)", example = "2026-10")
+            @RequestParam String mesAno,
+            @Parameter(description = "Valor acordado ou a ser pago neste mês", example = "248.24")
+            @RequestParam Double valor,
+            @Parameter(description = "Observação opcional")
+            @RequestParam(required = false) String obs
+    ) {
+        YearMonth target = YearMonth.parse(mesAno.trim());
+        AluguelRepasse atualizado = aluguelService.definirValorAluguelPorEstabelecimento(estabelecimentoId, target, valor, obs);
+        return ResponseEntity.ok(atualizado);
+    }
+
+    @PostMapping("/{id}/calcular-dinamico")
+    @Operation(
+            summary = "Calcular aluguel dinâmico (25% sobre o lucro operacional do mês)",
+            description = "Calcula o valor do repasse/aluguel baseado no relatório mensal de operações (Telemetria default R$ 69,90, Manutenção R$ 350,00, Pelúcia R$ 19,90, Repasse 25%)."
+    )
+    public ResponseEntity<AluguelRepasse> calcularDinamico(
+            @PathVariable Long id,
+            @Parameter(description = "Custo unitário da pelúcia (default: 19.90)", example = "19.90")
+            @RequestParam(required = false) Double valorUnitarioPelucia,
+            @Parameter(description = "Taxa de maquininha % (default: 4.99)", example = "4.99")
+            @RequestParam(required = false) Double taxaMaquininha,
+            @Parameter(description = "Mensalidade telemetria (default: 69.90)", example = "69.90")
+            @RequestParam(required = false) Double telemetria,
+            @Parameter(description = "Custos de visitas/manutenções (default: 350.00)", example = "350.00")
+            @RequestParam(required = false) Double visitas,
+            @Parameter(description = "Percentual sobre o lucro (default: 25.0%)", example = "25.0")
+            @RequestParam(required = false) Double percentualRepasse
+    ) {
+        AluguelRepasse atualizado = aluguelService.calcularAluguelDinamico(
+                id, valorUnitarioPelucia, taxaMaquininha, telemetria, visitas, percentualRepasse
+        );
+        return ResponseEntity.ok(atualizado);
+    }
+
+    @PostMapping("/calcular-dinamicos")
+    @Operation(
+            summary = "Recalcular todos os aluguéis dinâmicos de um mês",
+            description = "Recalcula o repasse de todas as lojas com aluguel dinâmico (ex: Praça do Sabor) para o mês informado."
+    )
+    public ResponseEntity<List<AluguelRepasse>> calcularDinamicosMes(
+            @Parameter(description = "Mês no formato YYYY-MM (ex: 2026-10). Padrão: mês atual", example = "2026-10")
+            @RequestParam(required = false) String mesAno
+    ) {
+        YearMonth target = (mesAno != null && !mesAno.isBlank()) ? YearMonth.parse(mesAno.trim()) : YearMonth.now();
+        List<AluguelRepasse> atualizados = aluguelService.calcularAlugueisDinamicosMes(target);
+        return ResponseEntity.ok(atualizados);
+    }
 }

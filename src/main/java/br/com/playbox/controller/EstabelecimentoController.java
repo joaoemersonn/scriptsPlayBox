@@ -9,6 +9,7 @@ import br.com.playbox.repository.EstabelecimentoRepository;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.repository.MeioPagamentoRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -78,11 +79,31 @@ public class EstabelecimentoController {
             if (dados.getDiaPagamento() != null) existente.setDiaPagamento(dados.getDiaPagamento());
             if (dados.getValorAcordado() != null) existente.setValorAcordado(dados.getValorAcordado());
             if (dados.getDataInicio() != null) existente.setDataInicio(dados.getDataInicio());
+            if (dados.getTipoAluguel() != null) existente.setTipoAluguel(dados.getTipoAluguel());
+            if (dados.getPercentualRepasse() != null) existente.setPercentualRepasse(dados.getPercentualRepasse());
             if (existente.isAtivo() && !dados.isAtivo()) {
                 aluguelRepasseRepository.deleteByEstabelecimentoIdAndPagoFalse(id);
             }
             existente.setAtivo(dados.isAtivo());
             return ResponseEntity.ok(repository.save(existente));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/aluguel-dinamico")
+    @Operation(summary = "Configurar regra de aluguel dinâmico ou fixo para o estabelecimento")
+    public ResponseEntity<Estabelecimento> configurarAluguelDinamico(
+            @PathVariable Long id,
+            @Parameter(description = "true para aluguel dinâmico (% sobre lucro) ou false para aluguel fixo", example = "true")
+            @RequestParam boolean dinamico,
+            @Parameter(description = "Percentual sobre o lucro (padrão 25.0%)", example = "25.0")
+            @RequestParam(required = false, defaultValue = "25.0") Double percentual
+    ) {
+        return repository.findById(id).map(est -> {
+            est.setTipoAluguel(dinamico ? "DINAMICO" : "FIXO");
+            if (percentual != null) {
+                est.setPercentualRepasse(percentual);
+            }
+            return ResponseEntity.ok(repository.save(est));
         }).orElse(ResponseEntity.notFound().build());
     }
 
