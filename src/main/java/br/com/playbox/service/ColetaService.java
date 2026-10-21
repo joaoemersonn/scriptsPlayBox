@@ -98,15 +98,11 @@ public class ColetaService {
         boolean primeiraColeta = (ultimaDataHora == null);
 
         LocalDate dataFim = dataHora.toLocalDate();
-        LocalDate dataInicio = primeiraColeta
-                ? dataFim.minusDays(30) // Se for marco zero, busca histórico recente
-                : ultimaDataHora.toLocalDate();
 
-        // Sincronizar transações recentes para garantir dados atualizados
+        // Sincronizar transações recentes (ontem e hoje) para garantir dados frescos do dia
         try {
-            for (LocalDate d = dataInicio; !d.isAfter(dataFim); d = d.plusDays(1)) {
-                transactionImportService.importDailyTransactions(d);
-            }
+            transactionImportService.importDailyTransactions(dataFim.minusDays(1));
+            transactionImportService.importDailyTransactions(dataFim);
         } catch (Exception e) {
             log.warn("Aviso ao atualizar transações na prévia da coleta: {}", e.getMessage());
         }
