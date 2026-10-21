@@ -6,6 +6,11 @@ spring:
     name: playbox-scheduler
   main:
     banner-mode: console
+  task:
+    scheduling:
+      pool:
+        size: 5
+      thread-name-prefix: scheduling-
   datasource:
     url: jdbc:sqlite:${app.data-dir}/playbox.db
     driver-class-name: org.sqlite.JDBC

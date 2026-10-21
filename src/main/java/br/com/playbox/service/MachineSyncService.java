@@ -46,7 +46,6 @@ public class MachineSyncService {
         this.estabelecimentoRepository = estabelecimentoRepository;
     }
 
-    @Transactional
     public List<Maquina> discoverAndSyncMachines() {
         log.info("Iniciando descoberta e sincronização de máquinas das integradoras...");
         List<Maquina> synced = new ArrayList<>();
@@ -132,7 +131,8 @@ public class MachineSyncService {
         return synced;
     }
 
-    private Maquina registerOrUpdate(String integracao, String externalId, String nomeIntegracao) {
+    @Transactional
+    public Maquina registerOrUpdate(String integracao, String externalId, String nomeIntegracao) {
         Optional<Maquina> opt = maquinaRepository.findByIntegracaoAndExternalId(integracao, externalId);
         if (opt.isPresent()) {
             Maquina existing = opt.get();

@@ -162,8 +162,9 @@ public class ApiClient {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.error("Erro na requisição {} {}: {}", method.toUpperCase(), fullUrl, e.getMessage());
-            throw new IntegrationException(serviceName, e.getMessage());
+            String errorMsg = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : e.getClass().getSimpleName();
+            log.error("Erro na requisição {} {}: {}", method.toUpperCase(), fullUrl, errorMsg);
+            throw new IntegrationException(serviceName, errorMsg);
         }
 
         String responseBody = response.body();

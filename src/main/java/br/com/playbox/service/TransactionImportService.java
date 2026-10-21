@@ -56,7 +56,6 @@ public class TransactionImportService {
         this.estoqueService = estoqueService;
     }
 
-    @Transactional
     public int importDailyTransactions(LocalDate date) {
         ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
         LocalDateTime startOfDay = date.atStartOfDay();
@@ -230,7 +229,6 @@ public class TransactionImportService {
         return count;
     }
 
-    @Transactional
     public int importTransactionsRange(LocalDate start, LocalDate end) {
         log.info("Iniciando importação de transações no intervalo de {} a {}...", start, end);
         int total = 0;
@@ -251,7 +249,8 @@ public class TransactionImportService {
         }
     }
 
-    private void saveOrUpdateTransaction(
+    @Transactional
+    public void saveOrUpdateTransaction(
             String integracao,
             String externalTxId,
             String machineExternalId,

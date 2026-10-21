@@ -169,6 +169,31 @@ public class OfflineMonitorService {
 
         saveFileSet(failingIntegrationsFile, currentFailingIntegrations);
 
+        Path vendOfflineFile = dataDir.resolve("vend_offline.json");
+        Path payOfflineFile = dataDir.resolve("pay_offline.json");
+        Path zapOfflineFile = dataDir.resolve("zap_offline.json");
+
+        if (currentFailingIntegrations.contains("VendProMax")) {
+            vendOffline = loadOfflineTimestamps(vendOfflineFile);
+            log.info("Mantendo máquinas VendProMax offline anteriores devido a falha na integração: {}", vendOffline.keySet());
+        } else {
+            saveOfflineTimestamps(vendOfflineFile, vendOffline);
+        }
+
+        if (currentFailingIntegrations.contains("PayXYZ")) {
+            payOffline = loadOfflineTimestamps(payOfflineFile);
+            log.info("Mantendo máquinas PayXYZ offline anteriores devido a falha na integração: {}", payOffline.keySet());
+        } else {
+            saveOfflineTimestamps(payOfflineFile, payOffline);
+        }
+
+        if (currentFailingIntegrations.contains("Zapizi")) {
+            zapOffline = loadOfflineTimestamps(zapOfflineFile);
+            log.info("Mantendo máquinas Zapizi offline anteriores devido a falha na integração: {}", zapOffline.keySet());
+        } else {
+            saveOfflineTimestamps(zapOfflineFile, zapOffline);
+        }
+
         // Se todas as integrações falharam, não há máquinas para validar
         if (currentFailingIntegrations.size() >= 3) {
             log.warn("Todas as integrações falharam no monitoramento.");
@@ -218,16 +243,15 @@ public class OfflineMonitorService {
         Set<String> newOffline = new TreeSet<>(currentOfflineSet);
         newOffline.removeAll(previousOffline);
 
-        // For all offline machines, ensure they have an offline timestamp assigned
+        // For all offline machines, ensure they have an offline timestamp assigned / updated
         String nowStr = ZonedDateTime.now(zoneId).format(DATE_TIME_FORMATTER);
         for (String machine : currentOfflineSet) {
-            if (!offlineTimestamps.containsKey(machine)) {
-                String candidateTs = currentOfflineMap.get(machine);
-                if (candidateTs != null && !candidateTs.isBlank()) {
-                    offlineTimestamps.put(machine, candidateTs);
-                } else {
-                    offlineTimestamps.put(machine, nowStr);
-                }
+            String candidateTs = currentOfflineMap.get(machine);
+            if (candidateTs != null && !candidateTs.isBlank()) {
+                // Atualiza sempre com a informação mais recente da integradora, mesmo que a máquina já estivesse offline
+                offlineTimestamps.put(machine, candidateTs);
+            } else if (!offlineTimestamps.containsKey(machine)) {
+                offlineTimestamps.put(machine, nowStr);
             }
         }
 
@@ -293,18 +317,7 @@ public class OfflineMonitorService {
                     if (name.toLowerCase().contains("sem loja")) {
                         continue;
                     }
-                    String rawTs = null;
-                    if (machine.hasNonNull("dataStatusMaquina") && !machine.get("dataStatusMaquina").asText().isBlank()) {
-                        rawTs = machine.get("dataStatusMaquina").asText();
-                    } else if (machine.hasNonNull("lastConnection") && !machine.get("lastConnection").asText().isBlank()) {
-                        rawTs = machine.get("lastConnection").asText();
-                    } else if (machine.hasNonNull("ultimaRequisicao") && !machine.get("ultimaRequisicao").asText().isBlank()) {
-                        rawTs = machine.get("ultimaRequisicao").asText();
-                    } else if (machine.hasNonNull("ultimoPagamentoRecebido") && !machine.get("ultimoPagamentoRecebido").asText().isBlank()) {
-                        rawTs = machine.get("ultimoPagamentoRecebido").asText();
-                    }
-
-                    String formattedDate = parseTimestamp(rawTs, zoneId);
+                    String formattedDate = extractLatestTimestamp(machine, zoneId);
                     result.put(name, formattedDate);
                 }
             }
@@ -316,21 +329,61 @@ public class OfflineMonitorService {
         return new ArrayList<>(getOfflineMachinesWithTimestamps(machines, ZoneId.of("America/Sao_Paulo")).keySet());
     }
 
-    public static String parseTimestamp(String raw, ZoneId zoneId) {
+    public static ZonedDateTime parseToZonedDateTime(String raw, ZoneId zoneId) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
             Instant instant = Instant.parse(raw.trim());
-            return DATE_TIME_FORMATTER.withZone(zoneId).format(instant);
+            return instant.atZone(zoneId);
         } catch (Exception e) {
             try {
                 LocalDateTime ldt = LocalDateTime.parse(raw.trim());
-                return DATE_TIME_FORMATTER.format(ldt);
+                return ldt.atZone(zoneId);
             } catch (Exception ignored) {
                 return null;
             }
         }
+    }
+
+    public static String extractLatestTimestamp(JsonNode machine, ZoneId zoneId) {
+        if (machine == null) {
+            return null;
+        }
+
+        String[] candidateFields = {
+                "dataStatusMaquina",
+                "lastConnection",
+                "ultimaRequisicao",
+                "ultimoPagamentoRecebido",
+                "updatedAt",
+                "lastSeen",
+                "dataAtualizacao"
+        };
+
+        ZonedDateTime latest = null;
+
+        for (String field : candidateFields) {
+            if (machine.hasNonNull(field) && !machine.get(field).asText().isBlank()) {
+                String raw = machine.get(field).asText().trim();
+                ZonedDateTime parsed = parseToZonedDateTime(raw, zoneId);
+                if (parsed != null) {
+                    if (latest == null || parsed.isAfter(latest)) {
+                        latest = parsed;
+                    }
+                }
+            }
+        }
+
+        if (latest != null) {
+            return DATE_TIME_FORMATTER.format(latest);
+        }
+        return null;
+    }
+
+    public static String parseTimestamp(String raw, ZoneId zoneId) {
+        ZonedDateTime zdt = parseToZonedDateTime(raw, zoneId);
+        return zdt != null ? DATE_TIME_FORMATTER.format(zdt) : null;
     }
 
     public String buildMessage(String title, Collection<String> machineNames) {

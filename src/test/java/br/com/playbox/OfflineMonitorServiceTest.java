@@ -118,4 +118,24 @@ class OfflineMonitorServiceTest {
         assertEquals(1, offline.size());
         assertEquals("Casa Nobre", offline.get(0));
     }
+
+    @Test
+    void testExtractLatestTimestampSelectsMostRecent() {
+        ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
+        ObjectNode machine = objectMapper.createObjectNode();
+        machine.put("nome", "Praça do Sabor");
+        machine.put("status", "OFFLINE");
+        // payment at 2026-10-21T02:32:10Z (20/10 23:32 UTC-3)
+        machine.put("ultimoPagamentoRecebido", "2026-10-21T02:32:10.659Z");
+        // request at 2026-10-21T03:42:38Z (21/10 00:42 UTC-3) - newer
+        machine.put("ultimaRequisicao", "2026-10-21T03:42:38.396Z");
+
+        String latest = OfflineMonitorService.extractLatestTimestamp(machine, zoneId);
+        assertEquals("21/10/2026 00:42", latest);
+
+        // Now test if lastConnection is even newer
+        machine.put("lastConnection", "2026-10-21T15:00:00.000Z"); // 21/10 12:00 UTC-3
+        String evenNewer = OfflineMonitorService.extractLatestTimestamp(machine, zoneId);
+        assertEquals("21/10/2026 12:00", evenNewer);
+    }
 }
