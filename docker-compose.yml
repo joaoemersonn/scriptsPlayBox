@@ -23,6 +23,7 @@ services:
       - WHATSAPP_MONITOR_CHAT_ID=${WHATSAPP_MONITOR_CHAT_ID:-}
       - WHATSAPP_REPORT_CHAT_ID=${WHATSAPP_REPORT_CHAT_ID:-}
       - WHATSAPP_ESTOQUE_CHAT_ID=${WHATSAPP_ESTOQUE_CHAT_ID:-${WHATSAPP_REPORT_CHAT_ID:-}}
+      - WHATSAPP_COLETA_CHAT_ID=${WHATSAPP_COLETA_CHAT_ID:-${WHATSAPP_REPORT_CHAT_ID:-}}
 
       # Chave de API para autenticação nos métodos da aplicação (Swagger / API REST)
       - APP_API_KEY=${APP_API_KEY:-playbox_secure_api_key_2026}

@@ -28,6 +28,19 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     long countByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
+    @Query("SELECT COALESCE(SUM(t.valorCash), 0.0) FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp >= :inicio AND t.timestamp <= :fim")
+    Double sumValorCashByMaquinaAndPeriod(
+            @Param("maquinaId") Long maquinaId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    @Query("SELECT COALESCE(SUM(t.valorCash), 0.0) FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp <= :fim")
+    Double sumValorCashByMaquinaUntil(
+            @Param("maquinaId") Long maquinaId,
+            @Param("fim") LocalDateTime fim
+    );
+
     @Query("""
         SELECT t FROM Transacao t
         LEFT JOIN t.maquina m

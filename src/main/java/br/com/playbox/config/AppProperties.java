@@ -129,6 +129,16 @@ public class AppProperties {
         public void setEstoqueChatId(String estoqueChatId) {
             this.estoqueChatId = estoqueChatId;
         }
+
+        private String coletaChatId;
+
+        public String getColetaChatId() {
+            return (coletaChatId != null && !coletaChatId.isBlank()) ? coletaChatId : reportChatId;
+        }
+
+        public void setColetaChatId(String coletaChatId) {
+            this.coletaChatId = coletaChatId;
+        }
     }
 
     public static class Vendpromax {
