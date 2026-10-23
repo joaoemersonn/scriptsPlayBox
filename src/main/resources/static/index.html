@@ -1,25 +1,37 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PlayBox - Gestão de Gruas & Telemetria</title>
+  <link rel="icon" type="image/png" href="/logo.png">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           colors: {
             brand: {
-              50: '#f5f3ff',
-              100: '#ede9fe',
-              500: '#8b5cf6',
-              600: '#7c3aed',
-              700: '#6d28d9',
-              900: '#4c1d95',
+              50: '#fdf2f8',
+              100: '#fce7f3',
+              200: '#fbcfe8',
+              300: '#f472b6',
+              400: '#e879f9',
+              500: '#d946ef',
+              600: '#c026d3',
+              700: '#be185d',
+              800: '#9d174d',
+              900: '#701a75',
+            },
+            cyanbrand: {
+              50: '#ecfeff',
+              100: '#cffafe',
+              200: '#a5f3fc',
+              500: '#06b6d4',
+              600: '#0891b2',
+              700: '#0e7490'
             }
           }
         }
@@ -36,56 +48,52 @@
   <!-- Custom Styles -->
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body class="bg-[#090d16] text-slate-100 antialiased selection:bg-purple-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-pink-500 selection:text-white">
 
   <!-- Auth Screen (Shown when not logged in) -->
-  <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#090d16] via-[#0f172a] to-[#1e1b4b]">
-    <div class="glass-card max-w-md w-full p-8 space-y-6 shadow-2xl border border-slate-800 animate-fade-in">
+  <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-pink-50 via-white to-cyan-50">
+    <div class="glass-card max-w-md w-full p-8 space-y-6 shadow-xl border border-slate-200/90 animate-fade-in bg-white rounded-3xl">
       
-      <!-- Brand Header -->
+      <!-- Brand Header with Real Logo -->
       <div class="text-center space-y-2">
-        <div class="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 p-0.5 shadow-xl shadow-purple-900/40 flex items-center justify-center">
-          <div class="w-full h-full bg-[#090d16] rounded-[14px] flex items-center justify-center text-purple-400">
-            <i data-lucide="gamepad-2" class="w-7 h-7"></i>
-          </div>
-        </div>
-        <h2 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-purple-300 bg-clip-text text-transparent">
-          PlayBox
+        <img src="/logo.png" alt="PlayBox" class="h-28 mx-auto w-auto object-contain drop-shadow-sm mb-1">
+        <h2 class="text-2xl font-black tracking-tight text-slate-900">
+          PlayBox Ops
         </h2>
-        <p class="text-xs text-slate-400">Acesso Restrito ao Painel de Operações & Telemetria</p>
+        <p class="text-xs text-slate-500">Acesso Restrito ao Painel de Operações & Telemetria</p>
       </div>
 
       <!-- Login Form -->
       <form onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Usuário ou E-mail</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Usuário ou E-mail</label>
           <div class="relative">
-            <i data-lucide="user" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
-            <input type="text" id="login-username" required value="admin" class="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition">
+            <i data-lucide="user" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="text" id="login-username" required value="admin" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100 transition">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Senha de Acesso</label>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Senha de Acesso</label>
           <div class="relative">
-            <i data-lucide="lock" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
-            <input type="password" id="login-password" required placeholder="Digite sua senha..." class="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition">
+            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="password" id="login-password" required placeholder="Digite sua senha..." class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100 transition">
           </div>
         </div>
 
-        <div id="login-error-msg" class="hidden text-xs text-rose-400 bg-rose-950/40 border border-rose-800/60 p-2.5 rounded-lg flex items-center gap-2">
-          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+        <div id="login-error-msg" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-500"></i>
           <span id="login-error-text">Credenciais inválidas</span>
         </div>
 
-        <button type="submit" id="btn-login-submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-900/40 active:scale-[0.98] transition flex items-center justify-center gap-2">
+        <button type="submit" id="btn-login-submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-pink-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span>Entrar no Sistema</span>
         </button>
       </form>
 
-      <div class="text-center pt-2 text-[11px] text-slate-500">
-        Acesso protegido e autenticado para gestão de gruas.
+      <div class="text-center pt-2 text-[11px] text-slate-400">
+        Plataforma protegida e autorizada para gestão PlayBox.
       </div>
     </div>
   </div>
@@ -94,48 +102,44 @@
   <div id="app-container" class="min-h-screen flex flex-col hidden">
 
     <!-- Top Navigation Bar -->
-    <header class="sticky top-0 z-40 bg-[#0c1222]/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3.5 transition-all">
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 lg:px-8 py-3 shadow-sm transition-all">
       <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
         
         <!-- Logo & Branding -->
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 p-0.5 shadow-lg shadow-purple-900/30 flex items-center justify-center">
-            <div class="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center text-purple-400">
-              <i data-lucide="gamepad-2" class="w-5 h-5"></i>
-            </div>
-          </div>
+          <img src="/logo.png" alt="PlayBox" class="h-10 sm:h-12 w-auto object-contain drop-shadow-sm">
           <div>
             <div class="flex items-center gap-2">
-              <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-purple-300 bg-clip-text text-transparent">
+              <h1 class="font-black text-xl tracking-tight text-slate-900">
                 PlayBox
               </h1>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800/60">
+              <span class="text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-200">
                 PRO
               </span>
             </div>
-            <p class="text-xs text-slate-400 hidden sm:block">Gestão de Gruas & Telemetria Operacional</p>
+            <p class="text-xs text-slate-500 hidden sm:block">Gestão de Gruas & Telemetria Operacional</p>
           </div>
         </div>
 
         <!-- Global Header Controls -->
-        <div class="flex items-center gap-2.5 sm:gap-4">
+        <div class="flex items-center gap-2.5 sm:gap-3.5">
           <!-- Live API Key Status -->
-          <button id="btn-api-key-modal" onclick="openApiKeyModal()" class="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition" title="Configurar Chave de Acesso API">
+          <button id="btn-api-key-modal" onclick="openApiKeyModal()" class="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition" title="Configurar Chave de Acesso API">
             <span id="api-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green"></span>
-            <span id="api-status-text" class="text-slate-300 hidden md:inline">API Conectada</span>
+            <span id="api-status-text" class="text-slate-600 hidden md:inline">API Conectada</span>
             <i data-lucide="key" class="w-3.5 h-3.5 text-slate-400"></i>
           </button>
 
           <!-- Fast Refresh Button -->
-          <button onclick="refreshActiveTab(true)" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-900/20 active:scale-95 transition">
+          <button onclick="refreshActiveTab(true)" class="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white shadow-md shadow-pink-500/20 active:scale-95 transition">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="btn-sync-icon"></i>
             <span class="hidden sm:inline">Atualizar</span>
           </button>
 
           <!-- User Profile & Logout -->
-          <div class="flex items-center gap-2 pl-2 border-l border-slate-800">
-            <span id="header-user-badge" class="hidden sm:inline text-xs font-semibold text-purple-300 bg-purple-950/60 px-2 py-1 rounded border border-purple-800/40">admin</span>
-            <button onclick="handleLogout()" class="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition" title="Sair / Encerrar Sessão">
+          <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <span id="header-user-badge" class="hidden sm:inline text-xs font-bold text-pink-700 bg-pink-50 px-2.5 py-1 rounded-lg border border-pink-200">admin</span>
+            <button onclick="handleLogout()" class="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition" title="Sair / Encerrar Sessão">
               <i data-lucide="log-out" class="w-4 h-4"></i>
             </button>
           </div>
@@ -144,29 +148,29 @@
       </div>
 
       <!-- Navigation Tabs Strip -->
-      <div class="max-w-7xl mx-auto mt-3 pt-2 border-t border-slate-800/40 flex items-center gap-1 overflow-x-auto scrollbar-none text-sm">
-        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn active-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+      <div class="max-w-7xl mx-auto mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto scrollbar-none text-sm">
+        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn active-tab flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Visão Geral
         </button>
-        <button onclick="switchTab('maquinas')" data-tab="maquinas" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+        <button onclick="switchTab('maquinas')" data-tab="maquinas" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="cpu" class="w-4 h-4"></i> Máquinas & Status
-          <span id="badge-offline-count" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">0</span>
+          <span id="badge-offline-count" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">0</span>
         </button>
-        <button onclick="switchTab('estoque')" data-tab="estoque" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+        <button onclick="switchTab('estoque')" data-tab="estoque" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="package" class="w-4 h-4"></i> Estoque Pelúcias
-          <span id="badge-estoque-baixo" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+          <span id="badge-estoque-baixo" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">0</span>
         </button>
-        <button onclick="switchTab('coletas')" data-tab="coletas" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+        <button onclick="switchTab('coletas')" data-tab="coletas" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="banknote" class="w-4 h-4"></i> Coleta Espécie
-          <span id="badge-coletas-pendentes" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+          <span id="badge-coletas-pendentes" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">0</span>
         </button>
-        <button onclick="switchTab('alugueis')" data-tab="alugueis" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+        <button onclick="switchTab('alugueis')" data-tab="alugueis" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="building-2" class="w-4 h-4"></i> Aluguéis & Repasses
         </button>
-        <button onclick="switchTab('estabelecimentos')" data-tab="estabelecimentos" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+        <button onclick="switchTab('estabelecimentos')" data-tab="estabelecimentos" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="store" class="w-4 h-4"></i> Pontos Comerciais
         </button>
-        <button onclick="switchTab('relatorios')" data-tab="relatorios" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+        <button onclick="switchTab('relatorios')" data-tab="relatorios" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="file-text" class="w-4 h-4"></i> Relatório PDF
         </button>
       </div>
@@ -180,183 +184,225 @@
       <!-- ========================================== -->
       <section id="tab-dashboard" class="tab-pane space-y-6 animate-fade-in">
         
-        <!-- Filters Toolbar -->
-        <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <!-- Predefined Periods -->
-          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            <button onclick="setDashboardPeriod('mes')" id="period-btn-mes" class="period-btn active-period px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow transition">
-              Mês Atual
-            </button>
-            <button onclick="setDashboardPeriod('24h-anterior')" id="period-btn-24h-anterior" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
-              Ontem (24h)
-            </button>
-            <button onclick="setDashboardPeriod('12h-atual')" id="period-btn-12h-atual" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
-              Últimas 12h
-            </button>
-            <button onclick="setDashboardPeriod('hoje')" id="period-btn-hoje" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
-              Hoje
-            </button>
-            <button onclick="toggleCustomDates()" id="period-btn-custom" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
-              Personalizado...
-            </button>
-          </div>
+        <!-- Filters Toolbar with Period Select Box -->
+        <div class="glass-card p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <!-- Select Box for Period -->
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2.5 rounded-xl bg-pink-100 text-pink-600 shrink-0">
+                <i data-lucide="calendar" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <label for="dash-period-select" class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Período de Análise</label>
+                <select id="dash-period-select" onchange="onDashboardPeriodSelect(this.value)" class="mt-0.5 bg-slate-50 border border-slate-300 hover:border-pink-400 text-slate-900 text-xs sm:text-sm font-bold rounded-xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-500 transition cursor-pointer">
+                  <option value="hoje" selected>📅 Hoje</option>
+                  <option value="7d">📅 Últimos 7 dias</option>
+                  <option value="30d">📅 Últimos 30 dias</option>
+                  <option value="mes">📅 Mês Atual</option>
+                  <option value="24h-anterior">📅 Ontem (24h)</option>
+                  <option value="custom">📅 Período Personalizado...</option>
+                </select>
+              </div>
+            </div>
 
-          <!-- Custom Dates & Store Filter -->
-          <div class="flex flex-wrap items-center gap-2.5">
-            <div id="custom-dates-bar" class="hidden flex items-center gap-1.5">
-              <input type="date" id="dash-date-start" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:border-purple-500 focus:outline-none">
-              <span class="text-xs text-slate-500">até</span>
-              <input type="date" id="dash-date-end" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:border-purple-500 focus:outline-none">
-              <button onclick="applyCustomDates()" class="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition">
+            <!-- Custom Dates Bar (Visible only when 'custom' is selected) -->
+            <div id="custom-dates-bar" class="hidden flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+              <input type="date" id="dash-date-start" class="bg-white text-xs text-slate-800 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-pink-500 focus:outline-none">
+              <span class="text-xs text-slate-400 font-medium">até</span>
+              <input type="date" id="dash-date-end" class="bg-white text-xs text-slate-800 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-pink-500 focus:outline-none">
+              <button onclick="applyCustomDates()" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold shadow-sm transition">
                 Filtrar
               </button>
             </div>
+          </div>
 
-            <!-- Store Selector -->
-            <select id="dash-filter-store" onchange="loadDashboardData()" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 focus:border-purple-500 focus:outline-none">
+          <!-- Store Selector & Refresh Sync -->
+          <div class="flex items-center gap-2.5">
+            <select id="dash-filter-store" onchange="loadDashboardData()" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl px-3.5 py-2 focus:border-pink-500 focus:outline-none">
               <option value="">Todos os Estabelecimentos</option>
             </select>
 
-            <!-- Force Sync with API -->
-            <button onclick="loadDashboardData(true)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition" title="Sincronizar dados das integradoras antes de gerar">
+            <button onclick="loadDashboardData(true)" class="p-2.5 rounded-xl bg-slate-100 hover:bg-pink-50 hover:text-pink-600 text-slate-600 border border-slate-200 transition" title="Sincronizar transações das operadoras agora">
               <i data-lucide="cloud-download" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
 
         <!-- Dashboard Period Subtitle -->
-        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
-          <span id="dash-period-title" class="font-medium text-slate-300">Carregando dados...</span>
-          <span id="dash-last-updated" class="text-slate-500"></span>
+        <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+          <span id="dash-period-title" class="font-bold text-slate-700">Carregando dados...</span>
+          <span id="dash-last-updated" class="text-slate-400"></span>
         </div>
 
         <!-- KPI Summary Cards Grid -->
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
           <!-- Card: Faturamento Bruto -->
           <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs font-medium">Fat. Bruto</span>
-              <div class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Fat. Bruto</span>
+              <div class="p-2 rounded-xl bg-pink-50 text-pink-600">
                 <i data-lucide="trending-up" class="w-4 h-4"></i>
               </div>
             </div>
             <div>
-              <div id="kpi-faturamento-bruto" class="text-lg sm:text-xl font-bold text-white tracking-tight">R$ 0,00</div>
-              <div class="text-[11px] text-slate-400 mt-0.5">Total arrecadado</div>
+              <div id="kpi-faturamento-bruto" class="text-lg sm:text-xl font-black text-pink-700 tracking-tight">R$ 0,00</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Total arrecadado</div>
             </div>
           </div>
 
           <!-- Card: Faturamento Líquido -->
           <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs font-medium">Fat. Líquido</span>
-              <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Fat. Líquido</span>
+              <div class="p-2 rounded-xl bg-emerald-50 text-emerald-600">
                 <i data-lucide="dollar-sign" class="w-4 h-4"></i>
               </div>
             </div>
             <div>
-              <div id="kpi-faturamento-liquido" class="text-lg sm:text-xl font-bold text-emerald-400 tracking-tight">R$ 0,00</div>
-              <div id="kpi-estornos" class="text-[11px] text-slate-400 mt-0.5">Estornos: R$ 0,00</div>
+              <div id="kpi-faturamento-liquido" class="text-lg sm:text-xl font-black text-emerald-700 tracking-tight">R$ 0,00</div>
+              <div id="kpi-estornos" class="text-[11px] text-slate-500 mt-0.5">Estornos: R$ 0,00</div>
             </div>
           </div>
 
           <!-- Card: Pelúcias Saídas -->
           <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs font-medium">Prêmios Saídos</span>
-              <div class="p-1.5 rounded-lg bg-pink-500/10 text-pink-400">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Prêmios</span>
+              <div class="p-2 rounded-xl bg-fuchsia-50 text-fuchsia-600">
                 <i data-lucide="gift" class="w-4 h-4"></i>
               </div>
             </div>
             <div>
-              <div id="kpi-premios" class="text-lg sm:text-xl font-bold text-pink-300 tracking-tight">0 un</div>
-              <div id="kpi-rec-premio" class="text-[11px] text-slate-400 mt-0.5">R$ 0/pelúcia</div>
+              <div id="kpi-premios" class="text-lg sm:text-xl font-black text-fuchsia-700 tracking-tight">0 un</div>
+              <div id="kpi-rec-premio" class="text-[11px] text-slate-500 mt-0.5">R$ 0/pelúcia</div>
             </div>
           </div>
 
           <!-- Card: Dinheiro em Espécie -->
           <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs font-medium">Espécie (Notas)</span>
-              <div class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Espécie</span>
+              <div class="p-2 rounded-xl bg-amber-50 text-amber-600">
                 <i data-lucide="banknote" class="w-4 h-4"></i>
               </div>
             </div>
             <div>
-              <div id="kpi-especie" class="text-lg sm:text-xl font-bold text-amber-300 tracking-tight">R$ 0,00</div>
-              <div id="kpi-especie-perc" class="text-[11px] text-slate-400 mt-0.5">0% do faturamento</div>
+              <div id="kpi-especie" class="text-lg sm:text-xl font-black text-amber-700 tracking-tight">R$ 0,00</div>
+              <div id="kpi-especie-perc" class="text-[11px] text-slate-500 mt-0.5">0% em espécie</div>
             </div>
           </div>
 
           <!-- Card: Pix & Cartões -->
           <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs font-medium">Pix & Cartão</span>
-              <div class="p-1.5 rounded-lg bg-sky-500/10 text-sky-400">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Digital</span>
+              <div class="p-2 rounded-xl bg-cyan-50 text-cyan-600">
                 <i data-lucide="credit-card" class="w-4 h-4"></i>
               </div>
             </div>
             <div>
-              <div id="kpi-digital" class="text-lg sm:text-xl font-bold text-sky-300 tracking-tight">R$ 0,00</div>
-              <div id="kpi-digital-detail" class="text-[11px] text-slate-400 mt-0.5">Pix + Débito + Crédito</div>
+              <div id="kpi-digital" class="text-lg sm:text-xl font-black text-cyan-700 tracking-tight">R$ 0,00</div>
+              <div id="kpi-digital-detail" class="text-[11px] text-slate-500 mt-0.5">Pix + Cartões</div>
             </div>
           </div>
 
           <!-- Card: Status Telemetria -->
           <div class="glass-card glass-card-hover p-4 flex flex-col justify-between cursor-pointer" onclick="switchTab('maquinas')">
-            <div class="flex items-center justify-between text-slate-400 mb-2">
-              <span class="text-xs font-medium">Telemetria</span>
-              <div id="kpi-status-icon-wrap" class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Telemetria</span>
+              <div id="kpi-status-icon-wrap" class="p-2 rounded-xl bg-emerald-50 text-emerald-600">
                 <i data-lucide="signal" class="w-4 h-4"></i>
               </div>
             </div>
             <div>
-              <div id="kpi-maquinas-status" class="text-base sm:text-lg font-bold text-slate-100 tracking-tight">--</div>
-              <div id="kpi-offline-detail" class="text-[11px] text-slate-400 mt-0.5">Todas operando</div>
+              <div id="kpi-maquinas-status" class="text-base sm:text-lg font-black text-slate-800 tracking-tight">--</div>
+              <div id="kpi-offline-detail" class="text-[11px] text-slate-500 mt-0.5">Todas operando</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- SEÇÃO PRINCIPAL EM DESTAQUE: FATURAMENTO POR LOJA        -->
+        <!-- ======================================================== -->
+        <div class="glass-card p-5 sm:p-6 space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center shrink-0 shadow-sm">
+                <i data-lucide="store" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-extrabold text-slate-900 tracking-tight">Faturamento por Estabelecimento</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Ranking e desempenho detalhado de cada ponto comercial no período selecionado</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="stores-count-badge" class="px-3 py-1 rounded-full bg-pink-50 text-pink-700 text-xs font-bold border border-pink-200">
+                Carregando lojas...
+              </span>
+            </div>
+          </div>
+
+          <!-- Stores Ranking Table / Cards List -->
+          <div id="stores-ranking-container" class="space-y-3">
+            <div class="text-center py-6 text-slate-400">
+              <div class="spinner w-6 h-6 mx-auto mb-2"></div>
+              <span>Carregando dados dos estabelecimentos...</span>
+            </div>
+          </div>
+
+          <!-- Visual Bar Chart for Store Ranking -->
+          <div class="pt-5 border-t border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 text-pink-600"></i> Comparativo Gráfico de Arrecadação por Estabelecimento
+              </span>
+            </div>
+            <div class="chart-container h-64 sm:h-80">
+              <canvas id="chart-stores-ranking"></canvas>
             </div>
           </div>
         </div>
 
         <!-- Quick Actions & Operations Toolbar -->
-        <div class="glass-card p-4">
-          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> Ações & Gatilhos Operacionais
+        <div class="glass-card p-4 sm:p-5">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Ações & Gatilhos Operacionais
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-            <button onclick="triggerMonitor()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
-              <i data-lucide="activity" class="w-4 h-4 text-rose-400"></i>
+            <button onclick="triggerMonitor()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition">
+              <i data-lucide="activity" class="w-4 h-4 text-rose-500"></i>
               <span>Checar Offline</span>
             </button>
-            <button onclick="triggerImportTransactions()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
-              <i data-lucide="download" class="w-4 h-4 text-sky-400"></i>
+            <button onclick="triggerImportTransactions()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition">
+              <i data-lucide="download" class="w-4 h-4 text-cyan-600"></i>
               <span>Importar Vendas</span>
             </button>
-            <button onclick="triggerEstoqueAlerta()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
-              <i data-lucide="bell-ring" class="w-4 h-4 text-amber-400"></i>
+            <button onclick="triggerEstoqueAlerta()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition">
+              <i data-lucide="bell-ring" class="w-4 h-4 text-amber-500"></i>
               <span>Alerta Reposição</span>
             </button>
-            <button onclick="triggerWhatsAppReport()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
-              <i data-lucide="message-square" class="w-4 h-4 text-emerald-400"></i>
+            <button onclick="triggerWhatsAppReport()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition">
+              <i data-lucide="message-square" class="w-4 h-4 text-emerald-600"></i>
               <span>Relatório WhatsApp</span>
             </button>
-            <button onclick="openPdfModal()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs font-semibold text-purple-300 transition">
+            <button onclick="openPdfModal()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-xs font-bold text-pink-700 transition">
               <i data-lucide="file-down" class="w-4 h-4"></i>
               <span>Gerar Relatório PDF</span>
             </button>
           </div>
         </div>
 
-        <!-- Charts Grid -->
+        <!-- Charts Grid (Timeline Evolution & Payment Methods) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <!-- Chart 1: Evolução Diária (2 Cols on lg) -->
           <div class="glass-card p-5 lg:col-span-2 flex flex-col justify-between">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <i data-lucide="bar-chart-3" class="w-4 h-4 text-purple-400"></i> Evolução Diária de Faturamento & Prêmios
+                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <i data-lucide="bar-chart-3" class="w-4 h-4 text-pink-600"></i> Evolução Diária de Faturamento & Prêmios
                 </h3>
-                <p class="text-xs text-slate-400 mt-0.5">Histórico diário com faturamento bruto e prêmios entregues</p>
+                <p class="text-xs text-slate-500 mt-0.5">Histórico diário com faturamento bruto e prêmios entregues</p>
               </div>
             </div>
             <div class="chart-container h-64 sm:h-72">
@@ -368,29 +414,14 @@
           <div class="glass-card p-5 flex flex-col justify-between">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i> Meios de Pagamento
+                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-600"></i> Meios de Pagamento
                 </h3>
-                <p class="text-xs text-slate-400 mt-0.5">Espécie vs Pix vs Cartões</p>
+                <p class="text-xs text-slate-500 mt-0.5">Espécie vs Pix vs Cartões</p>
               </div>
             </div>
             <div class="chart-container h-64 sm:h-72 flex items-center justify-center">
               <canvas id="chart-payment-methods"></canvas>
-            </div>
-          </div>
-
-          <!-- Chart 3: Ranking de Lojas (Full 3 Cols on lg) -->
-          <div class="glass-card p-5 lg:col-span-3">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i> Faturamento por Ponto Comercial
-                </h3>
-                <p class="text-xs text-slate-400 mt-0.5">Desempenho comparativo entre estabelecimentos</p>
-              </div>
-            </div>
-            <div class="chart-container h-64 sm:h-80">
-              <canvas id="chart-stores-ranking"></canvas>
             </div>
           </div>
 

@@ -78,6 +78,22 @@ public class RelatorioService {
             return new PeriodoCalculado("hoje", titulo, dtInicio, dtFim);
         }
 
+        if ("7d".equals(p) || "7dias".equals(p) || "ultimos-7-dias".equals(p)) {
+            LocalDate inicio7d = hoje.minusDays(6);
+            LocalDateTime dtInicio = inicio7d.atStartOfDay();
+            LocalDateTime dtFim = hoje.atTime(LocalTime.MAX);
+            String titulo = "Relatório dos Últimos 7 Dias (" + inicio7d.format(dmy) + " a " + hoje.format(dmy) + ")";
+            return new PeriodoCalculado("7d", titulo, dtInicio, dtFim);
+        }
+
+        if ("30d".equals(p) || "30dias".equals(p) || "ultimos-30-dias".equals(p)) {
+            LocalDate inicio30d = hoje.minusDays(29);
+            LocalDateTime dtInicio = inicio30d.atStartOfDay();
+            LocalDateTime dtFim = hoje.atTime(LocalTime.MAX);
+            String titulo = "Relatório dos Últimos 30 Dias (" + inicio30d.format(dmy) + " a " + hoje.format(dmy) + ")";
+            return new PeriodoCalculado("30d", titulo, dtInicio, dtFim);
+        }
+
         // Default: mês atual
         LocalDate primeiroDiaMes = hoje.withDayOfMonth(1);
         LocalDateTime dtInicio = primeiroDiaMes.atStartOfDay();

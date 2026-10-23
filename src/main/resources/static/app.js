@@ -9,7 +9,7 @@ const state = {
   currentUser: localStorage.getItem('playbox_user') || 'admin',
   apiKey: localStorage.getItem('playbox_api_key') || 'tR3vM5o7ISXoDnEXzCHMa2gTnMlrlpxJ47urY5NCY7rFpjp3710Rj4wfDNJnPZdR',
   activeTab: 'dashboard',
-  currentPeriod: 'mes',
+  currentPeriod: 'hoje',
   dashboardData: null,
   monitorStatus: null,
   machines: [],
@@ -224,31 +224,43 @@ async function refreshActiveTab(showNotification = false) {
 // DASHBOARD VIEW
 // ============================================================================
 
-function setDashboardPeriod(period) {
+function onDashboardPeriodSelect(period) {
   state.currentPeriod = period;
-  document.getElementById('custom-dates-bar').classList.add('hidden');
-
-  document.querySelectorAll('.period-btn').forEach(btn => {
-    btn.className = 'period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition';
-  });
-
-  const activeBtn = document.getElementById(`period-btn-${period}`);
-  if (activeBtn) {
-    activeBtn.className = 'period-btn active-period px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow transition';
+  const customBar = document.getElementById('custom-dates-bar');
+  if (period === 'custom') {
+    if (customBar) customBar.classList.remove('hidden');
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const startInput = document.getElementById('dash-date-start');
+    const endInput = document.getElementById('dash-date-end');
+    if (startInput && !startInput.value) startInput.value = firstDay;
+    if (endInput && !endInput.value) endInput.value = todayStr;
+  } else {
+    if (customBar) customBar.classList.add('hidden');
+    loadDashboardData();
   }
+}
 
-  loadDashboardData();
+function setDashboardPeriod(period) {
+  onDashboardPeriodSelect(period);
+}
+
+function filterByStore(storeId) {
+  const storeFilter = document.getElementById('dash-filter-store');
+  if (storeFilter) {
+    storeFilter.value = storeId;
+    loadDashboardData();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function toggleCustomDates() {
   const bar = document.getElementById('custom-dates-bar');
-  bar.classList.toggle('hidden');
-
-  document.querySelectorAll('.period-btn').forEach(btn => {
-    btn.className = 'period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition';
-  });
-  document.getElementById('period-btn-custom').className = 'period-btn active-period px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow transition';
+  if (bar) bar.classList.toggle('hidden');
   state.currentPeriod = 'custom';
+  const sel = document.getElementById('dash-period-select');
+  if (sel) sel.value = 'custom';
 }
 
 function applyCustomDates() {
@@ -264,16 +276,21 @@ function applyCustomDates() {
 
 async function loadDashboardData(syncForce = false) {
   try {
+    const periodSelect = document.getElementById('dash-period-select');
+    if (periodSelect && periodSelect.value !== state.currentPeriod) {
+      periodSelect.value = state.currentPeriod;
+    }
+
     let url = `/api/relatorios?periodo=${state.currentPeriod}`;
 
     if (state.currentPeriod === 'custom') {
-      const start = document.getElementById('dash-date-start').value;
-      const end = document.getElementById('dash-date-end').value;
+      const start = document.getElementById('dash-date-start')?.value;
+      const end = document.getElementById('dash-date-end')?.value;
       if (start) url += `&dataInicio=${start}`;
       if (end) url += `&dataFim=${end}`;
     }
 
-    const storeId = document.getElementById('dash-filter-store').value;
+    const storeId = document.getElementById('dash-filter-store')?.value;
     if (storeId) {
       url += `&estabelecimentoId=${storeId}`;
     }
@@ -299,6 +316,9 @@ async function loadDashboardData(syncForce = false) {
 
     // Render KPIs
     renderDashboardKPIs(report, monitorStatus);
+
+    // Render Stores Ranking List & Table (DESTAQUE FATURAMENTO POR LOJA)
+    renderStoresRankingList(report.porEstabelecimento || [], report.resumoGeral?.faturamentoBruto || 0);
 
     // Render Charts
     renderTimelineChart(report.porDia || []);
@@ -407,13 +427,13 @@ function renderTimelineChart(dailyData) {
         {
           label: 'Fat. Bruto (R$)',
           data: dataBruto,
-          borderColor: '#8b5cf6',
-          backgroundColor: 'rgba(139, 92, 246, 0.15)',
+          borderColor: '#db2777',
+          backgroundColor: 'rgba(219, 39, 119, 0.08)',
           fill: true,
           tension: 0.3,
-          borderWidth: 2,
+          borderWidth: 2.5,
           pointRadius: 3,
-          pointBackgroundColor: '#8b5cf6',
+          pointBackgroundColor: '#db2777',
           yAxisID: 'y'
         },
         {
@@ -430,12 +450,12 @@ function renderTimelineChart(dailyData) {
         {
           label: 'Prêmios (un)',
           data: dataPremios,
-          borderColor: '#f43f5e',
+          borderColor: '#06b6d4',
           backgroundColor: 'transparent',
           tension: 0.3,
           borderWidth: 2,
           pointRadius: 3,
-          pointBackgroundColor: '#f43f5e',
+          pointBackgroundColor: '#06b6d4',
           yAxisID: 'y1'
         }
       ]
@@ -449,13 +469,13 @@ function renderTimelineChart(dailyData) {
       },
       plugins: {
         legend: {
-          labels: { color: '#94a3b8', font: { size: 11 } }
+          labels: { color: '#475569', font: { size: 11, weight: '600' } }
         },
         tooltip: {
           backgroundColor: '#0f172a',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#334155',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: '#e2e8f0',
           borderWidth: 1,
           callbacks: {
             label: function(context) {
@@ -469,14 +489,14 @@ function renderTimelineChart(dailyData) {
       },
       scales: {
         x: {
-          grid: { color: 'rgba(255, 255, 255, 0.04)' },
+          grid: { color: 'rgba(0, 0, 0, 0.04)' },
           ticks: { color: '#64748b', font: { size: 10 } }
         },
         y: {
           type: 'linear',
           display: true,
           position: 'left',
-          grid: { color: 'rgba(255, 255, 255, 0.06)' },
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
           ticks: {
             color: '#64748b',
             font: { size: 10 },
@@ -489,8 +509,8 @@ function renderTimelineChart(dailyData) {
           position: 'right',
           grid: { drawOnChartArea: false },
           ticks: {
-            color: '#f43f5e',
-            font: { size: 10 },
+            color: '#0891b2',
+            font: { size: 10, weight: 'bold' },
             callback: value => value + ' un'
           }
         }
@@ -519,8 +539,8 @@ function renderPaymentMethodsChart(formas) {
       datasets: [
         {
           data: [especie, pix, credito, debito],
-          backgroundColor: ['#f59e0b', '#10b981', '#8b5cf6', '#0284c7'],
-          borderColor: '#0f172a',
+          backgroundColor: ['#f59e0b', '#06b6d4', '#db2777', '#3b82f6'],
+          borderColor: '#ffffff',
           borderWidth: 2,
           hoverOffset: 6
         }
@@ -532,13 +552,13 @@ function renderPaymentMethodsChart(formas) {
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color: '#94a3b8', font: { size: 11 }, padding: 12 }
+          labels: { color: '#475569', font: { size: 11, weight: '500' }, padding: 12 }
         },
         tooltip: {
           backgroundColor: '#0f172a',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#334155',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: '#e2e8f0',
           borderWidth: 1,
           callbacks: {
             label: function(context) {
@@ -555,6 +575,139 @@ function renderPaymentMethodsChart(formas) {
   });
 }
 
+function renderStoresRankingList(stores, totalGeral) {
+  const container = document.getElementById('stores-ranking-container');
+  const countBadge = document.getElementById('stores-count-badge');
+  if (!container) return;
+
+  const validStores = (stores || []).filter(s => (s.faturamentoBruto || 0) > 0 || (s.quantidadePremios || 0) > 0);
+  const sorted = [...(stores || [])].sort((a, b) => (b.faturamentoBruto || 0) - (a.faturamentoBruto || 0));
+
+  if (countBadge) {
+    countBadge.textContent = `${sorted.length} estabelecimentos (${validStores.length} com vendas)`;
+  }
+
+  if (sorted.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+        <i data-lucide="store" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+        <p class="text-sm font-semibold text-slate-600">Nenhum faturamento registrado no período selecionado.</p>
+        <p class="text-xs text-slate-400 mt-1">Selecione outro período (ex: Últimos 7 dias ou Mês) ou clique em Sincronizar.</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  let html = `
+    <div class="overflow-x-auto rounded-xl border border-slate-100">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[11px] border-b border-slate-200">
+          <tr>
+            <th class="p-3 w-14 text-center">Posição</th>
+            <th class="p-3">Estabelecimento / Cidade</th>
+            <th class="p-3">Máquinas</th>
+            <th class="p-3 text-right">Faturamento Bruto</th>
+            <th class="p-3 w-40">Participação (%)</th>
+            <th class="p-3 text-right">Espécie (Notas)</th>
+            <th class="p-3 text-right">Digital (Pix/Cartão)</th>
+            <th class="p-3 text-center">Prêmios</th>
+            <th class="p-3 text-right">Ação</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 text-slate-700 bg-white">
+  `;
+
+  sorted.forEach((s, idx) => {
+    const bruto = s.faturamentoBruto || 0;
+    const perc = totalGeral > 0 ? Math.round((bruto / totalGeral) * 100) : 0;
+    const especie = s.formasPagamento?.especie || 0;
+    const pix = s.formasPagamento?.pix || 0;
+    const cartao = (s.formasPagamento?.credito || 0) + (s.formasPagamento?.debito || 0);
+    const digital = pix + cartao;
+    const premios = Math.round(s.quantidadePremios || 0);
+
+    let rankBadgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+    let rankText = `#${idx + 1}`;
+    if (idx === 0) {
+      rankBadgeClass = 'rank-badge-gold font-black';
+      rankText = '🥇 1º';
+    } else if (idx === 1) {
+      rankBadgeClass = 'rank-badge-silver font-black';
+      rankText = '🥈 2º';
+    } else if (idx === 2) {
+      rankBadgeClass = 'rank-badge-bronze font-black';
+      rankText = '🥉 3º';
+    }
+
+    const storeName = s.nome || 'Sem Estabelecimento';
+    const cidade = s.cidade ? `<span class="text-slate-400 font-normal"> • ${s.cidade}</span>` : '';
+    const maquinasQtd = s.quantidadeMaquinas || 1;
+
+    html += `
+      <tr class="hover:bg-pink-50/40 transition">
+        <td class="p-3 text-center">
+          <span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] border ${rankBadgeClass}">${rankText}</span>
+        </td>
+        <td class="p-3 font-bold text-slate-800">
+          <div class="flex items-center gap-2">
+            <i data-lucide="store" class="w-4 h-4 text-pink-600 shrink-0"></i>
+            <div>
+              <span class="hover:text-pink-600 transition cursor-pointer" onclick="filterByStore(${s.estabelecimentoId || 0})">${storeName}</span>${cidade}
+              ${s.responsavel ? `<div class="text-[10px] text-slate-400 font-normal">${s.responsavel}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+            ${maquinasQtd} máq.
+          </span>
+        </td>
+        <td class="p-3 text-right font-black text-sm text-pink-700">
+          ${formatMoney(bruto)}
+        </td>
+        <td class="p-3">
+          <div class="w-full">
+            <div class="flex justify-between text-[10px] text-slate-500 mb-1">
+              <span class="font-bold text-slate-700">${perc}%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div class="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full" style="width: ${Math.min(perc, 100)}%"></div>
+            </div>
+          </div>
+        </td>
+        <td class="p-3 text-right font-semibold text-amber-700">
+          ${formatMoney(especie)}
+        </td>
+        <td class="p-3 text-right font-semibold text-cyan-700">
+          ${formatMoney(digital)}
+        </td>
+        <td class="p-3 text-center">
+          <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${premios > 0 ? 'bg-pink-50 text-pink-700 border border-pink-200' : 'text-slate-400'}">
+            ${premios} un
+          </span>
+        </td>
+        <td class="p-3 text-right">
+          ${s.estabelecimentoId ? `
+            <button onclick="filterByStore(${s.estabelecimentoId})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-pink-100 hover:text-pink-600 text-slate-600 transition" title="Filtrar visão geral apenas desta loja">
+              <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+            </button>
+          ` : '-'}
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
+  if (window.lucide) lucide.createIcons();
+}
+
 function renderStoresRankingChart(stores) {
   const ctx = document.getElementById('chart-stores-ranking');
   if (!ctx) return;
@@ -568,6 +721,11 @@ function renderStoresRankingChart(stores) {
   const values = sorted.map(s => s.faturamentoBruto || 0);
   const prizes = sorted.map(s => s.quantidadePremios || 0);
 
+  const colors = [
+    '#db2777', '#c026d3', '#be185d', '#a21caf', '#86198f',
+    '#06b6d4', '#0891b2', '#0284c7', '#2563eb', '#10b981'
+  ];
+
   state.charts.storesRanking = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -576,9 +734,9 @@ function renderStoresRankingChart(stores) {
         {
           label: 'Faturamento Bruto',
           data: values,
-          backgroundColor: '#8b5cf6',
-          borderRadius: 6,
-          barThickness: 20
+          backgroundColor: colors.slice(0, labels.length),
+          borderRadius: 8,
+          barThickness: 22
         }
       ]
     },
@@ -590,9 +748,9 @@ function renderStoresRankingChart(stores) {
         legend: { display: false },
         tooltip: {
           backgroundColor: '#0f172a',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#334155',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: '#e2e8f0',
           borderWidth: 1,
           callbacks: {
             label: function(context) {
@@ -605,7 +763,7 @@ function renderStoresRankingChart(stores) {
       },
       scales: {
         x: {
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
           ticks: {
             color: '#64748b',
             font: { size: 10 },
@@ -614,7 +772,7 @@ function renderStoresRankingChart(stores) {
         },
         y: {
           grid: { display: false },
-          ticks: { color: '#cbd5e1', font: { size: 11, weight: '500' } }
+          ticks: { color: '#334155', font: { size: 11, weight: '600' } }
         }
       }
     }
