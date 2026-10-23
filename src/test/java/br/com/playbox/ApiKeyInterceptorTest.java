@@ -68,5 +68,32 @@ class ApiKeyInterceptorTest {
 
         assertTrue(allowed);
     }
+
+    @Test
+    void testLoginPathBypassesKey() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        boolean allowed = interceptor.preHandle(request, response, new Object());
+
+        assertTrue(allowed);
+    }
+
+    @Test
+    void testPreHandleWithBearerToken() throws Exception {
+        br.com.playbox.service.AuthService authService = new br.com.playbox.service.AuthService(properties);
+        String token = authService.login("admin", "PlayBox@2026!");
+        assertNotNull(token);
+
+        ApiKeyInterceptor authInterceptor = new ApiKeyInterceptor(properties, new ObjectMapper(), authService);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/maquinas");
+        request.addHeader("Authorization", "Bearer " + token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        boolean allowed = authInterceptor.preHandle(request, response, new Object());
+
+        assertTrue(allowed);
+    }
 }
 

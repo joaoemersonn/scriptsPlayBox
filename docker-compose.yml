@@ -28,6 +28,10 @@ services:
       # Chave de API para autenticação nos métodos da aplicação (Swagger / API REST)
       - APP_API_KEY=${APP_API_KEY:-playbox_secure_api_key_2026}
 
+      # Autenticação de Acesso ao Painel Web
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-PlayBox@2026!}
+
       # Schedulers (cron format: second minute hour day-of-month month day-of-week)
       # Schedule monitor: every 5 minutes
       - SCHEDULE_MONITOR_CRON=${SCHEDULE_MONITOR_CRON:-0 */5 * * * *}
@@ -50,6 +54,26 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: playbox-ngrok
+    restart: unless-stopped
+    networks:
+      - whatsapp-net
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN:-}
+      - NGROK_DOMAIN=${NGROK_DOMAIN:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        if [ -z "$$NGROK_AUTHTOKEN" ] || [ -z "$$NGROK_DOMAIN" ]; then
+          echo "[NGROK] NGROK_AUTHTOKEN ou NGROK_DOMAIN ainda nao configurados no .env. Tunel aguardando configuracao...";
+          while true; do sleep 3600; done;
+        else
+          echo "[NGROK] Iniciando tunel ngrok para playbox-scheduler:8080 com dominio estatico $$NGROK_DOMAIN...";
+          exec /bin/ngrok http playbox-scheduler:8080 --domain="$$NGROK_DOMAIN";
+        fi
 
 networks:
   whatsapp-net:

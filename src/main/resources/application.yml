@@ -45,6 +45,9 @@ app:
   data-dir: ${APP_DATA_DIR:./data}
   timeout-seconds: ${REQUEST_TIMEOUT_SECONDS:30}
   api-key: ${APP_API_KEY:${API_KEY:playbox_secure_api_key_2026}}
+  auth:
+    username: ${AUTH_USERNAME:admin}
+    password: ${AUTH_PASSWORD:PlayBox@2026!}
 
   # WhatsApp Bot (BotWhatsApp Baileys REST no container whatsapp_bot)
   whatsapp:

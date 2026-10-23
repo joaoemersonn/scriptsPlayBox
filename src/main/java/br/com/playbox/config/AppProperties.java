@@ -15,6 +15,11 @@ public class AppProperties {
     private final Vendpromax vendpromax = new Vendpromax();
     private final Payxyz payxyz = new Payxyz();
     private final Zapizi zapizi = new Zapizi();
+    private final Auth auth = new Auth();
+
+    public Auth getAuth() {
+        return auth;
+    }
 
     public String getDataDir() {
         return dataDir;
@@ -237,6 +242,27 @@ public class AppProperties {
 
         public void setOrganizationId(Integer organizationId) {
             this.organizationId = organizationId;
+        }
+    }
+
+    public static class Auth {
+        private String username = "admin";
+        private String password = "PlayBox@2026!";
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
         }
     }
 }

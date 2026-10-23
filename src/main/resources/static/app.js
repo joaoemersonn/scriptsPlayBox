@@ -5,6 +5,8 @@
 
 // Global State
 const state = {
+  authToken: localStorage.getItem('playbox_session_token') || null,
+  currentUser: localStorage.getItem('playbox_user') || 'admin',
   apiKey: localStorage.getItem('playbox_api_key') || 'tR3vM5o7ISXoDnEXzCHMa2gTnMlrlpxJ47urY5NCY7rFpjp3710Rj4wfDNJnPZdR',
   activeTab: 'dashboard',
   currentPeriod: 'mes',
@@ -28,9 +30,14 @@ const state = {
 
 async function apiRequest(endpoint, options = {}) {
   const headers = {
-    'X-API-KEY': state.apiKey,
     ...(options.headers || {})
   };
+
+  if (state.authToken) {
+    headers['Authorization'] = `Bearer ${state.authToken}`;
+  } else if (state.apiKey) {
+    headers['X-API-KEY'] = state.apiKey;
+  }
 
   if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
@@ -41,8 +48,10 @@ async function apiRequest(endpoint, options = {}) {
     const response = await fetch(endpoint, { ...options, headers });
 
     if (response.status === 401) {
-      updateApiStatusBadge(false, 'Chave Inválida / Não Autorizado');
-      showToast('Acesso não autorizado. Verifique sua chave de API.', 'error');
+      if (!endpoint.includes('/api/auth/login')) {
+        showAuthScreen();
+        showToast('Sessão expirada. Faça login novamente.', 'warning');
+      }
       throw new Error('UNAUTHORIZED');
     }
 
@@ -57,7 +66,7 @@ async function apiRequest(endpoint, options = {}) {
       throw new Error(errorMsg);
     }
 
-    updateApiStatusBadge(true, 'API Conectada');
+    updateApiStatusBadge(true, 'Conectado');
 
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/pdf')) {
@@ -2126,18 +2135,111 @@ function populateMaquinasSelect(selectId, selectedId = null) {
 }
 
 // ============================================================================
+// AUTHENTICATION & LOGIN FLOW
+// ============================================================================
+
+function showAuthScreen() {
+  document.getElementById('auth-screen')?.classList.remove('hidden');
+  document.getElementById('app-container')?.classList.add('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function showAppScreen(username) {
+  document.getElementById('auth-screen')?.classList.add('hidden');
+  document.getElementById('app-container')?.classList.remove('hidden');
+  const userBadge = document.getElementById('header-user-badge');
+  if (userBadge) userBadge.textContent = username || state.currentUser || 'admin';
+  if (window.lucide) lucide.createIcons();
+}
+
+async function handleLogin(e) {
+  if (e) e.preventDefault();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorBox = document.getElementById('login-error-msg');
+  const errorText = document.getElementById('login-error-text');
+  const btn = document.getElementById('btn-login-submit');
+
+  errorBox.classList.add('hidden');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner w-4 h-4 inline-block mr-2"></span> Autenticando...';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.status === 'ERROR') {
+      throw new Error(data.message || 'Usuário ou senha incorretos.');
+    }
+
+    state.authToken = data.token;
+    state.currentUser = data.username || username;
+    localStorage.setItem('playbox_session_token', data.token);
+    localStorage.setItem('playbox_user', state.currentUser);
+
+    showAppScreen(state.currentUser);
+    showToast(`Bem-vindo, ${state.currentUser}!`, 'success');
+
+    await loadInitialLookups();
+    await loadDashboardData();
+  } catch (err) {
+    errorText.textContent = err.message;
+    errorBox.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar no Sistema</span>';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+async function handleLogout() {
+  if (confirm('Deseja realmente sair do sistema?')) {
+    try {
+      if (state.authToken) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${state.authToken}` }
+        });
+      }
+    } catch (e) {}
+    state.authToken = null;
+    localStorage.removeItem('playbox_session_token');
+    showAuthScreen();
+    showToast('Sessão encerrada com sucesso.', 'info');
+  }
+}
+
+// ============================================================================
 // INITIALIZATION
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.lucide) lucide.createIcons();
 
-  // Test API Key
-  try {
-    await apiRequest('/health');
-    await loadInitialLookups();
-    await loadDashboardData();
-  } catch (err) {
-    console.warn('Initial load error:', err);
+  // Check if session token exists and is valid
+  if (state.authToken) {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${state.authToken}` }
+      });
+      if (res.ok) {
+        const me = await res.json();
+        showAppScreen(me.username);
+        await loadInitialLookups();
+        await loadDashboardData();
+        return;
+      }
+    } catch (e) {
+      console.warn('Erro ao validar sessão existente:', e);
+    }
   }
+
+  // Not logged in or session expired
+  showAuthScreen();
 });

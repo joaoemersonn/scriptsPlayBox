@@ -20,10 +20,16 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
 
     private final AppProperties properties;
     private final ObjectMapper objectMapper;
+    private final br.com.playbox.service.AuthService authService;
 
-    public ApiKeyInterceptor(AppProperties properties, ObjectMapper objectMapper) {
+    public ApiKeyInterceptor(AppProperties properties, ObjectMapper objectMapper, br.com.playbox.service.AuthService authService) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.authService = authService;
+    }
+
+    public ApiKeyInterceptor(AppProperties properties, ObjectMapper objectMapper) {
+        this(properties, objectMapper, new br.com.playbox.service.AuthService(properties));
     }
 
     @Override
@@ -32,25 +38,34 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        String requiredKey = properties.getApiKey();
-        if (requiredKey == null || requiredKey.isBlank()) {
-            log.error("API Key não configurada no servidor.");
-            sendUnauthorized(response, "Configuração de API Key não definida no servidor.");
-            return false;
+        String path = request.getRequestURI();
+        if (path.startsWith("/api/auth/login")) {
+            return true;
         }
 
+        // 1. Validar Bearer Session Token (Web Frontend)
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            String token = authHeader.substring(7).trim();
+            if (authService.isValidToken(token)) {
+                return true;
+            }
+        }
+
+        // 2. Validar X-API-KEY (Integrações, Crons, Webhooks)
+        String requiredKey = properties.getApiKey();
         String clientKey = request.getHeader("X-API-KEY");
         if (clientKey == null || clientKey.isBlank()) {
             clientKey = request.getHeader("x-api-key");
         }
 
-        if (clientKey == null || !clientKey.trim().equals(requiredKey.trim())) {
-            log.warn("Acesso não autorizado bloqueado em {}. Header X-API-KEY ausente ou inválido.", request.getRequestURI());
-            sendUnauthorized(response, "Chave de API inválida ou ausente. Forneça o header 'X-API-KEY'.");
-            return false;
+        if (clientKey != null && requiredKey != null && clientKey.trim().equals(requiredKey.trim())) {
+            return true;
         }
 
-        return true;
+        log.warn("Acesso não autorizado bloqueado em {}. Header X-API-KEY ou Bearer token ausente/inválido.", path);
+        sendUnauthorized(response, "Acesso não autorizado. Efetue login ou forneça uma chave de API válida.");
+        return false;
     }
 
     private void sendUnauthorized(HttpServletResponse response, String message) throws IOException {
