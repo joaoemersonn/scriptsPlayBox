@@ -297,6 +297,37 @@ public class RelatorioService {
         }
         listaMaquinas.sort((a, b) -> Double.compare((double) b.get("faturamentoBruto"), (double) a.get("faturamentoBruto")));
 
+        // Agrupamento por Dia (Evolução Temporal para gráficos)
+        Map<LocalDate, List<Transacao>> porDiaGroup = transacoes.stream()
+                .filter(t -> t.getTimestamp() != null)
+                .collect(Collectors.groupingBy(t -> t.getTimestamp().toLocalDate(), TreeMap::new, Collectors.toList()));
+
+        List<Map<String, Object>> listaDias = new ArrayList<>();
+        DateTimeFormatter dmyShort = DateTimeFormatter.ofPattern("dd/MM");
+        for (Map.Entry<LocalDate, List<Transacao>> entry : porDiaGroup.entrySet()) {
+            LocalDate dia = entry.getKey();
+            List<Transacao> txList = entry.getValue();
+
+            double diaBruto = txList.stream().mapToDouble(t -> t.getValor() != null ? t.getValor() : 0.0).sum();
+            double diaEstornos = txList.stream().mapToDouble(t -> t.getValorEstorno() != null ? t.getValorEstorno() : 0.0).sum();
+            double diaPremios = txList.stream().mapToDouble(t -> t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0).sum();
+            double diaCash = txList.stream().mapToDouble(t -> t.getValorCash() != null ? t.getValorCash() : 0.0).sum();
+            double diaPix = txList.stream().mapToDouble(t -> t.getValorPix() != null ? t.getValorPix() : 0.0).sum();
+            double diaCredito = txList.stream().mapToDouble(t -> t.getValorCredito() != null ? t.getValorCredito() : 0.0).sum();
+            double diaDebito = txList.stream().mapToDouble(t -> t.getValorDebito() != null ? t.getValorDebito() : 0.0).sum();
+
+            Map<String, Object> itemDia = new LinkedHashMap<>();
+            itemDia.put("data", dia.toString());
+            itemDia.put("dataFormatada", dia.format(dmyShort));
+            itemDia.put("faturamentoBruto", round(diaBruto));
+            itemDia.put("faturamentoLiquido", round(diaBruto - diaEstornos));
+            itemDia.put("quantidadePremios", round(diaPremios));
+            itemDia.put("especie", round(diaCash));
+            itemDia.put("pix", round(diaPix));
+            itemDia.put("cartao", round(diaCredito + diaDebito));
+            listaDias.add(itemDia);
+        }
+
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("titulo", p.titulo());
         resultado.put("periodo", p.periodo());
@@ -313,6 +344,7 @@ public class RelatorioService {
         resultado.put("resumoGeral", resumoGeral);
         resultado.put("porEstabelecimento", listaEstabelecimentos);
         resultado.put("porMaquina", listaMaquinas);
+        resultado.put("porDia", listaDias);
 
         return resultado;
     }

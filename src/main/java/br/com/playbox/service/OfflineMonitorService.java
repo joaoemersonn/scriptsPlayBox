@@ -578,4 +578,33 @@ public class OfflineMonitorService {
             log.error("Erro ao salvar arquivo {}: {}", filepath, e.getMessage());
         }
     }
+
+    public Map<String, Object> getStatusAtual() {
+        Path dataDir = resolveDataDirectory();
+        Path previousOfflineFile = dataDir.resolve("offline_status.txt");
+        Path offlineTimestampsFile = dataDir.resolve("offline_timestamps.json");
+        Path failingIntegrationsFile = dataDir.resolve("failing_integrations.txt");
+        Path previousMessageFile = dataDir.resolve("last_offline_notification.txt");
+
+        Set<String> offline = loadFileSet(previousOfflineFile);
+        offline.removeIf(m -> m.toLowerCase().contains("sem loja"));
+        Map<String, String> timestamps = loadOfflineTimestamps(offlineTimestampsFile);
+        Set<String> failing = loadFileSet(failingIntegrationsFile);
+        String lastNotification = loadFileText(previousMessageFile);
+
+        List<Map<String, String>> maquinasList = new ArrayList<>();
+        for (String m : offline) {
+            Map<String, String> item = new LinkedHashMap<>();
+            item.put("nome", m);
+            item.put("offlineDesde", timestamps.getOrDefault(m, "Desconhecido"));
+            maquinasList.add(item);
+        }
+
+        Map<String, Object> status = new LinkedHashMap<>();
+        status.put("totalOffline", offline.size());
+        status.put("maquinasOffline", maquinasList);
+        status.put("failingIntegrations", new ArrayList<>(failing));
+        status.put("ultimaNotificacao", lastNotification);
+        return status;
+    }
 }

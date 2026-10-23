@@ -76,6 +76,16 @@ public class TriggerController {
         }
     }
 
+    @GetMapping("/api/monitor/status")
+    @Operation(
+            summary = "Consultar status atual das máquinas offline e integrações",
+            description = "Retorna lista de máquinas atualmente offline com data/hora desde quando caíram e status das integrações.",
+            security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    )
+    public ResponseEntity<Map<String, Object>> getMonitorStatus() {
+        return ResponseEntity.ok(monitorService.getStatusAtual());
+    }
+
     @PostMapping("/api/trigger/import-transactions")
     @Operation(
             summary = "Disparar importação manual de transações",

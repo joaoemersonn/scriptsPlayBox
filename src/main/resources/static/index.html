@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlayBox - Gestão de Gruas & Telemetria</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              900: '#4c1d95',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-[#090d16] text-slate-100 antialiased selection:bg-purple-500 selection:text-white">
+
+  <!-- Main Container -->
+  <div class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-[#0c1222]/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3.5 transition-all">
+      <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        
+        <!-- Logo & Branding -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 p-0.5 shadow-lg shadow-purple-900/30 flex items-center justify-center">
+            <div class="w-full h-full bg-[#090d16] rounded-[10px] flex items-center justify-center text-purple-400">
+              <i data-lucide="gamepad-2" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-purple-300 bg-clip-text text-transparent">
+                PlayBox
+              </h1>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800/60">
+                PRO
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 hidden sm:block">Gestão de Gruas & Telemetria Operacional</p>
+          </div>
+        </div>
+
+        <!-- Global Header Controls -->
+        <div class="flex items-center gap-2.5 sm:gap-4">
+          <!-- Live API Key Status -->
+          <button id="btn-api-key-modal" onclick="openApiKeyModal()" class="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition" title="Configurar Chave de Acesso API">
+            <span id="api-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green"></span>
+            <span id="api-status-text" class="text-slate-300 hidden md:inline">API Conectada</span>
+            <i data-lucide="key" class="w-3.5 h-3.5 text-slate-400"></i>
+          </button>
+
+          <!-- Fast Refresh Button -->
+          <button onclick="refreshActiveTab(true)" class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-900/20 active:scale-95 transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="btn-sync-icon"></i>
+            <span class="hidden sm:inline">Atualizar</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Navigation Tabs Strip -->
+      <div class="max-w-7xl mx-auto mt-3 pt-2 border-t border-slate-800/40 flex items-center gap-1 overflow-x-auto scrollbar-none text-sm">
+        <button onclick="switchTab('dashboard')" data-tab="dashboard" class="tab-btn active-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Visão Geral
+        </button>
+        <button onclick="switchTab('maquinas')" data-tab="maquinas" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="cpu" class="w-4 h-4"></i> Máquinas & Status
+          <span id="badge-offline-count" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">0</span>
+        </button>
+        <button onclick="switchTab('estoque')" data-tab="estoque" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="package" class="w-4 h-4"></i> Estoque Pelúcias
+          <span id="badge-estoque-baixo" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+        </button>
+        <button onclick="switchTab('coletas')" data-tab="coletas" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="banknote" class="w-4 h-4"></i> Coleta Espécie
+          <span id="badge-coletas-pendentes" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+        </button>
+        <button onclick="switchTab('alugueis')" data-tab="alugueis" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="building-2" class="w-4 h-4"></i> Aluguéis & Repasses
+        </button>
+        <button onclick="switchTab('estabelecimentos')" data-tab="estabelecimentos" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="store" class="w-4 h-4"></i> Pontos Comerciais
+        </button>
+        <button onclick="switchTab('relatorios')" data-tab="relatorios" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="file-text" class="w-4 h-4"></i> Relatório PDF
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: VISÃO GERAL / DASHBOARD -->
+      <!-- ========================================== -->
+      <section id="tab-dashboard" class="tab-pane space-y-6 animate-fade-in">
+        
+        <!-- Filters Toolbar -->
+        <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <!-- Predefined Periods -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+            <button onclick="setDashboardPeriod('mes')" id="period-btn-mes" class="period-btn active-period px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow transition">
+              Mês Atual
+            </button>
+            <button onclick="setDashboardPeriod('24h-anterior')" id="period-btn-24h-anterior" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
+              Ontem (24h)
+            </button>
+            <button onclick="setDashboardPeriod('12h-atual')" id="period-btn-12h-atual" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
+              Últimas 12h
+            </button>
+            <button onclick="setDashboardPeriod('hoje')" id="period-btn-hoje" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
+              Hoje
+            </button>
+            <button onclick="toggleCustomDates()" id="period-btn-custom" class="period-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-300 hover:bg-slate-800 transition">
+              Personalizado...
+            </button>
+          </div>
+
+          <!-- Custom Dates & Store Filter -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <div id="custom-dates-bar" class="hidden flex items-center gap-1.5">
+              <input type="date" id="dash-date-start" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:border-purple-500 focus:outline-none">
+              <span class="text-xs text-slate-500">até</span>
+              <input type="date" id="dash-date-end" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:border-purple-500 focus:outline-none">
+              <button onclick="applyCustomDates()" class="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition">
+                Filtrar
+              </button>
+            </div>
+
+            <!-- Store Selector -->
+            <select id="dash-filter-store" onchange="loadDashboardData()" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 focus:border-purple-500 focus:outline-none">
+              <option value="">Todos os Estabelecimentos</option>
+            </select>
+
+            <!-- Force Sync with API -->
+            <button onclick="loadDashboardData(true)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition" title="Sincronizar dados das integradoras antes de gerar">
+              <i data-lucide="cloud-download" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dashboard Period Subtitle -->
+        <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+          <span id="dash-period-title" class="font-medium text-slate-300">Carregando dados...</span>
+          <span id="dash-last-updated" class="text-slate-500"></span>
+        </div>
+
+        <!-- KPI Summary Cards Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
+          <!-- Card: Faturamento Bruto -->
+          <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-medium">Fat. Bruto</span>
+              <div class="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
+                <i data-lucide="trending-up" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="kpi-faturamento-bruto" class="text-lg sm:text-xl font-bold text-white tracking-tight">R$ 0,00</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">Total arrecadado</div>
+            </div>
+          </div>
+
+          <!-- Card: Faturamento Líquido -->
+          <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-medium">Fat. Líquido</span>
+              <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="kpi-faturamento-liquido" class="text-lg sm:text-xl font-bold text-emerald-400 tracking-tight">R$ 0,00</div>
+              <div id="kpi-estornos" class="text-[11px] text-slate-400 mt-0.5">Estornos: R$ 0,00</div>
+            </div>
+          </div>
+
+          <!-- Card: Pelúcias Saídas -->
+          <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-medium">Prêmios Saídos</span>
+              <div class="p-1.5 rounded-lg bg-pink-500/10 text-pink-400">
+                <i data-lucide="gift" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="kpi-premios" class="text-lg sm:text-xl font-bold text-pink-300 tracking-tight">0 un</div>
+              <div id="kpi-rec-premio" class="text-[11px] text-slate-400 mt-0.5">R$ 0/pelúcia</div>
+            </div>
+          </div>
+
+          <!-- Card: Dinheiro em Espécie -->
+          <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-medium">Espécie (Notas)</span>
+              <div class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                <i data-lucide="banknote" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="kpi-especie" class="text-lg sm:text-xl font-bold text-amber-300 tracking-tight">R$ 0,00</div>
+              <div id="kpi-especie-perc" class="text-[11px] text-slate-400 mt-0.5">0% do faturamento</div>
+            </div>
+          </div>
+
+          <!-- Card: Pix & Cartões -->
+          <div class="glass-card glass-card-hover p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-medium">Pix & Cartão</span>
+              <div class="p-1.5 rounded-lg bg-sky-500/10 text-sky-400">
+                <i data-lucide="credit-card" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="kpi-digital" class="text-lg sm:text-xl font-bold text-sky-300 tracking-tight">R$ 0,00</div>
+              <div id="kpi-digital-detail" class="text-[11px] text-slate-400 mt-0.5">Pix + Débito + Crédito</div>
+            </div>
+          </div>
+
+          <!-- Card: Status Telemetria -->
+          <div class="glass-card glass-card-hover p-4 flex flex-col justify-between cursor-pointer" onclick="switchTab('maquinas')">
+            <div class="flex items-center justify-between text-slate-400 mb-2">
+              <span class="text-xs font-medium">Telemetria</span>
+              <div id="kpi-status-icon-wrap" class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                <i data-lucide="signal" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="kpi-maquinas-status" class="text-base sm:text-lg font-bold text-slate-100 tracking-tight">--</div>
+              <div id="kpi-offline-detail" class="text-[11px] text-slate-400 mt-0.5">Todas operando</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions & Operations Toolbar -->
+        <div class="glass-card p-4">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> Ações & Gatilhos Operacionais
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            <button onclick="triggerMonitor()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
+              <i data-lucide="activity" class="w-4 h-4 text-rose-400"></i>
+              <span>Checar Offline</span>
+            </button>
+            <button onclick="triggerImportTransactions()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
+              <i data-lucide="download" class="w-4 h-4 text-sky-400"></i>
+              <span>Importar Vendas</span>
+            </button>
+            <button onclick="triggerEstoqueAlerta()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
+              <i data-lucide="bell-ring" class="w-4 h-4 text-amber-400"></i>
+              <span>Alerta Reposição</span>
+            </button>
+            <button onclick="triggerWhatsAppReport()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition">
+              <i data-lucide="message-square" class="w-4 h-4 text-emerald-400"></i>
+              <span>Relatório WhatsApp</span>
+            </button>
+            <button onclick="openPdfModal()" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs font-semibold text-purple-300 transition">
+              <i data-lucide="file-down" class="w-4 h-4"></i>
+              <span>Gerar Relatório PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Chart 1: Evolução Diária (2 Cols on lg) -->
+          <div class="glass-card p-5 lg:col-span-2 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="bar-chart-3" class="w-4 h-4 text-purple-400"></i> Evolução Diária de Faturamento & Prêmios
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Histórico diário com faturamento bruto e prêmios entregues</p>
+              </div>
+            </div>
+            <div class="chart-container h-64 sm:h-72">
+              <canvas id="chart-timeline"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 2: Meios de Pagamento (1 Col on lg) -->
+          <div class="glass-card p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i> Meios de Pagamento
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Espécie vs Pix vs Cartões</p>
+              </div>
+            </div>
+            <div class="chart-container h-64 sm:h-72 flex items-center justify-center">
+              <canvas id="chart-payment-methods"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 3: Ranking de Lojas (Full 3 Cols on lg) -->
+          <div class="glass-card p-5 lg:col-span-3">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                  <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i> Faturamento por Ponto Comercial
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Desempenho comparativo entre estabelecimentos</p>
+              </div>
+            </div>
+            <div class="chart-container h-64 sm:h-80">
+              <canvas id="chart-stores-ranking"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: MÁQUINAS & TELEMETRIA -->
+      <!-- ========================================== -->
+      <section id="tab-maquinas" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Offline Warning Banner (Shown if machines are offline) -->
+        <div id="banner-offline-alert" class="hidden rounded-xl bg-rose-950/40 border border-rose-500/30 p-4">
+          <div class="flex items-start gap-3">
+            <div class="p-2 rounded-lg bg-rose-500/20 text-rose-400 shrink-0">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-sm font-bold text-rose-200">Atenção: Máquinas Offline Detectadas</h3>
+              <p class="text-xs text-rose-300/80 mt-0.5">As seguintes máquinas não estão se comunicando com o sistema central:</p>
+              <div id="banner-offline-list" class="mt-2.5 flex flex-wrap gap-2"></div>
+            </div>
+            <button onclick="triggerMonitor()" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shrink-0 transition">
+              Reverificar
+            </button>
+          </div>
+        </div>
+
+        <!-- Machines Header Controls -->
+        <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Search -->
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+              <input type="text" id="machine-search-input" oninput="filterMachines()" placeholder="Buscar por máquina, loja, ID..." class="bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500 w-52 sm:w-64">
+            </div>
+
+            <!-- Filter Status -->
+            <select id="machine-status-filter" onchange="filterMachines()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <option value="ALL">Status: Todos</option>
+              <option value="ONLINE">Apenas Online</option>
+              <option value="OFFLINE">Apenas Offline</option>
+              <option value="LOW_STOCK">Estoque Baixo (< 30)</option>
+            </select>
+
+            <!-- Filter Integrator -->
+            <select id="machine-integrator-filter" onchange="filterMachines()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <option value="ALL">Integrador: Todos</option>
+              <option value="VENDPROMAX">VendProMax</option>
+              <option value="PAYXYZ">PayXYZ</option>
+              <option value="ZAPIZI">Zapizi</option>
+            </select>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2">
+            <button onclick="syncMachines()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition" title="Buscar novas máquinas nas integradoras">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar APIs
+            </button>
+            <button onclick="openCreateMachineModal()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nova Máquina
+            </button>
+          </div>
+        </div>
+
+        <!-- Machines Cards Grid -->
+        <div id="machines-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: ESTOQUE DE PELÚCIAS -->
+      <!-- ========================================== -->
+      <section id="tab-estoque" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Estoque KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="glass-card p-4 flex items-center gap-4">
+            <div class="p-3 rounded-xl bg-purple-500/10 text-purple-400">
+              <i data-lucide="layers" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div id="estoque-total-pelucias" class="text-2xl font-bold text-white tracking-tight">0 un</div>
+              <div class="text-xs text-slate-400">Pelúcias Totais em Campo</div>
+            </div>
+          </div>
+
+          <div class="glass-card p-4 flex items-center gap-4">
+            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <i data-lucide="pie-chart" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div id="estoque-media-maquina" class="text-2xl font-bold text-emerald-400 tracking-tight">0 un</div>
+              <div class="text-xs text-slate-400">Média por Máquina</div>
+            </div>
+          </div>
+
+          <div class="glass-card p-4 flex items-center gap-4">
+            <div class="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+              <i data-lucide="alert-circle" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div id="estoque-maquinas-alerta" class="text-2xl font-bold text-amber-300 tracking-tight">0</div>
+              <div class="text-xs text-slate-400">Máquinas em Nível Crítico (&lt; 30 un)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions Toolbar -->
+        <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <input type="text" id="estoque-search-input" oninput="filterEstoqueTable()" placeholder="Buscar por máquina ou loja..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500 w-64">
+            <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="estoque-only-low-checkbox" onchange="filterEstoqueTable()" class="rounded border-slate-700 text-purple-600 focus:ring-0">
+              Apenas estoque crítico
+            </label>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="syncEstoqueVendProMax()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition" title="Puxar estoque atualizado da controladora VendProMax">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sincronizar VendProMax
+            </button>
+            <button onclick="triggerEstoqueAlerta()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition" title="Disparar relatório de reposição para o grupo no WhatsApp">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i> Notificar WhatsApp
+            </button>
+          </div>
+        </div>
+
+        <!-- Estoque Table -->
+        <div class="glass-card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                <tr>
+                  <th class="p-3.5">Máquina / Ponto</th>
+                  <th class="p-3.5">Integrador</th>
+                  <th class="p-3.5">Nível Atual</th>
+                  <th class="p-3.5">Capacidade</th>
+                  <th class="p-3.5">Status</th>
+                  <th class="p-3.5">Última Saída</th>
+                  <th class="p-3.5 text-right">Ações Rápidas</th>
+                </tr>
+              </thead>
+              <tbody id="estoque-table-body" class="divide-y divide-slate-800/60">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: COLETA DE ESPÉCIE (CASH) -->
+      <!-- ========================================== -->
+      <section id="tab-coletas" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Coletas Header Summary -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="glass-card p-4 flex items-center gap-4">
+            <div class="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+              <i data-lucide="clock" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div id="coletas-pendentes-total" class="text-2xl font-bold text-amber-300 tracking-tight">0</div>
+              <div class="text-xs text-slate-400">Malotes Aguardando Contagem</div>
+            </div>
+          </div>
+
+          <div class="glass-card p-4 flex items-center gap-4">
+            <div class="p-3 rounded-xl bg-purple-500/10 text-purple-400">
+              <i data-lucide="calculator" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div id="coletas-valor-esperado-pendente" class="text-2xl font-bold text-white tracking-tight">R$ 0,00</div>
+              <div class="text-xs text-slate-400">Valor Esperado em Suspenso</div>
+            </div>
+          </div>
+
+          <div class="glass-card p-4 flex items-center gap-4">
+            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+              <i data-lucide="check-check" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div id="coletas-conferidas-total" class="text-2xl font-bold text-emerald-400 tracking-tight">0</div>
+              <div class="text-xs text-slate-400">Coletas Conferidas</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coletas Toolbar -->
+        <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <select id="coletas-filter-status" onchange="loadColetasData()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <option value="">Status: Todos</option>
+              <option value="PENDENTE_CONFERENCIA">Apenas Pendentes de Conferência</option>
+              <option value="CONFERIDO">Apenas Conferidos (100% OK)</option>
+              <option value="CONFERIDO_DIVERGENTE">Apenas Divergentes (Sobra / Falta)</option>
+            </select>
+          </div>
+
+          <div>
+            <button onclick="openNovaColetaModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-900/30 transition">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> Registrar Nova Coleta (Sangria)
+            </button>
+          </div>
+        </div>
+
+        <!-- Coletas List Table -->
+        <div class="glass-card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                <tr>
+                  <th class="p-3.5">Máquina / Ponto</th>
+                  <th class="p-3.5">Data/Hora Coleta</th>
+                  <th class="p-3.5">Período desde Última</th>
+                  <th class="p-3.5">Esperado (Cofre)</th>
+                  <th class="p-3.5">Contado (Real)</th>
+                  <th class="p-3.5">Divergência</th>
+                  <th class="p-3.5">Status</th>
+                  <th class="p-3.5 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="coletas-table-body" class="divide-y divide-slate-800/60">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 5: ALUGUÉIS & REPASSES -->
+      <!-- ========================================== -->
+      <section id="tab-alugueis" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Aluguéis Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="glass-card p-4">
+            <div class="text-xs text-slate-400">Total a Pagar no Mês</div>
+            <div id="alugueis-total-mes" class="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1">R$ 0,00</div>
+          </div>
+          <div class="glass-card p-4">
+            <div class="text-xs text-slate-400">Total Pago</div>
+            <div id="alugueis-total-pago" class="text-xl sm:text-2xl font-bold text-emerald-400 tracking-tight mt-1">R$ 0,00</div>
+          </div>
+          <div class="glass-card p-4">
+            <div class="text-xs text-slate-400">Total Pendente</div>
+            <div id="alugueis-total-pendente" class="text-xl sm:text-2xl font-bold text-amber-300 tracking-tight mt-1">R$ 0,00</div>
+          </div>
+          <div class="glass-card p-4">
+            <div class="text-xs text-slate-400">Lojas Repasse Dinâmico (25%)</div>
+            <div id="alugueis-total-dinamico" class="text-xl sm:text-2xl font-bold text-purple-300 tracking-tight mt-1">0</div>
+          </div>
+        </div>
+
+        <!-- Aluguéis Toolbar -->
+        <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <label class="text-xs text-slate-400 font-medium">Mês de Referência:</label>
+            <input type="month" id="alugueis-month-picker" onchange="loadAlugueisData()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            <button onclick="gerarCobrancasMes()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition" title="Gerar lançamentos automáticos deste mês para todos os estabelecimentos">
+              Gerar Cobranças
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="recalcularDinamicosMes()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition" title="Recalcular repasses dinâmicos (25% do lucro) baseados nas vendas do mês fechado anterior">
+              <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Recalcular Dinâmicos
+            </button>
+          </div>
+        </div>
+
+        <!-- Aluguéis Table -->
+        <div class="glass-card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                <tr>
+                  <th class="p-3.5">Ponto Comercial</th>
+                  <th class="p-3.5">Cidade</th>
+                  <th class="p-3.5">Dia Vencimento</th>
+                  <th class="p-3.5">Tipo de Regra</th>
+                  <th class="p-3.5">Valor do Aluguel</th>
+                  <th class="p-3.5">Status</th>
+                  <th class="p-3.5">Pagamento</th>
+                  <th class="p-3.5 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="alugueis-table-body" class="divide-y divide-slate-800/60">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 6: PONTOS COMERCIAIS (ESTABELECIMENTOS) -->
+      <!-- ========================================== -->
+      <section id="tab-estabelecimentos" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Estabelecimentos Toolbar -->
+        <div class="glass-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <input type="text" id="estab-search-input" oninput="filterEstabelecimentos()" placeholder="Buscar ponto ou cidade..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500 w-64">
+          </div>
+
+          <div>
+            <button onclick="openCreateEstabelecimentoModal()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-900/30 transition">
+              <i data-lucide="plus" class="w-4 h-4"></i> Novo Ponto Comercial
+            </button>
+          </div>
+        </div>
+
+        <!-- Estabelecimentos Cards Grid -->
+        <div id="estabelecimentos-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated -->
+        </div>
+
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 7: RELATÓRIO PDF & SIMULAÇÃO -->
+      <!-- ========================================== -->
+      <section id="tab-relatorios" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Parameters Form Column -->
+          <div class="glass-card p-5 space-y-4">
+            <div class="flex items-center gap-2 text-sm font-bold text-slate-100 pb-2 border-b border-slate-800">
+              <i data-lucide="sliders" class="w-4 h-4 text-purple-400"></i> Parâmetros do Relatório
+            </div>
+
+            <!-- Estabelecimento -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Ponto Comercial:</label>
+              <select id="pdf-param-estab" onchange="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+                <option value="">Consolidado de Todos</option>
+              </select>
+            </div>
+
+            <!-- Período -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Período:</label>
+              <select id="pdf-param-periodo" onchange="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+                <option value="mes">Mês Atual</option>
+                <option value="24h-anterior">Ontem (24h)</option>
+                <option value="12h-atual">Últimas 12 Horas</option>
+                <option value="hoje">Hoje</option>
+              </select>
+            </div>
+
+            <!-- Custo Unitário Pelúcia -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Custo Unitário Pelúcia (R$):</label>
+              <input type="number" step="0.10" id="pdf-param-pelucia" value="19.90" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            </div>
+
+            <!-- Taxa Maquininha % -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Taxa Maquininha (%):</label>
+              <input type="number" step="0.01" id="pdf-param-taxa" value="4.99" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            </div>
+
+            <!-- Mensalidade Telemetria -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Mensalidade Telemetria (R$):</label>
+              <input type="number" step="1.00" id="pdf-param-telemetria" value="69.90" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            </div>
+
+            <!-- Visitas / Manutenções -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Visitas & Manutenção (R$):</label>
+              <input type="number" step="1.00" id="pdf-param-visitas" value="350.00" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            </div>
+
+            <!-- % Repasse -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Percentual de Repasse (% sobre Lucro):</label>
+              <input type="number" step="1" id="pdf-param-repasse" value="25.0" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            </div>
+
+            <!-- Download Button -->
+            <button onclick="downloadRelatorioPdf()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-900/40 transition">
+              <i data-lucide="download" class="w-4 h-4"></i> Baixar Relatório em PDF
+            </button>
+          </div>
+
+          <!-- Preview & Breakdown Column (2 Cols on lg) -->
+          <div class="glass-card p-5 lg:col-span-2 space-y-5">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i> Demonstrativo Financeiro Operacional
+              </div>
+              <span id="pdf-preview-title" class="text-xs text-purple-300 font-semibold">Carregando...</span>
+            </div>
+
+            <!-- Grid with breakdown cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Entradas -->
+              <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>Entradas Brutas</span>
+                  <i data-lucide="arrow-down-left" class="w-3.5 h-3.5"></i>
+                </div>
+                <div id="pdf-prev-entradas-total" class="text-xl font-bold text-white">R$ 0,00</div>
+                <div class="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
+                  <div class="flex justify-between"><span>Maquininha (Pix/Cartão):</span> <span id="pdf-prev-maquininha" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Espécie (Cofre):</span> <span id="pdf-prev-especie" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                </div>
+              </div>
+
+              <!-- Saídas / Custos -->
+              <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div class="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>Saídas & Custos</span>
+                  <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                </div>
+                <div id="pdf-prev-saidas-total" class="text-xl font-bold text-rose-300">R$ 0,00</div>
+                <div class="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
+                  <div class="flex justify-between"><span>Taxa Maquininha:</span> <span id="pdf-prev-taxa-valor" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Telemetria:</span> <span id="pdf-prev-telemetria-valor" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Visitas Técnicas:</span> <span id="pdf-prev-visitas-valor" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Reposição Pelúcias:</span> <span id="pdf-prev-pelucias-custo" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                </div>
+              </div>
+
+              <!-- Lucro Líquido -->
+              <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>Lucro Operacional</span>
+                  <i data-lucide="pie-chart" class="w-3.5 h-3.5"></i>
+                </div>
+                <div id="pdf-prev-lucro-total" class="text-xl font-bold text-sky-300">R$ 0,00</div>
+                <div class="text-xs text-slate-400 pt-1 border-t border-slate-800/80">
+                  <span>Entradas - Todas as Saídas e Custos</span>
+                </div>
+              </div>
+
+              <!-- Repasse da Loja -->
+              <div class="p-4 rounded-xl bg-purple-950/40 border border-purple-500/40 space-y-2">
+                <div class="text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center justify-between">
+                  <span id="pdf-prev-repasse-badge">Repasse Acordado (25%)</span>
+                  <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5"></i>
+                </div>
+                <div id="pdf-prev-repasse-valor" class="text-xl font-bold text-purple-200">R$ 0,00</div>
+                <div class="text-xs text-purple-300/80 pt-1 border-t border-purple-800/60">
+                  <span>Valor exato do aluguel / comissão da loja</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pelúcias Details -->
+            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
+              <div class="text-xs font-bold text-slate-300 mb-2 flex items-center gap-2">
+                <i data-lucide="gift" class="w-4 h-4 text-pink-400"></i> Métricas de Pelúcia
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <div class="text-slate-400">Pelúcias Saídas:</div>
+                  <div id="pdf-prev-pelucias-qtd" class="text-base font-bold text-white">0 un</div>
+                </div>
+                <div>
+                  <div class="text-slate-400">Custo Unitário:</div>
+                  <div id="pdf-prev-pelucias-unit" class="text-base font-bold text-white">R$ 19,90</div>
+                </div>
+                <div>
+                  <div class="text-slate-400">Faturamento por Prêmio:</div>
+                  <div id="pdf-prev-rec-premio" class="text-base font-bold text-emerald-400">R$ 0,00</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-800/60 px-4 py-4 text-center text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <span>PlayBox Scheduler &copy; 2026 - Gestão de Operações de Máquinas de Pelúcia</span>
+        <div class="flex items-center gap-4">
+          <a href="/swagger-ui.html" target="_blank" class="hover:text-purple-400 transition flex items-center gap-1">
+            <i data-lucide="external-link" class="w-3 h-3"></i> Documentação Swagger API
+          </a>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODALS -->
+  <!-- ========================================== -->
+
+  <!-- Modal 1: Abastecer Estoque -->
+  <div id="modal-abastecer" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="package-plus" class="w-4 h-4 text-emerald-400"></i> Abastecer Pelúcias (Entrada)
+        </h3>
+        <button onclick="closeModal('modal-abastecer')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="abastecer-maquina-id">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Máquina:</label>
+        <div id="abastecer-maquina-nome" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Quantidade a Adicionar (Pelúcias):</label>
+        <input type="number" id="abastecer-quantidade" min="1" value="20" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Responsável pelo Abastecimento:</label>
+        <input type="text" id="abastecer-responsavel" placeholder="Ex: João, Rota Sertânia..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Observações (opcional):</label>
+        <input type="text" id="abastecer-observacao" placeholder="Ex: Pelúcias Pokémon e Disney..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-abastecer')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarAbastecimento()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Confirmar Abastecimento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Ajustar Inventário / Balanço -->
+  <div id="modal-inventario" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="clipboard-check" class="w-4 h-4 text-purple-400"></i> Ajustar Inventário Físico (Balanço)
+        </h3>
+        <button onclick="closeModal('modal-inventario')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="inventario-maquina-id">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Máquina:</label>
+        <div id="inventario-maquina-nome" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Quantidade Real Contada no Cesto:</label>
+        <input type="number" id="inventario-novo-estoque" min="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Responsável pelo Balanço:</label>
+        <input type="text" id="inventario-responsavel" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Motivo / Observação:</label>
+        <input type="text" id="inventario-observacao" placeholder="Ex: Contagem física semanal..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-500">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-inventario')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarInventario()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Novo Estoque</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Configurar Limites de Estoque -->
+  <div id="modal-limites-estoque" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i> Limites de Capacidade & Alerta
+        </h3>
+        <button onclick="closeModal('modal-limites-estoque')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="limites-maquina-id">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Máquina:</label>
+        <div id="limites-maquina-nome" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Estoque Mínimo para Alerta (Pelúcias):</label>
+        <input type="number" id="limites-minimo" min="1" value="30" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Capacidade Máxima do Cesto (Pelúcias):</label>
+        <input type="number" id="limites-maximo" min="1" value="80" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-limites-estoque')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarLimitesEstoque()" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold">Salvar Limites</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Histórico de Movimentações de Estoque -->
+  <div id="modal-historico-estoque" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-2xl w-full p-6 space-y-4 animate-fade-in max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="history" class="w-4 h-4 text-purple-400"></i> Histórico de Estoque: <span id="historico-maquina-nome" class="text-purple-300"></span>
+        </h3>
+        <button onclick="closeModal('modal-historico-estoque')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="overflow-y-auto flex-1 space-y-2 pr-1">
+        <div id="historico-estoque-lista" class="space-y-2 text-xs">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      <div class="flex justify-end pt-2 border-t border-slate-800 shrink-0">
+        <button onclick="closeModal('modal-historico-estoque')" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Registrar Nova Coleta (Sangria com Cálculo Automático) -->
+  <div id="modal-nova-coleta" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="banknote" class="w-4 h-4 text-amber-400"></i> Registrar Retirada de Espécie (Coleta)
+        </h3>
+        <button onclick="closeModal('modal-nova-coleta')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <!-- Select Machine -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Selecione a Máquina:</label>
+        <select id="nova-coleta-maquina" onchange="calcularPreviaColeta()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+
+      <!-- Live Calculation Card -->
+      <div id="previa-coleta-card" class="hidden p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-1.5 text-xs">
+        <div class="flex items-center justify-between text-amber-300 font-bold">
+          <span>Valor Esperado Calculado no Cofre:</span>
+          <span id="previa-valor-esperado" class="text-base font-mono">R$ 0,00</span>
+        </div>
+        <div class="text-[11px] text-amber-200/80 flex items-center justify-between">
+          <span>Última Coleta Registrada:</span>
+          <span id="previa-ultima-data">--</span>
+        </div>
+        <div class="text-[11px] text-amber-200/80 flex items-center justify-between">
+          <span>Dinheiro Físico Entrado desde Então:</span>
+          <span id="previa-total-entradas" class="font-mono">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Date Time of Collection -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Data e Hora da Retirada:</label>
+        <input type="datetime-local" id="nova-coleta-datahora" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+      </div>
+
+      <!-- Optional Counted Cash now -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Valor Contado em Espécie (opcional):</label>
+        <input type="number" step="0.50" id="nova-coleta-valor-real" placeholder="Deixe em branco para contar depois no malote..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        <p class="text-[11px] text-slate-500 mt-1">Se não informado agora, a coleta ficará como <strong>Pendente de Conferência</strong> para você contar mais tarde.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Responsável pela Coleta:</label>
+        <input type="text" id="nova-coleta-responsavel" placeholder="Ex: João Silva" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Observações:</label>
+        <input type="text" id="nova-coleta-obs" placeholder="Ex: Malote lacrado #042" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-nova-coleta')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarNovaColeta()" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold">Salvar Coleta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Conferir Malote de Coleta Pendente -->
+  <div id="modal-conferir-coleta" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Conferência de Malote Físico
+        </h3>
+        <button onclick="closeModal('modal-conferir-coleta')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="conferir-coleta-id">
+      
+      <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 text-xs space-y-1">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Máquina:</span>
+          <span id="conferir-coleta-maquina" class="text-white font-medium">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Data Coleta:</span>
+          <span id="conferir-coleta-data" class="text-white">--</span>
+        </div>
+        <div class="flex justify-between font-bold pt-1 border-t border-slate-800">
+          <span class="text-slate-300">Valor Esperado do Cofre:</span>
+          <span id="conferir-coleta-esperado" class="text-amber-300 font-mono">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Valor Físico Real Contado (R$):</label>
+        <input type="number" step="0.50" id="conferir-coleta-valor-real" oninput="calcularDivergenciaModal()" placeholder="Ex: 500.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-base font-bold text-emerald-400 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <!-- Live Divergence Badge -->
+      <div id="conferir-divergencia-box" class="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs flex items-center justify-between font-medium">
+        <span class="text-slate-400">Divergência:</span>
+        <span id="conferir-divergencia-valor" class="font-bold text-slate-200">Digite o valor...</span>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Observações da Conferência:</label>
+        <input type="text" id="conferir-coleta-obs" placeholder="Ex: Conferido por João, notas em perfeito estado..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-conferir-coleta')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarConferenciaColeta()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Salvar & Enviar Recibo WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Registrar Pagamento de Aluguel -->
+  <div id="modal-pagar-aluguel" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Registrar Pagamento de Aluguel
+        </h3>
+        <button onclick="closeModal('modal-pagar-aluguel')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="pagar-aluguel-id">
+      
+      <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 text-xs space-y-1">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Ponto Comercial:</span>
+          <span id="pagar-aluguel-loja" class="text-white font-medium">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Mês de Referência:</span>
+          <span id="pagar-aluguel-mes" class="text-white">--</span>
+        </div>
+        <div class="flex justify-between font-bold pt-1 border-t border-slate-800">
+          <span class="text-slate-300">Valor a Pagar:</span>
+          <span id="pagar-aluguel-valor" class="text-emerald-400 font-mono text-sm">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Data do Pagamento:</label>
+        <input type="date" id="pagar-aluguel-data" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Forma de Pagamento:</label>
+        <select id="pagar-aluguel-meio" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="PIX">PIX</option>
+          <option value="DINHEIRO">Dinheiro em Espécie</option>
+          <option value="TRANSFERENCIA">Transferência / TED</option>
+          <option value="BOLETO">Boleto Bancário</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Comprovante / Observações:</label>
+        <input type="text" id="pagar-aluguel-obs" placeholder="Ex: Comprovante enviado via WhatsApp..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-pagar-aluguel')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarPagamentoAluguel()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Confirmar Pagamento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 8: Definir Valor Manual de Aluguel -->
+  <div id="modal-valor-aluguel" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4 text-purple-400"></i> Definir Valor do Aluguel
+        </h3>
+        <button onclick="closeModal('modal-valor-aluguel')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="valor-aluguel-id">
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Ponto Comercial:</label>
+        <div id="valor-aluguel-loja" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Novo Valor do Aluguel (R$):</label>
+        <input type="number" step="0.01" id="valor-aluguel-novo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-base font-bold text-white focus:outline-none focus:border-purple-500">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Motivo do Ajuste (opcional):</label>
+        <input type="text" id="valor-aluguel-obs" placeholder="Ex: Acordo especial de inauguração..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-valor-aluguel')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="confirmarDefinirValorAluguel()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Valor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 9: Cadastrar / Editar Ponto Comercial -->
+  <div id="modal-estabelecimento" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 id="modal-estab-title" class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="store" class="w-4 h-4 text-purple-400"></i> Ponto Comercial
+        </h3>
+        <button onclick="closeModal('modal-estabelecimento')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="estab-id">
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Nome do Estabelecimento:</label>
+        <input type="text" id="estab-nome" placeholder="Ex: Praça do Sabor" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Cidade:</label>
+          <input type="text" id="estab-cidade" placeholder="Ex: Sertânia" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Responsável / Contato:</label>
+          <input type="text" id="estab-responsavel" placeholder="Ex: Seu Carlos" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo de Aluguel:</label>
+          <select id="estab-tipo-aluguel" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            <option value="FIXO">Fixo (Valor Mensal)</option>
+            <option value="DINAMICO">Dinâmico (% do Lucro)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Dia do Vencimento:</label>
+          <input type="number" min="1" max="31" id="estab-dia-vencimento" value="10" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Valor Acordado (se Fixo):</label>
+          <input type="number" step="10.00" id="estab-valor-acordado" value="250.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">% do Lucro (se Dinâmico):</label>
+          <input type="number" step="1.0" id="estab-percentual-repasse" value="25.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-1">
+        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <input type="checkbox" id="estab-ativo" checked class="rounded border-slate-700 text-purple-600 focus:ring-0">
+          Estabelecimento Ativo (gera aluguel normalmente)
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-estabelecimento')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="salvarEstabelecimento()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Estabelecimento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 10: Cadastrar / Editar Máquina -->
+  <div id="modal-maquina" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 id="modal-maquina-title" class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i> Máquina
+        </h3>
+        <button onclick="closeModal('modal-maquina')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="modal-maquina-id">
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Nome / Descrição da Máquina:</label>
+        <input type="text" id="modal-maquina-nome" placeholder="Ex: Grua Rosa - Loja 01" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Número na Planilha:</label>
+          <input type="number" id="modal-maquina-numero-planilha" placeholder="Ex: 2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Plataforma / Integrador:</label>
+          <select id="modal-maquina-integrador" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            <option value="VENDPROMAX">VendProMax</option>
+            <option value="PAYXYZ">PayXYZ</option>
+            <option value="ZAPIZI">Zapizi</option>
+            <option value="OUTRA">Outra</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">ID Externo no Integrador:</label>
+          <input type="text" id="modal-maquina-external-id" placeholder="Ex: 11481" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Ponto Comercial Alocado:</label>
+          <select id="modal-maquina-estab" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            <option value="">Sem Estabelecimento (Depósito/Sem Loja)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-1">
+        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <input type="checkbox" id="modal-maquina-ativo" checked class="rounded border-slate-700 text-purple-600 focus:ring-0">
+          Máquina Ativa na Operação
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-maquina')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="salvarMaquina()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Máquina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 11: Chaves PIX do Estabelecimento -->
+  <div id="modal-pix" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="qr-code" class="w-4 h-4 text-emerald-400"></i> Meios de Pagamento & PIX: <span id="pix-estab-nome" class="text-emerald-300"></span>
+        </h3>
+        <button onclick="closeModal('modal-pix')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="pix-estab-id">
+
+      <!-- Existing Keys List -->
+      <div id="pix-keys-list" class="space-y-2 text-xs max-h-48 overflow-y-auto">
+        <!-- Populated dynamically -->
+      </div>
+
+      <!-- Add New Key Form -->
+      <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2 text-xs">
+        <div class="font-bold text-slate-300">Adicionar Meio de Pagamento</div>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="pix-new-tipo" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+            <option value="PIX">PIX (Chave)</option>
+            <option value="ESPECIE">Espécie</option>
+            <option value="CONTA_BANCARIA">Conta Bancária</option>
+          </select>
+          <input type="text" id="pix-new-chave" placeholder="Chave PIX / Detalhe" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+        </div>
+        <input type="text" id="pix-new-obs" placeholder="Descrição (Ex: Chave Telefone de Carlos)" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+        <button onclick="adicionarMeioPagamento()" class="w-full py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
+          Salvar Meio de Pagamento
+        </button>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeModal('modal-pix')" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 12: Chave de API (X-API-KEY) -->
+  <div id="modal-api-key" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4 text-purple-400"></i> Conexão & Chave de API
+        </h3>
+        <button onclick="closeModal('modal-api-key')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <p class="text-xs text-slate-400">
+        As requisições à API REST do PlayBox são autenticadas via header <code class="text-purple-300">X-API-KEY</code>.
+      </p>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Chave de Acesso:</label>
+        <input type="password" id="input-api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs font-mono text-purple-200 focus:outline-none focus:border-purple-500">
+      </div>
+      <div class="flex items-center justify-between text-xs">
+        <span id="api-modal-status" class="text-slate-400">Clique para testar</span>
+        <button onclick="testApiKey()" class="text-purple-400 hover:underline">Testar Conexão</button>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('modal-api-key')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
+        <button onclick="saveApiKey()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Chave</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Application Logic -->
+  <script src="/app.js"></script>
+</body>
+</html>
