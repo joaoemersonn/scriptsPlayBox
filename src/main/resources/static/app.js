@@ -385,6 +385,9 @@ async function loadDashboardData(syncForce = false) {
     // Update Badges on top navigation
     updateGlobalBadges(monitorStatus, stock, pendingColetas);
 
+    // Render Dashboard Offline Banner
+    renderDashboardOfflineBanner(monitorStatus);
+
     // Render KPIs
     renderDashboardKPIs(report, monitorStatus);
 
@@ -393,6 +396,9 @@ async function loadDashboardData(syncForce = false) {
 
     // Render Payment Methods Chart (FORMATO IMAGEM 1)
     renderPaymentMethodsChart(report.resumoGeral?.formasPagamento || {});
+
+    // Render Receita por Pelúcia por Estabelecimento Chart
+    renderReceitaPremioChart(report.porEstabelecimento || [], report.resumoGeral?.receitaPorPremioLiberado || 0);
 
     document.getElementById('dash-period-title').textContent = report.titulo || 'Consolidado';
     document.getElementById('dash-last-updated').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
@@ -673,6 +679,144 @@ function renderPaymentMethodsChart(formas) {
         }
       },
       cutout: '74%'
+    }
+  });
+}
+
+function renderDashboardOfflineBanner(monitor) {
+  const banner = document.getElementById('dash-banner-offline-alert');
+  const countBadge = document.getElementById('dash-banner-offline-count');
+  const list = document.getElementById('dash-banner-offline-list');
+  if (!banner) return;
+
+  const offList = monitor?.maquinasOffline || [];
+  const offCount = monitor?.totalOffline || offList.length;
+
+  if (offCount > 0 && offList.length > 0) {
+    if (countBadge) countBadge.textContent = `${offCount} máquina${offCount > 1 ? 's' : ''}`;
+    if (list) {
+      list.innerHTML = offList.map(m => `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-rose-300 text-rose-900 text-xs font-semibold shadow-xs">
+          <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot-red"></span>
+          <strong>${m.nome}</strong>
+          ${m.offlineDesde ? `<span class="text-rose-500 text-[11px] font-normal">(desde ${m.offlineDesde})</span>` : ''}
+        </span>
+      `).join('');
+    }
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function renderReceitaPremioChart(stores, mediaGeral) {
+  const ctx = document.getElementById('chart-receita-premio');
+  const mediaBadge = document.getElementById('receita-premio-media-badge');
+  if (!ctx) return;
+
+  if (mediaBadge) {
+    mediaBadge.textContent = `Média Geral: ${formatMoney(mediaGeral || 0)}/un`;
+  }
+
+  if (state.charts.receitaPremio) {
+    state.charts.receitaPremio.destroy();
+  }
+
+  // Filtrar apenas lojas com pelúcias liberadas ou faturamento
+  const lojasComDados = (stores || [])
+    .filter(s => (s.faturamentoBruto || 0) > 0 || (s.quantidadePremios || 0) > 0)
+    .sort((a, b) => (b.receitaPorPremio || 0) - (a.receitaPorPremio || 0));
+
+  if (lojasComDados.length === 0) {
+    state.charts.receitaPremio = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Sem dados de prêmios no período'],
+        datasets: [{ data: [0], backgroundColor: '#e2e8f0' }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } }
+      }
+    });
+    return;
+  }
+
+  const labels = lojasComDados.map(s => s.nome || 'Sem Estabelecimento');
+  const receitas = lojasComDados.map(s => s.receitaPorPremio || 0);
+  const premios = lojasComDados.map(s => Math.round(s.quantidadePremios || 0));
+
+  // Cores dinâmicas: verde quando saudável, ciano/azul padrão, e destaque
+  const barColors = receitas.map(v => {
+    if (v === 0) return '#cbd5e1'; // Sem prêmio liberado
+    if (v < 25) return '#f59e0b';  // Custo por pelúcia muito baixo (muitas pelúcias saindo)
+    if (v <= 50) return '#06b6d4'; // Faixa ideal
+    return '#8b5cf6';             // Alta arrecadação por pelúcia
+  });
+
+  state.charts.receitaPremio = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Receita por Pelúcia (R$)',
+          data: receitas,
+          backgroundColor: barColors,
+          borderRadius: 8,
+          borderSkipped: false,
+          maxBarThickness: 45
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          titleColor: '#ffffff',
+          bodyColor: '#e2e8f0',
+          borderColor: '#e2e8f0',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(context) {
+              const idx = context.dataIndex;
+              const val = context.raw || 0;
+              const qtd = premios[idx] || 0;
+              return [
+                `Receita/Pelúcia: ${formatMoney(val)}`,
+                `Total de Pelúcias: ${qtd} un`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#475569',
+            font: { size: 11, weight: '600' },
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.05)' },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11 },
+            callback: value => 'R$ ' + value
+          }
+        }
+      }
     }
   });
 }

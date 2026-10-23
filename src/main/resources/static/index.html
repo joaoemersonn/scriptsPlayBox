@@ -252,6 +252,33 @@
           <span id="dash-last-updated" class="text-slate-400"></span>
         </div>
 
+        <!-- Dashboard Offline Warning Banner (Shown if machines are offline) -->
+        <div id="dash-banner-offline-alert" class="hidden rounded-2xl bg-gradient-to-r from-rose-50 to-rose-100/60 border border-rose-200 p-4 shadow-sm transition-all">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start sm:items-center gap-3">
+              <div class="p-2.5 rounded-xl bg-rose-500 text-white shrink-0 shadow-sm shadow-rose-500/20">
+                <i data-lucide="wifi-off" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-extrabold text-rose-950">Máquinas Offline Detectadas</h3>
+                  <span id="dash-banner-offline-count" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-200 text-rose-800">0</span>
+                </div>
+                <p class="text-xs text-rose-700 mt-0.5">As seguintes máquinas não estão respondendo à telemetria:</p>
+                <div id="dash-banner-offline-list" class="mt-2 flex flex-wrap gap-2"></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <button onclick="triggerMonitor()" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition">
+                Reverificar Agora
+              </button>
+              <button onclick="switchTab('maquinas')" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold shadow-sm transition">
+                Ver Todas
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- KPI Summary Cards Grid -->
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
           <!-- Card: Faturamento Bruto -->
@@ -460,6 +487,32 @@
 
           </div>
 
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- SEÇÃO: RECEITA POR PELÚCIA POR ESTABELECIMENTO           -->
+        <!-- ======================================================== -->
+        <div class="glass-card p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-cyan-100 text-cyan-600 flex items-center justify-center shrink-0 shadow-sm">
+                <i data-lucide="gift" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-extrabold text-slate-900 tracking-tight">Receita por Pelúcia (R$ / Prêmio)</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Custo de faturamento arrecadado para cada pelúcia liberada por estabelecimento</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="receita-premio-media-badge" class="px-3 py-1 rounded-full bg-cyan-50 text-cyan-700 text-xs font-bold border border-cyan-200">
+                Média Geral: R$ 0,00/un
+              </span>
+            </div>
+          </div>
+
+          <div class="relative w-full h-72 sm:h-80">
+            <canvas id="chart-receita-premio"></canvas>
+          </div>
         </div>
 
       </section>
