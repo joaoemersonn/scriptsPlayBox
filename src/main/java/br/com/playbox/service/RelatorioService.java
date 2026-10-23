@@ -266,13 +266,26 @@ public class RelatorioService {
             double estCredito = txList.stream().mapToDouble(t -> t.getValorCredito() != null ? t.getValorCredito() : 0.0).sum();
             double estDebito = txList.stream().mapToDouble(t -> t.getValorDebito() != null ? t.getValorDebito() : 0.0).sum();
             long maquinasCount = txList.stream().map(t -> t.getMaquina() != null ? t.getMaquina().getId() : null).filter(Objects::nonNull).distinct().count();
+            List<String> maquinasInfo = txList.stream()
+                    .map(t -> {
+                        Maquina m = t.getMaquina();
+                        if (m != null) {
+                            String mNome = m.getNomeIntegracao() != null ? m.getNomeIntegracao() : ("ID #" + m.getId());
+                            return mNome + (m.getExternalId() != null ? " (" + m.getExternalId() + ")" : "");
+                        }
+                        return t.getExternalTxId();
+                    })
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
 
             Map<String, Object> itemEst = new LinkedHashMap<>();
             itemEst.put("estabelecimentoId", est != null ? est.getId() : null);
             itemEst.put("nome", est != null ? est.getNome() : "Sem Estabelecimento");
             itemEst.put("cidade", est != null ? est.getCidade() : "");
             itemEst.put("responsavel", est != null ? est.getResponsavel() : "");
-            itemEst.put("quantidadeMaquinas", maquinasCount);
+            itemEst.put("quantidadeMaquinas", maquinasCount > 0 ? maquinasCount : maquinasInfo.size());
+            itemEst.put("maquinasInfo", maquinasInfo);
             itemEst.put("faturamentoBruto", round(estBruto));
             itemEst.put("totalEstornos", round(estEstornos));
             itemEst.put("faturamentoLiquido", round(estBruto - estEstornos));

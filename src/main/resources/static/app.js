@@ -713,25 +713,30 @@ function renderStoresRankingList(stores, totalGeral) {
     }
 
     const storeName = s.nome || 'Sem Estabelecimento';
+    const isSemEst = !s.estabelecimentoId || storeName === 'Sem Estabelecimento';
     const cidadeStr = s.cidade ? ` • ${s.cidade}` : '';
     const maquinasQtd = s.quantidadeMaquinas || 1;
     const isFiltered = state.currentStoreId && state.currentStoreId === s.estabelecimentoId;
+    const maquinasDet = (s.maquinasInfo && s.maquinasInfo.length > 0)
+      ? s.maquinasInfo.join(', ')
+      : '';
 
     html += `
-      <div class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border ${isFiltered ? 'border-pink-500 bg-pink-50/50 ring-1 ring-pink-500' : 'border-slate-200/80 bg-white hover:border-pink-300 hover:shadow-sm'} transition gap-3">
+      <div class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border ${isFiltered ? 'border-pink-500 bg-pink-50/50 ring-1 ring-pink-500' : (isSemEst ? 'border-amber-300/80 bg-amber-50/30 hover:border-amber-400' : 'border-slate-200/80 bg-white hover:border-pink-300')} hover:shadow-sm transition gap-3">
         <div class="flex items-center gap-3 min-w-0">
           <!-- Circular Badge matching Reference Image 3 -->
           <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-xs sm:text-sm shrink-0 shadow-sm ${rankCircleClass}">
             ${idx + 1}
           </div>
           <div class="min-w-0">
-            <div class="font-extrabold text-slate-900 text-xs sm:text-sm truncate hover:text-pink-600 transition cursor-pointer" onclick="filterByStore(${s.estabelecimentoId || 0})" title="Clique para filtrar apenas esta loja">
-              ${storeName}
+            <div class="font-extrabold ${isSemEst ? 'text-amber-700' : 'text-slate-900'} text-xs sm:text-sm truncate hover:text-pink-600 transition cursor-pointer" onclick="${s.estabelecimentoId ? `filterByStore(${s.estabelecimentoId})` : `switchTab('maquinas')`}" title="${s.estabelecimentoId ? 'Clique para filtrar apenas esta loja' : 'Clique para ir para tela de Máquinas e associar'}">
+              ${storeName} ${isSemEst ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded ml-1">Requer Associação</span>' : ''}
             </div>
             <div class="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap mt-0.5">
               ${s.estabelecimentoId ? `<span>ID: ${s.estabelecimentoId}</span>` : ''}
               ${cidadeStr ? `<span>${cidadeStr}</span>` : ''}
               <span>• ${maquinasQtd} máq.</span>
+              ${maquinasDet ? `<span class="text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded text-[10px] truncate max-w-xs" title="${maquinasDet}">⚙️ ${maquinasDet}</span>` : ''}
               ${premios > 0 ? `<span class="font-semibold text-pink-600">• 🎁 ${premios} un</span>` : ''}
             </div>
           </div>
