@@ -884,29 +884,29 @@ function renderMachinesGrid(machines, monitor) {
     else if (perc <= 50) progressColor = 'bg-amber-500';
 
     return `
-      <div class="glass-card p-5 flex flex-col justify-between space-y-4 border ${isOffline ? 'border-rose-500/50 bg-rose-950/10' : 'border-slate-800'}">
+      <div class="glass-card p-5 flex flex-col justify-between space-y-4 border ${isOffline ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'} shadow-sm">
         <div>
           <!-- Top Row: Name & Status -->
           <div class="flex items-start justify-between gap-2">
             <div>
               <div class="flex items-center gap-2">
-                <span class="font-bold text-sm text-white">${name}</span>
-                ${m.numeroPlanilha ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-950/80 text-purple-300 border border-purple-800">#${m.numeroPlanilha}</span>` : ''}
+                <span class="font-extrabold text-sm text-slate-900">${name}</span>
+                ${m.numeroPlanilha ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-50 text-pink-700 border border-pink-200">#${m.numeroPlanilha}</span>` : ''}
               </div>
-              <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-                <i data-lucide="store" class="w-3 h-3 text-slate-500"></i>
-                <span>${est ? `${est.nome} (${est.cidade || ''})` : '<em class="text-amber-400">Sem Loja (Depósito)</em>'}</span>
+              <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                <i data-lucide="store" class="w-3 h-3 text-pink-600"></i>
+                <span>${est ? `${est.nome} (${est.cidade || ''})` : '<em class="text-amber-600 font-semibold">Sem Loja (Depósito)</em>'}</span>
               </div>
             </div>
 
             <!-- Status Badge -->
             <div>
               ${isOffline ? `
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
                   <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot-red"></span> OFFLINE
                 </span>
               ` : `
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green"></span> ONLINE
                 </span>
               `}
@@ -915,50 +915,50 @@ function renderMachinesGrid(machines, monitor) {
 
           <!-- Offline details if any -->
           ${isOffline && offlineSince ? `
-            <div class="mt-2 text-[11px] text-rose-400/90 bg-rose-950/30 px-2.5 py-1 rounded border border-rose-800/40">
-              Offline desde: <strong>${offlineSince}</strong>
+            <div class="mt-2.5 text-xs text-rose-800 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 font-medium">
+              Offline desde: <strong class="font-bold">${offlineSince}</strong>
             </div>
           ` : ''}
 
           <!-- Integrator & External ID -->
-          <div class="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-400 bg-slate-900/60 p-2 rounded-lg border border-slate-800/60">
-            <div>Plataforma: <strong class="text-slate-200">${m.integracao || 'VendProMax'}</strong></div>
-            <div>ID Externo: <strong class="text-slate-200 font-mono">${m.externalId || '--'}</strong></div>
+          <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div>Plataforma: <strong class="text-slate-900 font-bold">${m.integracao || 'VendProMax'}</strong></div>
+            <div>ID Externo: <strong class="text-slate-900 font-bold font-mono">${m.externalId || '--'}</strong></div>
           </div>
 
           <!-- Plush Stock Bar -->
-          <div class="mt-3 space-y-1.5">
+          <div class="mt-3.5 space-y-1.5">
             <div class="flex justify-between text-xs">
-              <span class="text-slate-400 flex items-center gap-1">
-                <i data-lucide="package" class="w-3.5 h-3.5 text-purple-400"></i> Estoque Pelúcias:
+              <span class="text-slate-600 font-medium flex items-center gap-1">
+                <i data-lucide="package" class="w-3.5 h-3.5 text-pink-600"></i> Estoque Pelúcias:
               </span>
-              <span class="font-bold ${isLowStock ? 'text-amber-300' : 'text-slate-200'}">
+              <span class="font-extrabold ${isLowStock ? 'text-amber-700 font-black' : 'text-slate-900'}">
                 ${atual} / ${cap} un (${perc}%)
               </span>
             </div>
-            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/60">
               <div class="${progressColor} h-full transition-all duration-500" style="width: ${perc}%"></div>
             </div>
           </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
-          <div class="flex items-center gap-1.5">
-            <button onclick="openAbastecerModal(${m.id}, '${name}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-medium transition" title="Adicionar pelúcias">
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <button onclick="openAbastecerModal(${m.id}, '${name}')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition" title="Adicionar pelúcias">
               + Abastecer
             </button>
-            <button onclick="openInventarioModal(${m.id}, '${name}', ${atual})" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition" title="Definir contagem exata">
+            <button onclick="openInventarioModal(${m.id}, '${name}', ${atual})" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shadow-sm transition" title="Definir contagem exata">
               Balanço
             </button>
-            <button onclick="openHistoricoModal(${m.id}, '${name}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition" title="Histórico de movimentações">
-              <i data-lucide="history" class="w-4 h-4"></i>
+            <button onclick="openHistoricoModal(${m.id}, '${name}')" class="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 shadow-sm transition" title="Histórico de movimentações">
+              <i data-lucide="history" class="w-3.5 h-3.5"></i>
             </button>
           </div>
 
           <div class="flex items-center gap-1.5">
-            <button onclick="openEditMachineModal(${m.id})" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition" title="Editar máquina / Alocar loja">
-              <i data-lucide="settings-2" class="w-4 h-4"></i>
+            <button onclick="openEditMachineModal(${m.id})" class="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 shadow-sm transition" title="Editar máquina / Alocar loja">
+              <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </div>
@@ -1168,16 +1168,16 @@ function renderEstoqueTable(items) {
         <td class="p-3.5">${statusBadge}</td>
         <td class="p-3.5 text-slate-400 text-[11px]">${m.ultimaSaida ? formatDate(m.ultimaSaida) : 'Nenhuma'}</td>
         <td class="p-3.5 text-right space-x-1">
-          <button onclick="openAbastecerModal(${m.maquinaId}, '${m.nome}')" class="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-medium">
+          <button onclick="openAbastecerModal(${m.maquinaId}, '${m.nome}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">
             + Abastecer
           </button>
-          <button onclick="openInventarioModal(${m.maquinaId}, '${m.nome}', ${atual})" class="px-2.5 py-1 rounded bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-medium">
+          <button onclick="openInventarioModal(${m.maquinaId}, '${m.nome}', ${atual})" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shadow-sm transition">
             Balanço
           </button>
-          <button onclick="openLimitesModal(${m.maquinaId}, '${m.nome}', ${m.estoqueMinimoAlerta}, ${m.capacidadeMaxima})" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white" title="Configurar limites">
+          <button onclick="openLimitesModal(${m.maquinaId}, '${m.nome}', ${m.estoqueMinimoAlerta}, ${m.capacidadeMaxima})" class="p-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 shadow-sm transition" title="Configurar limites">
             <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
           </button>
-          <button onclick="openHistoricoModal(${m.maquinaId}, '${m.nome}')" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white" title="Histórico">
+          <button onclick="openHistoricoModal(${m.maquinaId}, '${m.nome}')" class="p-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 shadow-sm transition" title="Histórico">
             <i data-lucide="history" class="w-3.5 h-3.5"></i>
           </button>
         </td>
@@ -1669,26 +1669,26 @@ function renderAlugueisTable(items) {
         </td>
         <td class="p-3.5 text-right space-x-1 whitespace-nowrap">
           ${isDinamico ? `
-            <button onclick="calcularDinamicoIndividual(${a.id})" class="px-2.5 py-1 rounded bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-medium" title="Recalcular 25% do lucro">
+            <button onclick="calcularDinamicoIndividual(${a.id})" class="px-2.5 py-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-bold transition" title="Recalcular 25% do lucro">
               Calcular 25%
             </button>
           ` : ''}
 
-          <button onclick="openDefinirValorAluguelModal(${a.id}, '${est.nome}', ${a.valorAluguel || 0})" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs" title="Ajustar valor manual desse mês">
+          <button onclick="openDefinirValorAluguelModal(${a.id}, '${est.nome}', ${a.valorAluguel || 0})" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shadow-sm transition" title="Ajustar valor manual desse mês">
             Ajustar Valor
           </button>
 
           ${!a.pago ? `
-            <button onclick="openPagarAluguelModal(${a.id}, '${est.nome}', '${a.mesReferencia}', ${a.valorAluguel || 0})" class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
+            <button onclick="openPagarAluguelModal(${a.id}, '${est.nome}', '${a.mesReferencia}', ${a.valorAluguel || 0})" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition">
               Pagar
             </button>
           ` : `
-            <button onclick="estornarAluguel(${a.id})" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 text-xs transition" title="Voltar para pendente">
+            <button onclick="estornarAluguel(${a.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition" title="Voltar para pendente">
               Estornar
             </button>
           `}
 
-          <button onclick="openPixModal(${est.id}, '${est.nome}')" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition" title="Ver PIX da Loja">
+          <button onclick="openPixModal(${est.id}, '${est.nome}')" class="p-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-emerald-600 shadow-sm transition" title="Ver PIX da Loja">
             <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
           </button>
         </td>
@@ -1852,23 +1852,23 @@ function renderEstabelecimentosGrid(stores) {
             </span>
           </div>
 
-          <div class="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60">
-            <div>Contato: <strong class="text-slate-200 block">${e.responsavel || '--'}</strong></div>
-            <div>Vencimento: <strong class="text-slate-200 block">Todo dia ${e.diaPagamento || 10}</strong></div>
+          <div class="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div>Contato: <strong class="text-slate-900 font-bold block">${e.responsavel || '--'}</strong></div>
+            <div>Vencimento: <strong class="text-slate-900 font-bold block">Todo dia ${e.diaPagamento || 10}</strong></div>
           </div>
         </div>
 
-        <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-          <button onclick="openPixModal(${e.id}, '${e.nome}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-medium transition">
-            <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> Chaves PIX
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <button onclick="openPixModal(${e.id}, '${e.nome}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition shadow-sm">
+            <i data-lucide="qr-code" class="w-3.5 h-3.5 text-emerald-600"></i> Chaves PIX
           </button>
 
           <div class="flex items-center gap-1.5">
-            <button onclick="openEditEstabelecimentoModal(${e.id})" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition" title="Editar">
-              <i data-lucide="edit-2" class="w-4 h-4"></i>
+            <button onclick="openEditEstabelecimentoModal(${e.id})" class="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 transition shadow-sm" title="Editar">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
             </button>
-            <button onclick="toggleEstabelecimentoAtivo(${e.id}, ${e.ativo})" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 ${e.ativo ? 'text-amber-400' : 'text-emerald-400'} transition" title="${e.ativo ? 'Desativar ponto' : 'Reativar ponto'}">
-              <i data-lucide="${e.ativo ? 'pause' : 'play'}" class="w-4 h-4"></i>
+            <button onclick="toggleEstabelecimentoAtivo(${e.id}, ${e.ativo})" class="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 ${e.ativo ? 'text-amber-600' : 'text-emerald-600'} transition shadow-sm" title="${e.ativo ? 'Desativar ponto' : 'Reativar ponto'}">
+              <i data-lucide="${e.ativo ? 'pause' : 'play'}" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </div>
