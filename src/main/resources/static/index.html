@@ -252,33 +252,6 @@
           <span id="dash-last-updated" class="text-slate-400"></span>
         </div>
 
-        <!-- Dashboard Offline Warning Banner (Shown if machines are offline) -->
-        <div id="dash-banner-offline-alert" class="hidden rounded-2xl bg-gradient-to-r from-rose-50 to-rose-100/60 border border-rose-200 p-4 shadow-sm transition-all">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="flex items-start sm:items-center gap-3">
-              <div class="p-2.5 rounded-xl bg-rose-500 text-white shrink-0 shadow-sm shadow-rose-500/20">
-                <i data-lucide="wifi-off" class="w-5 h-5"></i>
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-extrabold text-rose-950">Máquinas Offline Detectadas</h3>
-                  <span id="dash-banner-offline-count" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-200 text-rose-800">0</span>
-                </div>
-                <p class="text-xs text-rose-700 mt-0.5">As seguintes máquinas não estão respondendo à telemetria:</p>
-                <div id="dash-banner-offline-list" class="mt-2 flex flex-wrap gap-2"></div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-              <button onclick="triggerMonitor()" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-sm transition">
-                Reverificar Agora
-              </button>
-              <button onclick="switchTab('maquinas')" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold shadow-sm transition">
-                Ver Todas
-              </button>
-            </div>
-          </div>
-        </div>
-
         <!-- KPI Summary Cards Grid -->
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
           <!-- Card: Faturamento Bruto -->
@@ -378,51 +351,50 @@
         </div>
 
         <!-- ======================================================== -->
-        <!-- SEÇÃO: RANKING POR ESTABELECIMENTO & MEIOS DE PAGAMENTO   -->
+        <!-- LINHA 1: FATURAMENTO POR PONTO COMERCIAL (LARGURA TOTAL)  -->
         <!-- ======================================================== -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          <!-- Column 1 (lg:col-span-7): Faturamento por Estabelecimento (Ranking em Lista com Valores Visíveis) -->
-          <div class="lg:col-span-7 glass-card p-5 sm:p-6 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center shrink-0 shadow-sm">
-                  <i data-lucide="store" class="w-5 h-5"></i>
-                </div>
-                <div>
-                  <h3 class="text-base font-extrabold text-slate-900 tracking-tight">Faturamento por Ponto Comercial</h3>
-                  <p class="text-xs text-slate-500 mt-0.5">Ranking de faturamento por estabelecimento no período</p>
-                </div>
+        <div class="glass-card p-5 sm:p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center shrink-0 shadow-sm">
+                <i data-lucide="store" class="w-5 h-5"></i>
               </div>
               <div>
-                <span id="stores-count-badge" class="px-3 py-1 rounded-full bg-pink-50 text-pink-700 text-xs font-bold border border-pink-200">
-                  Carregando lojas...
-                </span>
+                <h3 class="text-base font-extrabold text-slate-900 tracking-tight">Faturamento por Ponto Comercial</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Ranking de faturamento por estabelecimento no período</p>
               </div>
             </div>
-
-            <!-- Stores Ranking List (Image 3 format with visible values) -->
-            <div id="stores-ranking-container" class="space-y-2.5">
-              <div class="text-center py-6 text-slate-400">
-                <div class="spinner w-6 h-6 mx-auto mb-2"></div>
-                <span>Carregando dados dos estabelecimentos...</span>
-              </div>
+            <div>
+              <span id="stores-count-badge" class="px-3 py-1 rounded-full bg-pink-50 text-pink-700 text-xs font-bold border border-pink-200">
+                Carregando lojas...
+              </span>
             </div>
           </div>
 
-          <!-- Column 2 (lg:col-span-5): Meios de Pagamento (Formato Imagem 1 com Valores Visíveis) -->
-          <div class="lg:col-span-5 glass-card p-5 sm:p-6 space-y-4">
-            <!-- Header matching Image 1: Vendas / Por Meio de Pagamento -->
+          <!-- Stores Ranking List -->
+          <div id="stores-ranking-container" class="space-y-2.5">
+            <div class="text-center py-6 text-slate-400">
+              <div class="spinner w-6 h-6 mx-auto mb-2"></div>
+              <span>Carregando dados dos estabelecimentos...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- LINHA 2: 2 COLUNAS (MEIOS DE PAGAMENTO & MÁQUINAS OFFLINE) -->
+        <!-- ======================================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          
+          <!-- Coluna 1 (lg:col-span-7): Meios de Pagamento -->
+          <div class="lg:col-span-7 glass-card p-5 sm:p-6 flex flex-col justify-between space-y-4">
             <div class="border-b border-slate-100 pb-3">
               <h2 class="text-xl font-black text-slate-900 tracking-tight">Vendas</h2>
               <p class="text-xs text-slate-500 font-medium mt-0.5">Por Meio de Pagamento</p>
             </div>
 
-            <!-- Body matching Image 1: Donut on left with centered Total + List on right with visible values -->
             <div class="flex flex-col sm:flex-row items-center justify-between gap-6 py-2">
-              
               <!-- Left: Donut Chart with Centered Total -->
-              <div class="relative w-48 h-48 sm:w-52 sm:h-52 shrink-0 flex items-center justify-center mx-auto">
+              <div class="relative w-44 h-44 sm:w-48 sm:h-48 shrink-0 flex items-center justify-center mx-auto">
                 <canvas id="chart-payment-methods"></canvas>
                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span id="payment-total-center" class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">R$ 0,00</span>
@@ -430,16 +402,15 @@
                 </div>
               </div>
 
-              <!-- Right: Visible Values List matching Image 1 -->
-              <div class="flex-1 w-full flex flex-col justify-center space-y-3 sm:pl-2">
-                
+              <!-- Right: Visible Values List -->
+              <div class="flex-1 w-full flex flex-col justify-center space-y-2.5 sm:pl-2">
                 <!-- Pix -->
                 <div class="flex items-center justify-between p-2 rounded-xl hover:bg-pink-50/50 transition-colors">
                   <div class="flex items-center gap-3">
                     <span class="w-3.5 h-3.5 rounded-full bg-[#db2777] shrink-0 shadow-sm"></span>
                     <div>
                       <div class="text-xs font-semibold text-slate-500">Pix</div>
-                      <div id="val-pay-pix" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                      <div id="val-pay-pix" class="text-sm sm:text-base font-black text-slate-900 tracking-tight">R$ 0,00</div>
                     </div>
                   </div>
                   <span id="perc-pay-pix" class="text-xs font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-700">0%</span>
@@ -451,7 +422,7 @@
                     <span class="w-3.5 h-3.5 rounded-full bg-[#f59e0b] shrink-0 shadow-sm"></span>
                     <div>
                       <div class="text-xs font-semibold text-slate-500">Espécie</div>
-                      <div id="val-pay-especie" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                      <div id="val-pay-especie" class="text-sm sm:text-base font-black text-slate-900 tracking-tight">R$ 0,00</div>
                     </div>
                   </div>
                   <span id="perc-pay-especie" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">0%</span>
@@ -463,7 +434,7 @@
                     <span class="w-3.5 h-3.5 rounded-full bg-[#06b6d4] shrink-0 shadow-sm"></span>
                     <div>
                       <div class="text-xs font-semibold text-slate-500">Crédito</div>
-                      <div id="val-pay-credito" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                      <div id="val-pay-credito" class="text-sm sm:text-base font-black text-slate-900 tracking-tight">R$ 0,00</div>
                     </div>
                   </div>
                   <span id="perc-pay-credito" class="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700">0%</span>
@@ -475,16 +446,43 @@
                     <span class="w-3.5 h-3.5 rounded-full bg-[#8b5cf6] shrink-0 shadow-sm"></span>
                     <div>
                       <div class="text-xs font-semibold text-slate-500">Débito</div>
-                      <div id="val-pay-debito" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                      <div id="val-pay-debito" class="text-sm sm:text-base font-black text-slate-900 tracking-tight">R$ 0,00</div>
                     </div>
                   </div>
                   <span id="perc-pay-debito" class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">0%</span>
                 </div>
-
               </div>
+            </div>
+          </div>
 
+          <!-- Coluna 2 (lg:col-span-5): Card Retangular de Máquinas Offline -->
+          <div class="lg:col-span-5 glass-card p-5 sm:p-6 flex flex-col justify-between space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="radio" class="w-4 h-4 text-slate-600"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-extrabold text-slate-900 tracking-tight">Máquinas Offline</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">Status de conexão e telemetria</p>
+                </div>
+              </div>
+              <span id="dash-offline-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                0 offline
+              </span>
             </div>
 
+            <!-- Lista de máquinas offline ou estado 100% online -->
+            <div id="dash-offline-list-container" class="flex-1 overflow-y-auto max-h-64 space-y-2 pr-1">
+              <!-- Dynamically populated -->
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span class="text-[11px] text-slate-400">Verificação automática a cada 5 min</span>
+              <button onclick="switchTab('maquinas')" class="font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 transition">
+                Ver todas as máquinas <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
           </div>
 
         </div>
