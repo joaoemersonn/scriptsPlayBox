@@ -6,3 +6,9 @@ target/
 data/
 .DS_Store
 
+# Backup e Disaster Recovery (mantidos privados no servidor e no Drive)
+backup_gdrive.sh
+restore.sh
+README_DISASTER_RECOVERY.md
+backups/
+
