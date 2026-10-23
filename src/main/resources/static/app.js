@@ -707,25 +707,25 @@ function renderDashboardOfflineBanner(monitor) {
         <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 shadow-xs">
           <i data-lucide="check-circle-2" class="w-5 h-5"></i>
         </div>
-        <p class="text-xs font-bold text-slate-700">Todas as máquinas conectadas</p>
-        <p class="text-[11px] text-slate-400 mt-0.5">Nenhuma oscilação detectada no momento.</p>
+        <p class="text-xs font-bold text-slate-700">Todas as máquinas online</p>
+        <p class="text-[11px] text-slate-400 mt-0.5">Nenhuma máquina offline detectada.</p>
       </div>
     `;
     return;
   }
 
-  // Renderiza listinha limpa e elegante, sem ser alarmista
+  // Renderiza lista direta com status OFFLINE
   container.innerHTML = offList.map(m => `
-    <div class="flex items-center justify-between p-2.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-slate-300 transition text-xs">
+    <div class="flex items-center justify-between p-2.5 rounded-xl border border-rose-200/80 bg-rose-50/40 hover:bg-white hover:border-rose-300 transition text-xs">
       <div class="flex items-center gap-2.5 min-w-0">
-        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
         <div class="min-w-0">
           <div class="font-bold text-slate-800 truncate">${m.nome}</div>
-          ${m.offlineDesde ? `<div class="text-[11px] text-slate-400">Sem sinal desde ${m.offlineDesde}</div>` : ''}
+          ${m.offlineDesde ? `<div class="text-[11px] text-slate-500">Offline desde ${m.offlineDesde}</div>` : ''}
         </div>
       </div>
-      <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
-        Oscilando
+      <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200 shrink-0">
+        OFFLINE
       </span>
     </div>
   `).join('');
