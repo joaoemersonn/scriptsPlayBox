@@ -20,8 +20,14 @@ public interface ColetaRepository extends JpaRepository<Coleta, Long> {
 
     List<Coleta> findByEstabelecimentoIdOrderByDataHoraColetaDesc(Long estabelecimentoId);
 
+    // Encontrar a última coleta VÁLIDA (não cancelada) antes da dataHora fornecida para uma máquina
+    Optional<Coleta> findFirstByMaquinaIdAndStatusNotAndDataHoraColetaBeforeOrderByDataHoraColetaDesc(Long maquinaId, String statusNot, LocalDateTime dataHora);
+
     // Encontrar a última coleta antes da dataHora fornecida para uma máquina
     Optional<Coleta> findFirstByMaquinaIdAndDataHoraColetaBeforeOrderByDataHoraColetaDesc(Long maquinaId, LocalDateTime dataHora);
+
+    // Encontrar a última coleta VÁLIDA (não cancelada) registrada da máquina em geral
+    Optional<Coleta> findFirstByMaquinaIdAndStatusNotOrderByDataHoraColetaDesc(Long maquinaId, String statusNot);
 
     // Encontrar a última coleta registrada da máquina em geral
     Optional<Coleta> findFirstByMaquinaIdOrderByDataHoraColetaDesc(Long maquinaId);

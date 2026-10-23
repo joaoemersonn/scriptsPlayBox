@@ -1266,6 +1266,29 @@ function openCreateMachineModal() {
   openModal('modal-maquina');
 }
 
+async function fetchIntegratorMachineName() {
+  const integrador = document.getElementById('modal-maquina-integrador').value;
+  const extId = document.getElementById('modal-maquina-external-id').value.trim();
+
+  if (!extId) {
+    showToast('Digite o ID Externo antes de puxar os dados.', 'warning');
+    return;
+  }
+
+  showToast(`Consultando ${integrador} para o ID ${extId}...`, 'info');
+  try {
+    const res = await apiRequest(`/api/maquinas/fetch-info?integracao=${encodeURIComponent(integrador)}&externalId=${encodeURIComponent(extId)}`);
+    if (res && res.nome) {
+      document.getElementById('modal-maquina-nome').value = res.nome;
+      showToast(`Nome encontrado: "${res.nome}"`, 'success');
+    } else {
+      showToast('Nenhum nome retornado pela integradora para este ID.', 'warning');
+    }
+  } catch (err) {
+    showToast('Erro ao consultar integradora: ' + err.message, 'error');
+  }
+}
+
 function openEditMachineModal(id) {
   const m = state.machines.find(x => x.id === id);
   if (!m) return;
@@ -1609,7 +1632,7 @@ async function loadColetasData() {
     // Highlights
     const totalPendente = pendentes.length;
     const valorEsperadoPendente = pendentes.reduce((acc, c) => acc + (c.valorEsperado || 0), 0);
-    const conferidas = coletas.filter(c => c.status !== 'PENDENTE_CONFERENCIA').length;
+    const conferidas = coletas.filter(c => c.status === 'CONFERIDO' || c.status === 'CONFERIDO_DIVERGENTE').length;
 
     document.getElementById('coletas-pendentes-total').textContent = totalPendente;
     document.getElementById('coletas-valor-esperado-pendente').textContent = formatMoney(valorEsperadoPendente);
@@ -1634,6 +1657,7 @@ function renderColetasTable(items) {
   tbody.innerHTML = items.map(c => {
     let statusBadge = '';
     let difBadge = '--';
+    const isCancelada = c.status === 'CANCELADA';
 
     if (c.status === 'PENDENTE_CONFERENCIA') {
       statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pendente de Conferência</span>';
@@ -1649,27 +1673,45 @@ function renderColetasTable(items) {
         statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Falta no Malote</span>';
         difBadge = `<span class="text-rose-700 font-bold font-mono">${formatMoney(dif)}</span>`;
       }
+    } else if (isCancelada) {
+      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-300">Cancelada</span>';
+      difBadge = '<span class="text-slate-400 font-mono text-xs">--</span>';
     }
 
+    const rowClass = isCancelada ? 'bg-slate-50/60 opacity-65 hover:bg-slate-100/60 transition border-b border-slate-100' : 'hover:bg-slate-50 transition border-b border-slate-100';
+
     return `
-      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+      <tr class="${rowClass}">
         <td class="p-3.5">
-          <div class="font-extrabold text-slate-900">${c.maquinaNome}</div>
-          <div class="text-[11px] text-slate-500">${c.estabelecimentoNome || 'Sem Loja'}</div>
+          <div class="font-extrabold ${isCancelada ? 'text-slate-500 line-through' : 'text-slate-900'}">${escapeHtml(c.maquinaNome || '')}</div>
+          <div class="text-[11px] text-slate-500">${escapeHtml(c.estabelecimentoNome || 'Sem Loja')}</div>
+          ${c.observacoes ? `<div class="text-[10px] text-slate-400 italic truncate max-w-[220px]" title="${escapeHtml(c.observacoes)}">${escapeHtml(c.observacoes)}</div>` : ''}
         </td>
         <td class="p-3.5 text-slate-700 font-medium">${formatDate(c.dataHoraColeta)}</td>
         <td class="p-3.5 text-slate-500 text-[11px] font-medium">${c.dataHoraUltimaColeta ? formatDate(c.dataHoraUltimaColeta) : 'Primeira Coleta'}</td>
-        <td class="p-3.5 font-bold text-amber-800 font-mono">${formatMoney(c.valorEsperado || 0)}</td>
-        <td class="p-3.5 font-bold text-slate-900 font-mono">${c.valorReal != null ? formatMoney(c.valorReal) : '<em class="text-slate-400">Aguardando...</em>'}</td>
+        <td class="p-3.5 font-bold ${isCancelada ? 'line-through text-slate-400' : 'text-amber-800'} font-mono">${formatMoney(c.valorEsperado || 0)}</td>
+        <td class="p-3.5 font-bold text-slate-900 font-mono">
+          ${isCancelada ? '<span class="text-slate-400 line-through">' + (c.valorReal != null ? formatMoney(c.valorReal) : 'R$ 0,00') + '</span>' : (c.valorReal != null ? formatMoney(c.valorReal) : '<em class="text-slate-400">Aguardando...</em>')}
+        </td>
         <td class="p-3.5 font-mono">${difBadge}</td>
         <td class="p-3.5">${statusBadge}</td>
-        <td class="p-3.5 text-right">
+        <td class="p-3.5 text-right whitespace-nowrap space-x-1">
           ${c.status === 'PENDENTE_CONFERENCIA' ? `
-            <button onclick="openConferirColetaModal(${c.id}, '${c.maquinaNome}', '${c.dataHoraColeta}', ${c.valorEsperado || 0})" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
-              Conferir Malote
+            <button onclick="openConferirColetaModal(${c.id}, '${escapeHtml(c.maquinaNome)}', '${c.dataHoraColeta}', ${c.valorEsperado || 0})" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs active:scale-95 transition inline-flex items-center gap-1">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i> Conferir Malote
+            </button>
+            <button onclick="openCancelarColetaModal(${c.id}, '${escapeHtml(c.maquinaNome)}', '${c.dataHoraColeta}', ${c.valorEsperado || 0})" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-semibold text-xs transition inline-flex items-center gap-1" title="Cancelar esta coleta">
+              <i data-lucide="ban" class="w-3.5 h-3.5"></i> Cancelar
+            </button>
+          ` : isCancelada ? `
+            <button onclick="excluirColeta(${c.id})" class="p-1.5 rounded text-slate-400 hover:text-rose-600 transition" title="Excluir coleta permanentemente">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           ` : `
-            <button onclick="excluirColeta(${c.id})" class="p-1.5 rounded text-slate-500 hover:text-rose-400 transition" title="Excluir coleta">
+            <button onclick="openCancelarColetaModal(${c.id}, '${escapeHtml(c.maquinaNome)}', '${c.dataHoraColeta}', ${c.valorEsperado || 0})" class="p-1.5 rounded text-slate-400 hover:text-rose-600 transition" title="Cancelar esta coleta">
+              <i data-lucide="ban" class="w-4 h-4"></i>
+            </button>
+            <button onclick="excluirColeta(${c.id})" class="p-1.5 rounded text-slate-400 hover:text-rose-600 transition" title="Excluir coleta">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           `}
@@ -1816,6 +1858,36 @@ async function excluirColeta(id) {
     loadColetasData();
   } catch (err) {
     showToast('Erro ao excluir: ' + err.message, 'error');
+  }
+}
+
+function openCancelarColetaModal(id, maquina, data, esperado) {
+  document.getElementById('cancelar-coleta-id').value = id;
+  document.getElementById('cancelar-coleta-maquina').textContent = maquina || '--';
+  document.getElementById('cancelar-coleta-data').textContent = formatDate(data);
+  document.getElementById('cancelar-coleta-esperado').textContent = formatMoney(esperado || 0);
+  document.getElementById('cancelar-coleta-motivo').value = '';
+
+  openModal('modal-cancelar-coleta');
+}
+
+async function confirmarCancelamentoColeta() {
+  const id = document.getElementById('cancelar-coleta-id').value;
+  const motivo = document.getElementById('cancelar-coleta-motivo').value.trim();
+
+  if (!id) return;
+
+  try {
+    await apiRequest(`/api/coletas/${id}/cancelar`, {
+      method: 'PUT',
+      body: { motivo: motivo }
+    });
+    showToast('Coleta cancelada com sucesso. Notificação enviada.', 'success');
+    closeModal('modal-cancelar-coleta');
+    loadColetasData();
+    if (state.activeTab === 'dashboard') loadDashboardData();
+  } catch (err) {
+    showToast('Erro ao cancelar coleta: ' + err.message, 'error');
   }
 }
 

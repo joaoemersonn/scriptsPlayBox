@@ -81,4 +81,20 @@ class ColetaServiceTest {
         assertEquals(120.0, coleta.getValorReal());
         assertEquals(20.0, coleta.getDiferenca());
     }
+
+    @Test
+    void testCancelarColeta() {
+        Maquina maq = new Maquina();
+        maq.setId(1L);
+
+        Coleta coleta = new Coleta(maq, null, LocalDateTime.now(), null, 150.0, null, "Observação inicial", null);
+        assertEquals("PENDENTE_CONFERENCIA", coleta.getStatus());
+        assertFalse(coleta.isCancelada());
+
+        coleta.cancelar("Lançada por engano na máquina errada");
+        assertEquals("CANCELADA", coleta.getStatus());
+        assertTrue(coleta.isCancelada());
+        assertTrue(coleta.getObservacoes().contains("[CANCELADA]: Lançada por engano na máquina errada"));
+    }
 }
+

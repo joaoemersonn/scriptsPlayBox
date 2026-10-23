@@ -104,6 +104,23 @@ public class Coleta {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void cancelar(String motivo) {
+        this.status = "CANCELADA";
+        if (motivo != null && !motivo.isBlank()) {
+            if (this.observacoes == null || this.observacoes.isBlank()) {
+                this.observacoes = "[CANCELADA]: " + motivo.trim();
+            } else {
+                this.observacoes = this.observacoes + " | [CANCELADA]: " + motivo.trim();
+            }
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @Transient
+    public boolean isCancelada() {
+        return "CANCELADA".equalsIgnoreCase(status);
+    }
+
     public Long getId() {
         return id;
     }

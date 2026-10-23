@@ -131,16 +131,61 @@ public class MachineSyncService {
         return synced;
     }
 
+    public String fetchExternalMachineName(String integracao, String externalId) {
+        if (integracao == null || externalId == null || externalId.isBlank()) return null;
+        try {
+            if ("VENDPROMAX".equalsIgnoreCase(integracao)) {
+                String token = vendClient.login(properties.getVendpromax().getEmail(), properties.getVendpromax().getPassword());
+                List<JsonNode> vendMachines = vendClient.getMachines(token);
+                for (JsonNode m : vendMachines) {
+                    if (m.hasNonNull("id") && externalId.trim().equalsIgnoreCase(m.get("id").asText().trim())) {
+                        return m.hasNonNull("nome") ? m.get("nome").asText().trim() : null;
+                    }
+                }
+            } else if ("PAYXYZ".equalsIgnoreCase(integracao)) {
+                String token = payxyzClient.login(properties.getPayxyz().getEmail(), properties.getPayxyz().getPassword(), true);
+                List<JsonNode> payMachines = payxyzClient.getMachines(token);
+                for (JsonNode m : payMachines) {
+                    if (m.hasNonNull("id") && externalId.trim().equalsIgnoreCase(m.get("id").asText().trim())) {
+                        return m.hasNonNull("nome") ? m.get("nome").asText().trim() : null;
+                    }
+                }
+            } else if ("ZAPIZI".equalsIgnoreCase(integracao)) {
+                JsonNode loginData = zapiziClient.login(properties.getZapizi().getEmail(), properties.getZapizi().getPassword(), null);
+                String token = (loginData != null && loginData.hasNonNull("token")) ? loginData.get("token").asText() : null;
+                Integer zapOrgId = properties.getZapizi().getOrganizationId();
+                List<JsonNode> zapMachines = zapiziClient.getMachines(
+                        token, zapOrgId, 0, 1000, "", "", "", "", "ALL", List.of("POS"), List.of()
+                );
+                for (JsonNode m : zapMachines) {
+                    String ext = null;
+                    if (m.hasNonNull("uniqueCode") && !m.get("uniqueCode").asText().isBlank()) {
+                        ext = m.get("uniqueCode").asText().trim();
+                    } else if (m.hasNonNull("id")) {
+                        ext = m.get("id").asText().trim();
+                    }
+                    if (ext != null && externalId.trim().equalsIgnoreCase(ext)) {
+                        if (m.hasNonNull("locationName") && !m.get("locationName").asText().isBlank()) {
+                            return m.get("locationName").asText().trim();
+                        }
+                        if (m.hasNonNull("nome") && !m.get("nome").asText().isBlank()) {
+                            return m.get("nome").asText().trim();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível buscar nome na integradora {} para ID {}: {}", integracao, externalId, e.getMessage());
+        }
+        return null;
+    }
+
     @Transactional
     public Maquina registerOrUpdate(String integracao, String externalId, String nomeIntegracao) {
         Optional<Maquina> opt = maquinaRepository.findByIntegracaoAndExternalId(integracao, externalId);
         if (opt.isPresent()) {
-            Maquina existing = opt.get();
-            if (nomeIntegracao != null && !nomeIntegracao.equals(existing.getNomeIntegracao())) {
-                existing.setNomeIntegracao(nomeIntegracao);
-                return maquinaRepository.save(existing);
-            }
-            return existing;
+            // NUNCA sobrescrever o nome ou dados de máquina já cadastrada no banco pelo usuário!
+            return opt.get();
         }
 
         // Nova máquina descoberta
@@ -150,18 +195,6 @@ public class MachineSyncService {
         nova.setExternalId(externalId);
         nova.setNomeIntegracao(nomeIntegracao);
         nova.setAtivo(true);
-
-        // Tentar associar automaticamente a um estabelecimento existente caso o nome coincida
-        if (nomeIntegracao != null) {
-            List<Estabelecimento> estabelecimentos = estabelecimentoRepository.findAll();
-            for (Estabelecimento est : estabelecimentos) {
-                if (nomeIntegracao.toLowerCase().contains(est.getNome().toLowerCase())) {
-                    nova.setEstabelecimento(est);
-                    log.info("Máquina {} associada automaticamente ao estabelecimento {}", externalId, est.getNome());
-                    break;
-                }
-            }
-        }
 
         return maquinaRepository.save(nova);
     }

@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/maquinas")
@@ -49,11 +50,17 @@ public class MaquinaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/sync")
-    @Operation(summary = "Disparar sincronização e descoberta de novas máquinas nas integrações")
-    public ResponseEntity<List<Maquina>> sincronizar() {
-        List<Maquina> synced = machineSyncService.discoverAndSyncMachines();
-        return ResponseEntity.ok(synced);
+    @GetMapping("/fetch-info")
+    @Operation(summary = "Puxar nome/dados da máquina na integradora pelo ID externo")
+    public ResponseEntity<Map<String, String>> fetchExternalInfo(
+            @RequestParam String integracao,
+            @RequestParam String externalId
+    ) {
+        String nome = machineSyncService.fetchExternalMachineName(integracao, externalId);
+        if (nome != null) {
+            return ResponseEntity.ok(Map.of("nome", nome, "integracao", integracao, "externalId", externalId));
+        }
+        return ResponseEntity.ok(Map.of("nome", "", "integracao", integracao, "externalId", externalId));
     }
 
     @PostMapping

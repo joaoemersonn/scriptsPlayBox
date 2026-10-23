@@ -50,14 +50,7 @@ public class DataInitializationService {
             seedMeiosPagamentoParaExistentes();
         }
 
-        // Tenta sincronizar máquinas existentes das integrações no startup
-        try {
-            machineSyncService.discoverAndSyncMachines();
-        } catch (Exception e) {
-            log.warn("Não foi possível sincronizar máquinas no startup (APIs podem estar indisponíveis): {}", e.getMessage());
-        }
-
-        // Configura Praça do Sabor com aluguel dinâmico (25% sobre o lucro)
+        // Praça do Sabor com aluguel dinâmico (25% sobre o lucro)
         estabelecimentoRepository.findByNomeIgnoreCase("Praça do Sabor").ifPresent(est -> {
             if (!est.isAluguelDinamico()) {
                 est.setTipoAluguel("DINAMICO");

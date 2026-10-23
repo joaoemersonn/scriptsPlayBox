@@ -188,6 +188,25 @@ public class ColetaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    public record CancelarColetaRequest(
+            @Parameter(description = "Motivo do cancelamento (opcional)", example = "Registro incorreto ou coleta não realizada")
+            String motivo
+    ) {}
+
+    @PutMapping("/{id}/cancelar")
+    @Operation(
+            summary = "Cancelar um registro de coleta",
+            description = "Cancela a coleta física informando motivo opcional. A coleta não será considerada marco zero e não afetará apurações futuras."
+    )
+    public ResponseEntity<ColetaResponseDTO> cancelarColeta(
+            @PathVariable Long id,
+            @RequestBody(required = false) CancelarColetaRequest request
+    ) {
+        String motivo = (request != null) ? request.motivo() : null;
+        Coleta cancelada = coletaService.cancelarColeta(id, motivo);
+        return ResponseEntity.ok(ColetaResponseDTO.from(cancelada));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir um registro de coleta por ID")
     public ResponseEntity<Void> excluirColeta(@PathVariable Long id) {
@@ -195,3 +214,4 @@ public class ColetaController {
         return ResponseEntity.noContent().build();
     }
 }
+

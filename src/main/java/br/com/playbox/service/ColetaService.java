@@ -91,8 +91,8 @@ public class ColetaService {
 
         LocalDateTime dataHora = (dataHoraColeta != null) ? dataHoraColeta : LocalDateTime.now(ZONE_SP);
 
-        // Buscar a última coleta registrada antes desta dataHora
-        Optional<Coleta> optUltima = coletaRepository.findFirstByMaquinaIdAndDataHoraColetaBeforeOrderByDataHoraColetaDesc(maquinaId, dataHora);
+        // Buscar a última coleta válida (não cancelada) registrada antes desta dataHora
+        Optional<Coleta> optUltima = coletaRepository.findFirstByMaquinaIdAndStatusNotAndDataHoraColetaBeforeOrderByDataHoraColetaDesc(maquinaId, "CANCELADA", dataHora);
 
         LocalDateTime ultimaDataHora = optUltima.map(Coleta::getDataHoraColeta).orElse(null);
         boolean primeiraColeta = (ultimaDataHora == null);
@@ -243,6 +243,31 @@ public class ColetaService {
     }
 
     @Transactional
+    public Coleta cancelarColeta(Long id, String motivo) {
+        Coleta coleta = coletaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Coleta não encontrada para o ID: " + id));
+
+        if ("CANCELADA".equalsIgnoreCase(coleta.getStatus())) {
+            throw new IllegalStateException("Esta coleta já está cancelada.");
+        }
+
+        String statusAnterior = coleta.getStatus();
+        coleta.cancelar(motivo);
+        Coleta salva = coletaRepository.save(coleta);
+
+        log.info("Coleta ID {} cancelada com sucesso. Status anterior: {}, Motivo: {}",
+                id, statusAnterior, motivo);
+
+        try {
+            notificarColetaCancelada(salva, motivo);
+        } catch (Exception e) {
+            log.error("Erro ao enviar notificação de cancelamento de coleta no WhatsApp: {}", e.getMessage());
+        }
+
+        return salva;
+    }
+
+    @Transactional
     public void excluirColeta(Long id) {
         if (!coletaRepository.existsById(id)) {
             throw new IllegalArgumentException("Coleta não encontrada para o ID: " + id);
@@ -250,6 +275,7 @@ public class ColetaService {
         coletaRepository.deleteById(id);
         log.info("Coleta ID {} excluída com sucesso.", id);
     }
+
 
     private void notificarColetaRegistrada(Coleta coleta, boolean primeiraColeta) {
         String nomeLocal = (coleta.getEstabelecimento() != null) ? coleta.getEstabelecimento().getNome() : "Sem Local";
@@ -342,6 +368,29 @@ public class ColetaService {
 
         whatsAppSender.sendMessage(sb.toString());
     }
+
+    private void notificarColetaCancelada(Coleta coleta, String motivo) {
+        String nomeLocal = (coleta.getEstabelecimento() != null) ? coleta.getEstabelecimento().getNome() : "Sem Local";
+        String nomeMaq = (coleta.getMaquina() != null && coleta.getMaquina().getNomeIntegracao() != null)
+                ? coleta.getMaquina().getNomeIntegracao()
+                : (coleta.getMaquina() != null ? coleta.getMaquina().getDescricao() : "Máquina");
+
+        String dataStr = coleta.getDataHoraColeta().format(DATE_TIME_FORMATTER);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("🚫 *COLETA DE DINHEIRO CANCELADA*\n\n");
+        sb.append("🏪 *Local:* ").append(nomeLocal).append("\n");
+        sb.append("🕹️ *Máquina:* ").append(nomeMaq).append("\n");
+        sb.append("📅 *Data da Coleta:* ").append(dataStr).append("\n");
+        sb.append("💵 *Valor Esperado:* ").append(formatMoeda(coleta.getValorEsperado())).append("\n");
+        if (motivo != null && !motivo.isBlank()) {
+            sb.append("⚠️ *Motivo:* ").append(motivo.trim()).append("\n");
+        }
+        sb.append("\n_O registro foi marcado como cancelado e não afetará a apuração dos próximos recolhimentos._");
+
+        whatsAppSender.sendMessage(sb.toString());
+    }
+
 
     private static String formatMoeda(Double valor) {
         if (valor == null) return "R$ 0,00";
