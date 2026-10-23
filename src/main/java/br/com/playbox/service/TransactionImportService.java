@@ -191,35 +191,39 @@ public class TransactionImportService {
             String refreshToken = (loginData != null && loginData.hasNonNull("refreshToken")) ? loginData.get("refreshToken").asText() : null;
             Integer zapOrgId = properties.getZapizi().getOrganizationId();
 
-            JsonNode reportData = zapiziClient.getReports(
-                    token, inicio, fim, null, null, "", "", 0, 1000, zapOrgId, refreshToken
+            JsonNode telemetryData = zapiziClient.getTelemetry(
+                    token, inicio, fim, zapOrgId, refreshToken
             );
 
-            if (reportData != null && reportData.hasNonNull("data") && reportData.get("data").isArray()) {
-                for (JsonNode item : reportData.get("data")) {
+            if (telemetryData != null && telemetryData.hasNonNull("telemetryList") && telemetryData.get("telemetryList").isArray()) {
+                for (JsonNode item : telemetryData.get("telemetryList")) {
                     String extId = null;
                     if (item.hasNonNull("machineUniqueCode") && !item.get("machineUniqueCode").asText().isBlank()) {
                         extId = item.get("machineUniqueCode").asText().trim();
-                    } else if (item.hasNonNull("location") && !item.get("location").asText().isBlank()) {
-                        extId = item.get("location").asText().trim();
                     }
                     if (extId == null) continue;
 
-                    double refund = item.hasNonNull("refund") ? item.get("refund").asDouble() : 0.0;
+                    String locationName = item.hasNonNull("locationName") ? item.get("locationName").asText().trim() : "";
+                    if ("Sem Loja".equalsIgnoreCase(locationName)) {
+                        Optional<Maquina> optM = maquinaRepository.findByIntegracaoAndExternalId("ZAPIZI", extId);
+                        if (optM.isEmpty() || optM.get().getEstabelecimento() == null) {
+                            continue;
+                        }
+                    }
+
                     double cash = item.hasNonNull("cash") ? item.get("cash").asDouble() : 0.0;
                     double pix = item.hasNonNull("pix") ? item.get("pix").asDouble() : 0.0;
-                    double credit = item.hasNonNull("credit") ? item.get("credit").asDouble() : 0.0;
-                    double debit = item.hasNonNull("debit") ? item.get("debit").asDouble() : 0.0;
-                    double delivered = item.hasNonNull("productsDelivered") ? item.get("productsDelivered").asDouble() : 0.0;
+                    double card = item.hasNonNull("card") ? item.get("card").asDouble() : 0.0;
+                    double total = item.hasNonNull("total") ? item.get("total").asDouble() : (cash + pix + card);
+                    double delivered = item.hasNonNull("products") ? item.get("products").asDouble() : 0.0;
 
-                    double total = cash + pix + credit + debit;
-                    if (total == 0.0 && refund == 0.0 && delivered == 0.0) {
+                    if (total == 0.0 && delivered == 0.0) {
                         continue;
                     }
 
                     String externalTxId = "ZAPIZI_" + extId + "_" + dayId;
                     saveOrUpdateTransaction("ZAPIZI", externalTxId, extId, timestamp, "CONSOLIDADO",
-                            total, cash, pix, credit, debit, refund, delivered);
+                            total, cash, pix, card, 0.0, 0.0, delivered);
                     count++;
                 }
             }
