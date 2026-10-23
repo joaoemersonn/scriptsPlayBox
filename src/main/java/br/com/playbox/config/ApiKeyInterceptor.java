@@ -22,6 +22,7 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
     private final ObjectMapper objectMapper;
     private final br.com.playbox.service.AuthService authService;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ApiKeyInterceptor(AppProperties properties, ObjectMapper objectMapper, br.com.playbox.service.AuthService authService) {
         this.properties = properties;
         this.objectMapper = objectMapper;
