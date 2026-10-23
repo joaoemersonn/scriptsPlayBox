@@ -19,6 +19,7 @@ class ApiKeyInterceptorTest {
     void setUp() {
         properties = new AppProperties();
         properties.setApiKey("test-secret-key-123");
+        properties.getAuth().setPassword("mock-test-pass-999");
         interceptor = new ApiKeyInterceptor(properties, new ObjectMapper());
     }
 
@@ -82,7 +83,7 @@ class ApiKeyInterceptorTest {
     @Test
     void testPreHandleWithBearerToken() throws Exception {
         br.com.playbox.service.AuthService authService = new br.com.playbox.service.AuthService(properties);
-        String token = authService.login("admin", "PlayBox@2026!");
+        String token = authService.login("admin", "mock-test-pass-999");
         assertNotNull(token);
 
         ApiKeyInterceptor authInterceptor = new ApiKeyInterceptor(properties, new ObjectMapper(), authService);

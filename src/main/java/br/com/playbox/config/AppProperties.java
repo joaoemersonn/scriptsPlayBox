@@ -247,7 +247,7 @@ public class AppProperties {
 
     public static class Auth {
         private String username = "admin";
-        private String password = "PlayBox@2026!";
+        private String password = "";
 
         public String getUsername() {
             return username;
