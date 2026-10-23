@@ -19,6 +19,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +30,8 @@ import java.util.Optional;
 public class TransactionImportService {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionImportService.class);
-    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    private static final ZoneId BRASILIA_ZONE = ZoneId.of("America/Sao_Paulo");
+    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     private final VendProMaxClient vendClient;
     private final PayXYZClient payxyzClient;
@@ -57,12 +60,12 @@ public class TransactionImportService {
     }
 
     public int importDailyTransactions(LocalDate date) {
-        ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
         LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+        ZonedDateTime startZoned = date.atStartOfDay(BRASILIA_ZONE);
+        ZonedDateTime endZoned = date.atTime(LocalTime.MAX).atZone(BRASILIA_ZONE);
 
-        String inicioStr = startOfDay.atZone(zoneId).format(ISO_FORMATTER);
-        String fimStr = endOfDay.atZone(zoneId).format(ISO_FORMATTER);
+        String inicioStr = ISO_FORMATTER.format(startZoned);
+        String fimStr = ISO_FORMATTER.format(endZoned);
 
         String dayId = date.toString(); // YYYY-MM-DD
         log.info("Iniciando importação de transações do dia {} ({} a {})...", dayId, inicioStr, fimStr);
