@@ -111,6 +111,7 @@ public class OfflineMonitorService {
         offlineTimestamps.keySet().removeIf(m -> m.toLowerCase().contains("sem loja"));
 
         pruneInactiveOrStorelessMachines(previousOffline, offlineTimestamps);
+        migrateLegacyOfflineNames(previousOffline, offlineTimestamps);
 
         Path failingIntegrationsFile = dataDir.resolve("failing_integrations.txt");
         Set<String> previousFailingIntegrations = loadFileSet(failingIntegrationsFile);
@@ -352,6 +353,7 @@ public class OfflineMonitorService {
                 }
 
                 // Se houver repositório de máquinas, validar se a máquina está cadastrada, ativa e alocada em loja
+                String displayName = name;
                 if (maquinaRepository != null) {
                     Maquina dbMaquina = null;
                     if (extId != null) {
@@ -370,6 +372,10 @@ public class OfflineMonitorService {
                         List<Maquina> allMaquinas = maquinaRepository.findAll();
                         for (Maquina m : allMaquinas) {
                             if (m.getNomeIntegracao() != null && m.getNomeIntegracao().equalsIgnoreCase(name)) {
+                                dbMaquina = m;
+                                break;
+                            }
+                            if (m.getDescricao() != null && m.getDescricao().equalsIgnoreCase(name)) {
                                 dbMaquina = m;
                                 break;
                             }
@@ -398,6 +404,8 @@ public class OfflineMonitorService {
                             dbMaquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
                             continue;
                         }
+
+                        displayName = resolverNomeExibicao(dbMaquina, name);
                     } else {
                         // Máquina não encontrada no cadastro do PlayBox
                         log.info("Máquina '{}' (extId: {}) não encontrada no cadastro de máquinas ativas. Ignorando offline.", name, extId);
@@ -405,8 +413,13 @@ public class OfflineMonitorService {
                     }
                 }
 
+                // Evita colisão se porventura duas máquinas offline resolverem para o mesmo nome
+                if (result.containsKey(displayName)) {
+                    displayName = displayName + " (#" + (extId != null ? extId : name) + ")";
+                }
+
                 String formattedDate = extractLatestTimestamp(machine, zoneId);
-                result.put(name, formattedDate);
+                result.put(displayName, formattedDate);
             }
         }
         return result;
@@ -679,6 +692,7 @@ public class OfflineMonitorService {
         timestamps.keySet().removeIf(m -> m.toLowerCase().contains("sem loja"));
 
         pruneInactiveOrStorelessMachines(offline, timestamps);
+        migrateLegacyOfflineNames(offline, timestamps);
 
         Set<String> failing = loadFileSet(failingIntegrationsFile);
         String lastNotification = loadFileText(previousMessageFile);
@@ -730,6 +744,127 @@ public class OfflineMonitorService {
             }
         } catch (Exception e) {
             log.warn("Erro ao filtrar máquinas ativas no cache offline: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Resolve o nome a ser exibido no monitoramento offline.
+     * Regra do negócio:
+     * 1. Usa o nome do estabelecimento cadastrado ao invés da descrição na integração.
+     * 2. Caso, e somente se tiver mais de uma máquina ativa no estabelecimento, lista pelo nome da máquina.
+     */
+    public String resolverNomeExibicao(Maquina dbMaquina, String fallbackName) {
+        if (dbMaquina == null) {
+            return fallbackName;
+        }
+
+        String nomeMaquina = (dbMaquina.getNomeIntegracao() != null && !dbMaquina.getNomeIntegracao().isBlank())
+                ? dbMaquina.getNomeIntegracao().trim()
+                : ((dbMaquina.getDescricao() != null && !dbMaquina.getDescricao().isBlank())
+                        ? dbMaquina.getDescricao().trim()
+                        : fallbackName);
+
+        if (dbMaquina.getEstabelecimento() == null ||
+            dbMaquina.getEstabelecimento().getNome() == null ||
+            dbMaquina.getEstabelecimento().getNome().isBlank() ||
+            dbMaquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
+            return nomeMaquina;
+        }
+
+        String nomeEstab = dbMaquina.getEstabelecimento().getNome().trim();
+
+        if (maquinaRepository == null) {
+            return nomeEstab;
+        }
+
+        try {
+            Long estabId = dbMaquina.getEstabelecimento().getId();
+            long totalMaquinasNoEstab = 0;
+            if (estabId != null) {
+                totalMaquinasNoEstab = maquinaRepository.findByEstabelecimentoId(estabId).stream()
+                        .filter(Maquina::isAtivo)
+                        .count();
+            }
+
+            // Caso, e somente se tiver mais de uma máquina ativa no estabelecimento, listar por nome da máquina
+            if (totalMaquinasNoEstab > 1) {
+                return nomeMaquina;
+            } else {
+                return nomeEstab;
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao contar máquinas do estabelecimento {}: {}", nomeEstab, e.getMessage());
+            return nomeEstab;
+        }
+    }
+
+    /**
+     * Migra nomes legados do cache de status offline (ex: nomes antigos da integradora "Casa Nobre - Sertania" ou "Lan House")
+     * para os novos nomes padronizados (ex: "Casa Nobre", "Lan House Wolrd Player"), preservando o histórico de timestamps
+     * e evitando disparos indevidos de "DE VOLTA ONLINE" / "NOVA MAQUINA OFFLINE".
+     */
+    public void migrateLegacyOfflineNames(Set<String> previousOffline, Map<String, String> timestamps) {
+        if (maquinaRepository == null || previousOffline == null || previousOffline.isEmpty()) {
+            return;
+        }
+        try {
+            List<Maquina> activeMachines = maquinaRepository.findByAtivoTrue().stream()
+                    .filter(m -> m.getEstabelecimento() != null &&
+                            !m.getEstabelecimento().getNome().toLowerCase().contains("sem loja"))
+                    .toList();
+
+            Map<String, String> replacements = new LinkedHashMap<>();
+
+            for (String oldName : previousOffline) {
+                String oldLower = oldName.toLowerCase().trim();
+                for (Maquina m : activeMachines) {
+                    String newDisplayName = resolverNomeExibicao(m, m.getNomeIntegracao());
+                    if (newDisplayName.equalsIgnoreCase(oldName)) {
+                        continue;
+                    }
+
+                    boolean matches = false;
+                    if (m.getEstabelecimento() != null && m.getEstabelecimento().getNome() != null) {
+                        String estLower = m.getEstabelecimento().getNome().toLowerCase().trim();
+                        if (oldLower.contains(estLower) || estLower.contains(oldLower)) {
+                            matches = true;
+                        }
+                    }
+                    if (!matches && m.getNomeIntegracao() != null) {
+                        String integLower = m.getNomeIntegracao().toLowerCase().trim();
+                        if (oldLower.contains(integLower) || integLower.contains(oldLower)) {
+                            matches = true;
+                        }
+                    }
+                    if (!matches && m.getDescricao() != null) {
+                        String descLower = m.getDescricao().toLowerCase().trim();
+                        if (oldLower.contains(descLower) || descLower.contains(oldLower)) {
+                            matches = true;
+                        }
+                    }
+
+                    if (matches) {
+                        replacements.put(oldName, newDisplayName);
+                        log.info("Migrando nome legado offline de '{}' para '{}'", oldName, newDisplayName);
+                        break;
+                    }
+                }
+            }
+
+            for (Map.Entry<String, String> entry : replacements.entrySet()) {
+                String oldName = entry.getKey();
+                String newName = entry.getValue();
+
+                previousOffline.remove(oldName);
+                previousOffline.add(newName);
+
+                if (timestamps != null && timestamps.containsKey(oldName)) {
+                    String ts = timestamps.remove(oldName);
+                    timestamps.putIfAbsent(newName, ts);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao migrar nomes legados no cache offline: {}", e.getMessage());
         }
     }
 }

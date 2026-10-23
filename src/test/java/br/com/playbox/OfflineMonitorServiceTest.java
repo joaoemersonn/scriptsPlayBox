@@ -206,9 +206,75 @@ class OfflineMonitorServiceTest {
         );
 
         // Only node1 (active with store) should be monitored!
+        // Como o estabelecimento 'Shopping Plaza' tem apenas 1 máquina ativa, o nome exibido deve ser o do estabelecimento!
         assertEquals(1, result.size());
-        assertTrue(result.containsKey("Chaves"));
+        assertTrue(result.containsKey("Shopping Plaza"));
         assertFalse(result.containsKey("Minions")); // Inactive
         assertFalse(result.containsKey("Reserva")); // Sem Loja
+    }
+
+    @Test
+    void testResolverNomeExibicaoUmaMaquinaVsMultiplas() {
+        br.com.playbox.repository.MaquinaRepository mockRepo = org.mockito.Mockito.mock(br.com.playbox.repository.MaquinaRepository.class);
+        AppProperties properties = new AppProperties();
+        OfflineMonitorService service = new OfflineMonitorService(null, null, null, properties, objectMapper, mockRepo);
+
+        br.com.playbox.entity.Estabelecimento est1 = new br.com.playbox.entity.Estabelecimento();
+        est1.setId(1L);
+        est1.setNome("Casa Nobre");
+
+        br.com.playbox.entity.Maquina m1 = new br.com.playbox.entity.Maquina();
+        m1.setId(10L);
+        m1.setNomeIntegracao("Peixinho2");
+        m1.setAtivo(true);
+        m1.setEstabelecimento(est1);
+
+        // Cenário 1: Apenas 1 máquina no estabelecimento -> usa nome do estabelecimento
+        org.mockito.Mockito.when(mockRepo.findByEstabelecimentoId(1L)).thenReturn(List.of(m1));
+        String nome1 = service.resolverNomeExibicao(m1, "Peixinho2");
+        assertEquals("Casa Nobre", nome1);
+
+        // Cenário 2: Mais de uma máquina no estabelecimento -> usa nome da máquina
+        br.com.playbox.entity.Maquina m2 = new br.com.playbox.entity.Maquina();
+        m2.setId(11L);
+        m2.setNomeIntegracao("Peixinho1");
+        m2.setAtivo(true);
+        m2.setEstabelecimento(est1);
+
+        org.mockito.Mockito.when(mockRepo.findByEstabelecimentoId(1L)).thenReturn(List.of(m1, m2));
+        String nomeComMultiplas1 = service.resolverNomeExibicao(m1, "Peixinho2");
+        String nomeComMultiplas2 = service.resolverNomeExibicao(m2, "Peixinho1");
+        assertEquals("Peixinho2", nomeComMultiplas1);
+        assertEquals("Peixinho1", nomeComMultiplas2);
+    }
+
+    @Test
+    void testMigrateLegacyOfflineNames() {
+        br.com.playbox.repository.MaquinaRepository mockRepo = org.mockito.Mockito.mock(br.com.playbox.repository.MaquinaRepository.class);
+        AppProperties properties = new AppProperties();
+        OfflineMonitorService service = new OfflineMonitorService(null, null, null, properties, objectMapper, mockRepo);
+
+        br.com.playbox.entity.Estabelecimento est = new br.com.playbox.entity.Estabelecimento();
+        est.setId(7L);
+        est.setNome("Casa Nobre");
+
+        br.com.playbox.entity.Maquina m = new br.com.playbox.entity.Maquina();
+        m.setId(2L);
+        m.setNomeIntegracao("Peixinho2");
+        m.setAtivo(true);
+        m.setEstabelecimento(est);
+
+        org.mockito.Mockito.when(mockRepo.findByAtivoTrue()).thenReturn(List.of(m));
+        org.mockito.Mockito.when(mockRepo.findByEstabelecimentoId(7L)).thenReturn(List.of(m));
+
+        java.util.Set<String> previousOffline = new java.util.TreeSet<>(List.of("Casa Nobre - Sertania"));
+        java.util.Map<String, String> timestamps = new java.util.TreeMap<>(Map.of("Casa Nobre - Sertania", "21/10/2026 14:09"));
+
+        service.migrateLegacyOfflineNames(previousOffline, timestamps);
+
+        assertTrue(previousOffline.contains("Casa Nobre"));
+        assertFalse(previousOffline.contains("Casa Nobre - Sertania"));
+        assertEquals("21/10/2026 14:09", timestamps.get("Casa Nobre"));
+        assertNull(timestamps.get("Casa Nobre - Sertania"));
     }
 }
