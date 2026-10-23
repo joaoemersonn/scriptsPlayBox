@@ -94,6 +94,31 @@ public class RelatorioService {
             return new PeriodoCalculado("30d", titulo, dtInicio, dtFim);
         }
 
+        if ("semana".equals(p)) {
+            LocalDate inicioSemana = hoje.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+            LocalDateTime dtInicio = inicioSemana.atStartOfDay();
+            LocalDateTime dtFim = hoje.atTime(LocalTime.MAX);
+            String titulo = "Relatório da Semana Atual (" + inicioSemana.format(dmy) + " a " + hoje.format(dmy) + ")";
+            return new PeriodoCalculado("semana", titulo, dtInicio, dtFim);
+        }
+
+        if ("mes-anterior".equals(p) || "setembro".equals(p)) {
+            LocalDate mesPassado = hoje.minusMonths(1);
+            LocalDate primeiroDia = mesPassado.withDayOfMonth(1);
+            LocalDate ultimoDia = mesPassado.withDayOfMonth(mesPassado.lengthOfMonth());
+            String mesNome = ReportGeneratorService.getMonthNamePt(mesPassado.getMonthValue());
+            String titulo = "Relatório do Mês de " + mesNome + " (" + mesPassado.format(DateTimeFormatter.ofPattern("MM/yyyy")) + ")";
+            return new PeriodoCalculado("mes-anterior", titulo, primeiroDia.atStartOfDay(), ultimoDia.atTime(LocalTime.MAX));
+        }
+
+        if ("ano".equals(p)) {
+            LocalDate primeiroDiaAno = hoje.withDayOfYear(1);
+            LocalDateTime dtInicio = primeiroDiaAno.atStartOfDay();
+            LocalDateTime dtFim = hoje.atTime(LocalTime.MAX);
+            String titulo = "Relatório do Ano de " + hoje.getYear();
+            return new PeriodoCalculado("ano", titulo, dtInicio, dtFim);
+        }
+
         // Default: mês atual
         LocalDate primeiroDiaMes = hoje.withDayOfMonth(1);
         LocalDateTime dtInicio = primeiroDiaMes.atStartOfDay();

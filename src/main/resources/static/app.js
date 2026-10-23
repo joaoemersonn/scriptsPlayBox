@@ -10,6 +10,10 @@ const state = {
   apiKey: localStorage.getItem('playbox_api_key') || 'tR3vM5o7ISXoDnEXzCHMa2gTnMlrlpxJ47urY5NCY7rFpjp3710Rj4wfDNJnPZdR',
   activeTab: 'dashboard',
   currentPeriod: 'hoje',
+  currentCity: '',
+  currentMachineId: '',
+  currentStoreId: null,
+  cities: [],
   dashboardData: null,
   monitorStatus: null,
   machines: [],
@@ -224,8 +228,16 @@ async function refreshActiveTab(showNotification = false) {
 // DASHBOARD VIEW
 // ============================================================================
 
-function onDashboardPeriodSelect(period) {
+function setDashboardPeriod(period) {
   state.currentPeriod = period;
+  document.querySelectorAll('#period-buttons-group .filter-btn').forEach(btn => {
+    if (btn.getAttribute('data-period') === period) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
   const customBar = document.getElementById('custom-dates-bar');
   if (period === 'custom') {
     if (customBar) customBar.classList.remove('hidden');
@@ -242,30 +254,26 @@ function onDashboardPeriodSelect(period) {
   }
 }
 
-function setDashboardPeriod(period) {
-  onDashboardPeriodSelect(period);
-}
-
-function filterByStore(storeId) {
-  const storeFilter = document.getElementById('dash-filter-store');
-  if (storeFilter) {
-    storeFilter.value = storeId;
-    loadDashboardData();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+function onDashboardPeriodSelect(period) {
+  setDashboardPeriod(period);
 }
 
 function toggleCustomDates() {
-  const bar = document.getElementById('custom-dates-bar');
-  if (bar) bar.classList.toggle('hidden');
+  const customBar = document.getElementById('custom-dates-bar');
+  if (customBar) customBar.classList.toggle('hidden');
   state.currentPeriod = 'custom';
-  const sel = document.getElementById('dash-period-select');
-  if (sel) sel.value = 'custom';
+  document.querySelectorAll('#period-buttons-group .filter-btn').forEach(btn => {
+    if (btn.getAttribute('data-period') === 'custom') {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
 }
 
 function applyCustomDates() {
-  const start = document.getElementById('dash-date-start').value;
-  const end = document.getElementById('dash-date-end').value;
+  const start = document.getElementById('dash-date-start')?.value;
+  const end = document.getElementById('dash-date-end')?.value;
 
   if (!start || !end) {
     showToast('Selecione as datas de início e fim.', 'warning');
@@ -274,13 +282,69 @@ function applyCustomDates() {
   loadDashboardData();
 }
 
+function setDashboardCity(city) {
+  state.currentCity = city || '';
+  document.querySelectorAll('#city-buttons-group .filter-btn').forEach(btn => {
+    if ((btn.getAttribute('data-city') || '') === state.currentCity) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Filter machine select to only show machines from this city
+  filterMachineSelectByCity(state.currentCity);
+
+  loadDashboardData();
+}
+
+function onMachineSelect(machineId) {
+  state.currentMachineId = machineId || '';
+  loadDashboardData();
+}
+
+function filterMachineSelectByCity(city) {
+  const select = document.getElementById('dash-filter-machine');
+  if (!select) return;
+
+  const filtered = (state.machines || []).filter(m => {
+    if (!city) return true;
+    const mCity = m.estabelecimento?.cidade || m.cidade || '';
+    return mCity.trim().toLowerCase() === city.trim().toLowerCase();
+  });
+
+  const cur = state.currentMachineId;
+  let html = '<option value="">Todas as Máquinas</option>';
+  filtered.forEach(m => {
+    const name = m.nomeIntegracao || m.descricao || `Máquina #${m.id}`;
+    const store = m.estabelecimento?.nome ? ` (${m.estabelecimento.nome})` : '';
+    html += `<option value="${m.id}" ${String(m.id) === String(cur) ? 'selected' : ''}>${name}${store}</option>`;
+  });
+  select.innerHTML = html;
+}
+
+function filterByStore(storeId) {
+  state.currentStoreId = storeId;
+  const store = (state.stores || []).find(s => s.id === storeId);
+  const badge = document.getElementById('filter-store-active-badge');
+  const nameEl = document.getElementById('filter-store-active-name');
+  if (badge && nameEl) {
+    nameEl.textContent = `Filtrando por: ${store ? store.nome : 'Estabelecimento #' + storeId}`;
+    badge.classList.remove('hidden');
+  }
+  loadDashboardData();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function clearStoreFilter() {
+  state.currentStoreId = null;
+  const badge = document.getElementById('filter-store-active-badge');
+  if (badge) badge.classList.add('hidden');
+  loadDashboardData();
+}
+
 async function loadDashboardData(syncForce = false) {
   try {
-    const periodSelect = document.getElementById('dash-period-select');
-    if (periodSelect && periodSelect.value !== state.currentPeriod) {
-      periodSelect.value = state.currentPeriod;
-    }
-
     let url = `/api/relatorios?periodo=${state.currentPeriod}`;
 
     if (state.currentPeriod === 'custom') {
@@ -290,9 +354,16 @@ async function loadDashboardData(syncForce = false) {
       if (end) url += `&dataFim=${end}`;
     }
 
-    const storeId = document.getElementById('dash-filter-store')?.value;
-    if (storeId) {
-      url += `&estabelecimentoId=${storeId}`;
+    if (state.currentCity) {
+      url += `&cidade=${encodeURIComponent(state.currentCity)}`;
+    }
+
+    if (state.currentMachineId) {
+      url += `&maquinaId=${state.currentMachineId}`;
+    }
+
+    if (state.currentStoreId) {
+      url += `&estabelecimentoId=${state.currentStoreId}`;
     }
 
     if (syncForce) {
@@ -317,13 +388,11 @@ async function loadDashboardData(syncForce = false) {
     // Render KPIs
     renderDashboardKPIs(report, monitorStatus);
 
-    // Render Stores Ranking List & Table (DESTAQUE FATURAMENTO POR LOJA)
+    // Render Stores Ranking List (DESTAQUE FATURAMENTO POR LOJA EM LISTA)
     renderStoresRankingList(report.porEstabelecimento || [], report.resumoGeral?.faturamentoBruto || 0);
 
-    // Render Charts
-    renderTimelineChart(report.porDia || []);
+    // Render Payment Methods Chart (FORMATO IMAGEM 1)
     renderPaymentMethodsChart(report.resumoGeral?.formasPagamento || {});
-    renderStoresRankingChart(report.porEstabelecimento || []);
 
     document.getElementById('dash-period-title').textContent = report.titulo || 'Consolidado';
     document.getElementById('dash-last-updated').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
@@ -523,26 +592,49 @@ function renderPaymentMethodsChart(formas) {
   const ctx = document.getElementById('chart-payment-methods');
   if (!ctx) return;
 
-  if (state.charts.paymentMethods) {
-    state.charts.paymentMethods.destroy();
-  }
-
   const especie = formas.especie || 0;
   const pix = formas.pix || 0;
   const credito = formas.credito || 0;
   const debito = formas.debito || 0;
+  const total = especie + pix + credito + debito;
+
+  // Update visible values directly in the DOM (matches Reference Image 1)
+  const totalCenterEl = document.getElementById('payment-total-center');
+  if (totalCenterEl) totalCenterEl.textContent = formatMoney(total);
+
+  const pixEl = document.getElementById('val-pay-pix');
+  if (pixEl) pixEl.textContent = formatMoney(pix);
+
+  const especieEl = document.getElementById('val-pay-especie');
+  if (especieEl) especieEl.textContent = formatMoney(especie);
+
+  const creditoEl = document.getElementById('val-pay-credito');
+  if (creditoEl) creditoEl.textContent = formatMoney(credito);
+
+  const debitoEl = document.getElementById('val-pay-debito');
+  if (debitoEl) debitoEl.textContent = formatMoney(debito);
+
+  if (state.charts.paymentMethods) {
+    state.charts.paymentMethods.destroy();
+  }
+
+  // If total is 0, render a light gray empty placeholder ring
+  const hasData = total > 0;
+  const chartData = hasData ? [pix, especie, credito, debito] : [1];
+  const chartColors = hasData ? ['#bfdbfe', '#2563eb', '#2dd4bf', '#3b82f6'] : ['#e2e8f0'];
+  const labels = hasData ? ['Pix', 'Especie', 'Credito', 'Debito'] : ['Sem Vendas'];
 
   state.charts.paymentMethods = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Espécie (Notas)', 'PIX', 'Cartão Crédito', 'Cartão Débito'],
+      labels: labels,
       datasets: [
         {
-          data: [especie, pix, credito, debito],
-          backgroundColor: ['#f59e0b', '#06b6d4', '#db2777', '#3b82f6'],
+          data: chartData,
+          backgroundColor: chartColors,
           borderColor: '#ffffff',
-          borderWidth: 2,
-          hoverOffset: 6
+          borderWidth: hasData ? 2 : 0,
+          hoverOffset: hasData ? 4 : 0
         }
       ]
     },
@@ -551,10 +643,10 @@ function renderPaymentMethodsChart(formas) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: 'bottom',
-          labels: { color: '#475569', font: { size: 11, weight: '500' }, padding: 12 }
+          display: false // Visible legend list is already rendered on the right
         },
         tooltip: {
+          enabled: hasData,
           backgroundColor: '#0f172a',
           titleColor: '#ffffff',
           bodyColor: '#e2e8f0',
@@ -563,14 +655,13 @@ function renderPaymentMethodsChart(formas) {
           callbacks: {
             label: function(context) {
               const val = context.raw || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
               const perc = total > 0 ? Math.round((val / total) * 100) : 0;
               return `${context.label}: ${formatMoney(val)} (${perc}%)`;
             }
           }
         }
       },
-      cutout: '68%'
+      cutout: '74%'
     }
   });
 }
@@ -599,184 +690,67 @@ function renderStoresRankingList(stores, totalGeral) {
     return;
   }
 
-  let html = `
-    <div class="overflow-x-auto rounded-xl border border-slate-100">
-      <table class="w-full text-left text-xs">
-        <thead class="bg-slate-50 text-slate-500 uppercase tracking-wider text-[11px] border-b border-slate-200">
-          <tr>
-            <th class="p-3 w-14 text-center">Posição</th>
-            <th class="p-3">Estabelecimento / Cidade</th>
-            <th class="p-3">Máquinas</th>
-            <th class="p-3 text-right">Faturamento Bruto</th>
-            <th class="p-3 w-40">Participação (%)</th>
-            <th class="p-3 text-right">Espécie (Notas)</th>
-            <th class="p-3 text-right">Digital (Pix/Cartão)</th>
-            <th class="p-3 text-center">Prêmios</th>
-            <th class="p-3 text-right">Ação</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 text-slate-700 bg-white">
-  `;
-
+  let html = '';
   sorted.forEach((s, idx) => {
     const bruto = s.faturamentoBruto || 0;
     const perc = totalGeral > 0 ? Math.round((bruto / totalGeral) * 100) : 0;
     const especie = s.formasPagamento?.especie || 0;
     const pix = s.formasPagamento?.pix || 0;
     const cartao = (s.formasPagamento?.credito || 0) + (s.formasPagamento?.debito || 0);
-    const digital = pix + cartao;
     const premios = Math.round(s.quantidadePremios || 0);
 
-    let rankBadgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
-    let rankText = `#${idx + 1}`;
+    let rankCircleClass = 'rank-circle-other';
+    let rankValClass = 'rank-val-other';
     if (idx === 0) {
-      rankBadgeClass = 'rank-badge-gold font-black';
-      rankText = '🥇 1º';
+      rankCircleClass = 'rank-circle-1';
+      rankValClass = 'rank-val-1';
     } else if (idx === 1) {
-      rankBadgeClass = 'rank-badge-silver font-black';
-      rankText = '🥈 2º';
+      rankCircleClass = 'rank-circle-2';
+      rankValClass = 'rank-val-2';
     } else if (idx === 2) {
-      rankBadgeClass = 'rank-badge-bronze font-black';
-      rankText = '🥉 3º';
+      rankCircleClass = 'rank-circle-3';
+      rankValClass = 'rank-val-3';
     }
 
     const storeName = s.nome || 'Sem Estabelecimento';
-    const cidade = s.cidade ? `<span class="text-slate-400 font-normal"> • ${s.cidade}</span>` : '';
+    const cidadeStr = s.cidade ? ` • ${s.cidade}` : '';
     const maquinasQtd = s.quantidadeMaquinas || 1;
+    const isFiltered = state.currentStoreId && state.currentStoreId === s.estabelecimentoId;
 
     html += `
-      <tr class="hover:bg-pink-50/40 transition">
-        <td class="p-3 text-center">
-          <span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] border ${rankBadgeClass}">${rankText}</span>
-        </td>
-        <td class="p-3 font-bold text-slate-800">
-          <div class="flex items-center gap-2">
-            <i data-lucide="store" class="w-4 h-4 text-pink-600 shrink-0"></i>
-            <div>
-              <span class="hover:text-pink-600 transition cursor-pointer" onclick="filterByStore(${s.estabelecimentoId || 0})">${storeName}</span>${cidade}
-              ${s.responsavel ? `<div class="text-[10px] text-slate-400 font-normal">${s.responsavel}</div>` : ''}
+      <div class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border ${isFiltered ? 'border-pink-500 bg-pink-50/50 ring-1 ring-pink-500' : 'border-slate-200/80 bg-white hover:border-pink-300 hover:shadow-sm'} transition gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <!-- Circular Badge matching Reference Image 3 -->
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-xs sm:text-sm shrink-0 shadow-sm ${rankCircleClass}">
+            ${idx + 1}
+          </div>
+          <div class="min-w-0">
+            <div class="font-extrabold text-slate-900 text-xs sm:text-sm truncate hover:text-pink-600 transition cursor-pointer" onclick="filterByStore(${s.estabelecimentoId || 0})" title="Clique para filtrar apenas esta loja">
+              ${storeName}
+            </div>
+            <div class="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap mt-0.5">
+              ${s.estabelecimentoId ? `<span>ID: ${s.estabelecimentoId}</span>` : ''}
+              ${cidadeStr ? `<span>${cidadeStr}</span>` : ''}
+              <span>• ${maquinasQtd} máq.</span>
+              ${premios > 0 ? `<span class="font-semibold text-pink-600">• 🎁 ${premios} un</span>` : ''}
             </div>
           </div>
-        </td>
-        <td class="p-3">
-          <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-            ${maquinasQtd} máq.
-          </span>
-        </td>
-        <td class="p-3 text-right font-black text-sm text-pink-700">
-          ${formatMoney(bruto)}
-        </td>
-        <td class="p-3">
-          <div class="w-full">
-            <div class="flex justify-between text-[10px] text-slate-500 mb-1">
-              <span class="font-bold text-slate-700">${perc}%</span>
-            </div>
-            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div class="bg-gradient-to-r from-pink-500 to-purple-600 h-2 rounded-full" style="width: ${Math.min(perc, 100)}%"></div>
-            </div>
+        </div>
+
+        <div class="text-right shrink-0">
+          <div class="text-sm sm:text-base font-black ${rankValClass}">
+            ${formatMoney(bruto)}
           </div>
-        </td>
-        <td class="p-3 text-right font-semibold text-amber-700">
-          ${formatMoney(especie)}
-        </td>
-        <td class="p-3 text-right font-semibold text-cyan-700">
-          ${formatMoney(digital)}
-        </td>
-        <td class="p-3 text-center">
-          <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${premios > 0 ? 'bg-pink-50 text-pink-700 border border-pink-200' : 'text-slate-400'}">
-            ${premios} un
-          </span>
-        </td>
-        <td class="p-3 text-right">
-          ${s.estabelecimentoId ? `
-            <button onclick="filterByStore(${s.estabelecimentoId})" class="p-1.5 rounded-lg bg-slate-100 hover:bg-pink-100 hover:text-pink-600 text-slate-600 transition" title="Filtrar visão geral apenas desta loja">
-              <i data-lucide="filter" class="w-3.5 h-3.5"></i>
-            </button>
-          ` : '-'}
-        </td>
-      </tr>
+          <div class="text-[10px] sm:text-[11px] text-slate-400 font-medium">
+            ${perc}% do total
+          </div>
+        </div>
+      </div>
     `;
   });
 
-  html += `
-        </tbody>
-      </table>
-    </div>
-  `;
-
   container.innerHTML = html;
   if (window.lucide) lucide.createIcons();
-}
-
-function renderStoresRankingChart(stores) {
-  const ctx = document.getElementById('chart-stores-ranking');
-  if (!ctx) return;
-
-  if (state.charts.storesRanking) {
-    state.charts.storesRanking.destroy();
-  }
-
-  const sorted = [...stores].sort((a, b) => (b.faturamentoBruto || 0) - (a.faturamentoBruto || 0)).slice(0, 10);
-  const labels = sorted.map(s => s.nome || 'Sem Loja');
-  const values = sorted.map(s => s.faturamentoBruto || 0);
-  const prizes = sorted.map(s => s.quantidadePremios || 0);
-
-  const colors = [
-    '#db2777', '#c026d3', '#be185d', '#a21caf', '#86198f',
-    '#06b6d4', '#0891b2', '#0284c7', '#2563eb', '#10b981'
-  ];
-
-  state.charts.storesRanking = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Faturamento Bruto',
-          data: values,
-          backgroundColor: colors.slice(0, labels.length),
-          borderRadius: 8,
-          barThickness: 22
-        }
-      ]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#0f172a',
-          titleColor: '#ffffff',
-          bodyColor: '#e2e8f0',
-          borderColor: '#e2e8f0',
-          borderWidth: 1,
-          callbacks: {
-            label: function(context) {
-              const idx = context.dataIndex;
-              const p = prizes[idx] || 0;
-              return `Fat: ${formatMoney(context.raw)} | Prêmios: ${p} un`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(0, 0, 0, 0.05)' },
-          ticks: {
-            color: '#64748b',
-            font: { size: 10 },
-            callback: value => 'R$ ' + value
-          }
-        },
-        y: {
-          grid: { display: false },
-          ticks: { color: '#334155', font: { size: 11, weight: '600' } }
-        }
-      }
-    }
-  });
 }
 
 // ============================================================================
@@ -2252,14 +2226,29 @@ async function loadInitialLookups() {
     state.stores = stores;
     state.machines = machines;
 
-    // Populate dashboard filter dropdown
-    const filterEl = document.getElementById('dash-filter-store');
-    if (filterEl) {
-      const cur = filterEl.value;
-      filterEl.innerHTML = '<option value="">Todos os Estabelecimentos</option>' +
-        stores.map(s => `<option value="${s.id}">${s.nome} (${s.cidade || ''})</option>`).join('');
-      filterEl.value = cur;
+    // Extract unique list of cities
+    const citySet = new Set();
+    stores.forEach(s => {
+      if (s.cidade && s.cidade.trim()) citySet.add(s.cidade.trim());
+    });
+    machines.forEach(m => {
+      if (m.cidade && m.cidade.trim()) citySet.add(m.cidade.trim());
+      if (m.estabelecimento?.cidade && m.estabelecimento.cidade.trim()) citySet.add(m.estabelecimento.cidade.trim());
+    });
+    state.cities = Array.from(citySet).sort();
+
+    // Populate City Buttons in Dashboard
+    const cityGroup = document.getElementById('city-buttons-group');
+    if (cityGroup) {
+      let cityHtml = `<button type="button" class="filter-btn ${state.currentCity === '' ? 'active' : ''}" data-city="" onclick="setDashboardCity('')">Todas as Cidades</button>`;
+      state.cities.forEach(c => {
+        cityHtml += `<button type="button" class="filter-btn ${state.currentCity === c ? 'active' : ''}" data-city="${c}" onclick="setDashboardCity('${c}')">${c}</button>`;
+      });
+      cityGroup.innerHTML = cityHtml;
     }
+
+    // Populate Machine Select in Dashboard
+    filterMachineSelectByCity(state.currentCity);
 
     // Populate PDF params dropdown
     const pdfEstab = document.getElementById('pdf-param-estab');
