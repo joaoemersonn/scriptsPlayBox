@@ -300,15 +300,15 @@ button[class*="bg-gradient"] i, button[class*="bg-gradient"] svg {
   color: #334155 !important;
 }
 .filter-btn:hover {
-  background-color: #f1f5f9 !important;
-  border-color: #94a3b8 !important;
-  color: #0f172a !important;
+  background-color: #fdf2f8 !important;
+  border-color: #fbcfe8 !important;
+  color: #db2777 !important;
 }
 .filter-btn.active {
-  background-color: #1e293b !important;
-  border-color: #1e293b !important;
+  background-color: #db2777 !important;
+  border-color: #db2777 !important;
   color: #ffffff !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 6px 0 rgba(219, 39, 119, 0.28) !important;
 }
 
 /* Circular Rank Badges (Matches Reference Image 3) */
@@ -317,16 +317,17 @@ button[class*="bg-gradient"] i, button[class*="bg-gradient"] svg {
   color: #ffffff !important;
 }
 .rank-circle-2 {
-  background-color: #14b8a6 !important;
+  background-color: #64748b !important;
   color: #ffffff !important;
 }
 .rank-circle-3 {
-  background-color: #16a34a !important;
+  background-color: #b45309 !important;
   color: #ffffff !important;
 }
 .rank-circle-other {
-  background-color: #64748b !important;
-  color: #ffffff !important;
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
 /* Rank Values (Matches Reference Image 3) */
@@ -334,11 +335,11 @@ button[class*="bg-gradient"] i, button[class*="bg-gradient"] svg {
   color: #d97706 !important;
 }
 .rank-val-2 {
-  color: #0d9488 !important;
+  color: #334155 !important;
 }
 .rank-val-3 {
-  color: #15803d !important;
+  color: #b45309 !important;
 }
 .rank-val-other {
-  color: #334155 !important;
+  color: #0f172a !important;
 }

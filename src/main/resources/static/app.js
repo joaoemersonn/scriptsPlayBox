@@ -614,6 +614,17 @@ function renderPaymentMethodsChart(formas) {
   const debitoEl = document.getElementById('val-pay-debito');
   if (debitoEl) debitoEl.textContent = formatMoney(debito);
 
+  // Update visible percentage badges
+  const calcPerc = (val) => (total > 0 ? `${Math.round((val / total) * 100)}%` : '0%');
+  const percPixEl = document.getElementById('perc-pay-pix');
+  if (percPixEl) percPixEl.textContent = calcPerc(pix);
+  const percEspEl = document.getElementById('perc-pay-especie');
+  if (percEspEl) percEspEl.textContent = calcPerc(especie);
+  const percCredEl = document.getElementById('perc-pay-credito');
+  if (percCredEl) percCredEl.textContent = calcPerc(credito);
+  const percDebEl = document.getElementById('perc-pay-debito');
+  if (percDebEl) percDebEl.textContent = calcPerc(debito);
+
   if (state.charts.paymentMethods) {
     state.charts.paymentMethods.destroy();
   }
@@ -621,8 +632,8 @@ function renderPaymentMethodsChart(formas) {
   // If total is 0, render a light gray empty placeholder ring
   const hasData = total > 0;
   const chartData = hasData ? [pix, especie, credito, debito] : [1];
-  const chartColors = hasData ? ['#bfdbfe', '#2563eb', '#2dd4bf', '#3b82f6'] : ['#e2e8f0'];
-  const labels = hasData ? ['Pix', 'Especie', 'Credito', 'Debito'] : ['Sem Vendas'];
+  const chartColors = hasData ? ['#db2777', '#f59e0b', '#06b6d4', '#8b5cf6'] : ['#f1f5f9'];
+  const labels = hasData ? ['Pix', 'Espécie', 'Crédito', 'Débito'] : ['Sem Vendas'];
 
   state.charts.paymentMethods = new Chart(ctx, {
     type: 'doughnut',
@@ -633,7 +644,7 @@ function renderPaymentMethodsChart(formas) {
           data: chartData,
           backgroundColor: chartColors,
           borderColor: '#ffffff',
-          borderWidth: hasData ? 2 : 0,
+          borderWidth: hasData ? 3 : 0,
           hoverOffset: hasData ? 4 : 0
         }
       ]

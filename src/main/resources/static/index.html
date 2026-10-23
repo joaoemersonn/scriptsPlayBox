@@ -404,42 +404,54 @@
               </div>
 
               <!-- Right: Visible Values List matching Image 1 -->
-              <div class="flex-1 w-full flex flex-col justify-center space-y-4 sm:pl-2">
+              <div class="flex-1 w-full flex flex-col justify-center space-y-3 sm:pl-2">
                 
                 <!-- Pix -->
-                <div class="flex items-start gap-3">
-                  <span class="w-3.5 h-3.5 rounded-full bg-[#bfdbfe] mt-1 shrink-0 border border-slate-200"></span>
-                  <div class="min-w-0">
-                    <div class="text-xs font-medium text-slate-600">Pix</div>
-                    <div id="val-pay-pix" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                <div class="flex items-center justify-between p-2 rounded-xl hover:bg-pink-50/50 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#db2777] shrink-0 shadow-sm"></span>
+                    <div>
+                      <div class="text-xs font-semibold text-slate-500">Pix</div>
+                      <div id="val-pay-pix" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                    </div>
                   </div>
+                  <span id="perc-pay-pix" class="text-xs font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-700">0%</span>
                 </div>
 
-                <!-- Especie -->
-                <div class="flex items-start gap-3">
-                  <span class="w-3.5 h-3.5 rounded-full bg-[#2563eb] mt-1 shrink-0 border border-slate-200"></span>
-                  <div class="min-w-0">
-                    <div class="text-xs font-medium text-slate-600">Especie</div>
-                    <div id="val-pay-especie" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                <!-- Espécie -->
+                <div class="flex items-center justify-between p-2 rounded-xl hover:bg-amber-50/50 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#f59e0b] shrink-0 shadow-sm"></span>
+                    <div>
+                      <div class="text-xs font-semibold text-slate-500">Espécie</div>
+                      <div id="val-pay-especie" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                    </div>
                   </div>
+                  <span id="perc-pay-especie" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">0%</span>
                 </div>
 
-                <!-- Credito -->
-                <div class="flex items-start gap-3">
-                  <span class="w-3.5 h-3.5 rounded-full bg-[#2dd4bf] mt-1 shrink-0 border border-slate-200"></span>
-                  <div class="min-w-0">
-                    <div class="text-xs font-medium text-slate-600">Credito</div>
-                    <div id="val-pay-credito" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                <!-- Crédito -->
+                <div class="flex items-center justify-between p-2 rounded-xl hover:bg-cyan-50/50 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#06b6d4] shrink-0 shadow-sm"></span>
+                    <div>
+                      <div class="text-xs font-semibold text-slate-500">Crédito</div>
+                      <div id="val-pay-credito" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                    </div>
                   </div>
+                  <span id="perc-pay-credito" class="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700">0%</span>
                 </div>
 
-                <!-- Debito -->
-                <div class="flex items-start gap-3">
-                  <span class="w-3.5 h-3.5 rounded-full bg-[#3b82f6] mt-1 shrink-0 border border-slate-200"></span>
-                  <div class="min-w-0">
-                    <div class="text-xs font-medium text-slate-600">Debito</div>
-                    <div id="val-pay-debito" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                <!-- Débito -->
+                <div class="flex items-center justify-between p-2 rounded-xl hover:bg-purple-50/50 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#8b5cf6] shrink-0 shadow-sm"></span>
+                    <div>
+                      <div class="text-xs font-semibold text-slate-500">Débito</div>
+                      <div id="val-pay-debito" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">R$ 0,00</div>
+                    </div>
                   </div>
+                  <span id="perc-pay-debito" class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">0%</span>
                 </div>
 
               </div>
