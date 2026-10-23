@@ -492,7 +492,7 @@
             <!-- Search -->
             <div class="relative">
               <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
-              <input type="text" id="machine-search-input" oninput="filterMachines()" placeholder="Buscar por máquina, loja, ID..." class="bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500 w-52 sm:w-64">
+              <input type="text" id="machine-search-input" oninput="filterMachines()" placeholder="Buscar por máquina, loja, ID..." class="bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500 w-48 sm:w-56">
             </div>
 
             <!-- Filter Status -->
@@ -501,6 +501,20 @@
               <option value="ONLINE">Apenas Online</option>
               <option value="OFFLINE">Apenas Offline</option>
               <option value="LOW_STOCK">Estoque Baixo (< 30)</option>
+            </select>
+
+            <!-- Filter Ativação (Ativas / Inativas) -->
+            <select id="machine-active-filter" onchange="filterMachines()" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500">
+              <option value="ALL">Ativação: Todas</option>
+              <option value="ACTIVE" selected>Apenas Ativas</option>
+              <option value="INACTIVE">Apenas Inativas</option>
+            </select>
+
+            <!-- Filter Loja (Com Loja / Sem Loja) -->
+            <select id="machine-store-filter" onchange="filterMachines()" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500">
+              <option value="ALL">Lojas: Todas</option>
+              <option value="WITH_STORE">Com Loja Alocada</option>
+              <option value="WITHOUT_STORE">Sem Loja (Depósito)</option>
             </select>
 
             <!-- Filter Integrator -->
@@ -512,8 +526,9 @@
             </select>
           </div>
 
-          <!-- Actions -->
+          <!-- Actions & Count Info -->
           <div class="flex items-center gap-2">
+            <span id="machines-count-info" class="text-xs text-slate-500 font-bold hidden sm:inline-block mr-2"></span>
             <button onclick="syncMachines()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shadow-sm transition" title="Buscar novas máquinas nas integradoras">
               <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-600"></i> Sincronizar APIs
             </button>

@@ -138,4 +138,77 @@ class OfflineMonitorServiceTest {
         String evenNewer = OfflineMonitorService.extractLatestTimestamp(machine, zoneId);
         assertEquals("21/10/2026 12:00", evenNewer);
     }
+
+    @Test
+    void testMonitorsOnlyActiveMachinesWithStores() {
+        br.com.playbox.repository.MaquinaRepository mockRepo = org.mockito.Mockito.mock(br.com.playbox.repository.MaquinaRepository.class);
+        AppProperties properties = new AppProperties();
+        OfflineMonitorService serviceWithRepo = new OfflineMonitorService(null, null, null, properties, objectMapper, mockRepo);
+
+        br.com.playbox.entity.Estabelecimento est = new br.com.playbox.entity.Estabelecimento();
+        est.setId(10L);
+        est.setNome("Shopping Plaza");
+        est.setCidade("Recife");
+
+        // Machine 1: Active with store
+        br.com.playbox.entity.Maquina mActive = new br.com.playbox.entity.Maquina();
+        mActive.setId(1L);
+        mActive.setIntegracao("ZAPIZI");
+        mActive.setExternalId("POSX-111");
+        mActive.setNomeIntegracao("Chaves");
+        mActive.setAtivo(true);
+        mActive.setEstabelecimento(est);
+
+        // Machine 2: Inactive with store
+        br.com.playbox.entity.Maquina mInactive = new br.com.playbox.entity.Maquina();
+        mInactive.setId(2L);
+        mInactive.setIntegracao("ZAPIZI");
+        mInactive.setExternalId("POSX-222");
+        mInactive.setNomeIntegracao("Minions");
+        mInactive.setAtivo(false);
+        mInactive.setEstabelecimento(est);
+
+        // Machine 3: Active without store (Sem Loja / Depósito)
+        br.com.playbox.entity.Maquina mNoStore = new br.com.playbox.entity.Maquina();
+        mNoStore.setId(3L);
+        mNoStore.setIntegracao("ZAPIZI");
+        mNoStore.setExternalId("POSX-333");
+        mNoStore.setNomeIntegracao("Reserva");
+        mNoStore.setAtivo(true);
+        mNoStore.setEstabelecimento(null);
+
+        org.mockito.Mockito.when(mockRepo.findByIntegracaoAndExternalId("ZAPIZI", "POSX-111"))
+                .thenReturn(java.util.Optional.of(mActive));
+        org.mockito.Mockito.when(mockRepo.findByIntegracaoAndExternalId("ZAPIZI", "POSX-222"))
+                .thenReturn(java.util.Optional.of(mInactive));
+        org.mockito.Mockito.when(mockRepo.findByIntegracaoAndExternalId("ZAPIZI", "POSX-333"))
+                .thenReturn(java.util.Optional.of(mNoStore));
+
+        ObjectNode node1 = objectMapper.createObjectNode();
+        node1.put("uniqueCode", "POSX-111");
+        node1.put("locationName", "Chaves");
+        node1.put("status", "OFFLINE");
+
+        ObjectNode node2 = objectMapper.createObjectNode();
+        node2.put("uniqueCode", "POSX-222");
+        node2.put("locationName", "Minions");
+        node2.put("status", "OFFLINE");
+
+        ObjectNode node3 = objectMapper.createObjectNode();
+        node3.put("uniqueCode", "POSX-333");
+        node3.put("locationName", "Reserva");
+        node3.put("status", "OFFLINE");
+
+        Map<String, String> result = serviceWithRepo.getOfflineMachinesWithTimestamps(
+                List.of(node1, node2, node3),
+                ZoneId.of("America/Sao_Paulo"),
+                "ZAPIZI"
+        );
+
+        // Only node1 (active with store) should be monitored!
+        assertEquals(1, result.size());
+        assertTrue(result.containsKey("Chaves"));
+        assertFalse(result.containsKey("Minions")); // Inactive
+        assertFalse(result.containsKey("Reserva")); // Sem Loja
+    }
 }

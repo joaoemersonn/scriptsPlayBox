@@ -2,6 +2,8 @@ package br.com.playbox.service;
 
 import br.com.playbox.client.*;
 import br.com.playbox.config.AppProperties;
+import br.com.playbox.entity.Maquina;
+import br.com.playbox.repository.MaquinaRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +37,7 @@ public class OfflineMonitorService {
     private final WhatsAppSender sender;
     private final AppProperties properties;
     private final ObjectMapper objectMapper;
+    private final MaquinaRepository maquinaRepository;
 
     @Autowired
     public OfflineMonitorService(
@@ -42,13 +45,15 @@ public class OfflineMonitorService {
             PayXYZClient payxyzClient,
             ZapiziClient zapiziClient,
             AppProperties properties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Autowired(required = false) MaquinaRepository maquinaRepository
     ) {
         this.vendClient = vendClient;
         this.payxyzClient = payxyzClient;
         this.zapiziClient = zapiziClient;
         this.properties = properties;
         this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
+        this.maquinaRepository = maquinaRepository;
 
         AppProperties.Whatsapp wa = properties.getWhatsapp();
         String baseUrl = wa != null ? wa.getBaseUrl() : "http://whatsapp-bot:3035";
@@ -73,9 +78,19 @@ public class OfflineMonitorService {
             VendProMaxClient vendClient,
             PayXYZClient payxyzClient,
             ZapiziClient zapiziClient,
+            AppProperties properties,
+            ObjectMapper objectMapper
+    ) {
+        this(vendClient, payxyzClient, zapiziClient, properties, objectMapper, null);
+    }
+
+    public OfflineMonitorService(
+            VendProMaxClient vendClient,
+            PayXYZClient payxyzClient,
+            ZapiziClient zapiziClient,
             AppProperties properties
     ) {
-        this(vendClient, payxyzClient, zapiziClient, properties, new ObjectMapper());
+        this(vendClient, payxyzClient, zapiziClient, properties, new ObjectMapper(), null);
     }
 
     public synchronized void run() {
@@ -95,6 +110,8 @@ public class OfflineMonitorService {
         Map<String, String> offlineTimestamps = loadOfflineTimestamps(offlineTimestampsFile);
         offlineTimestamps.keySet().removeIf(m -> m.toLowerCase().contains("sem loja"));
 
+        pruneInactiveOrStorelessMachines(previousOffline, offlineTimestamps);
+
         Path failingIntegrationsFile = dataDir.resolve("failing_integrations.txt");
         Set<String> previousFailingIntegrations = loadFileSet(failingIntegrationsFile);
         Set<String> currentFailingIntegrations = new TreeSet<>();
@@ -110,7 +127,7 @@ public class OfflineMonitorService {
                     properties.getVendpromax().getPassword()
             );
             List<JsonNode> vendMachines = vendClient.getMachines(vendToken);
-            vendOffline = getOfflineMachinesWithTimestamps(vendMachines, zoneId);
+            vendOffline = getOfflineMachinesWithTimestamps(vendMachines, zoneId, "VENDPROMAX");
         } catch (IntegrationException error) {
             handleIntegrationFailure("VendProMax", error.getDetails(), previousFailingIntegrations, currentFailingIntegrations);
         } catch (Exception error) {
@@ -126,7 +143,7 @@ public class OfflineMonitorService {
                     true
             );
             List<JsonNode> payMachines = payxyzClient.getMachines(payToken);
-            payOffline = getOfflineMachinesWithTimestamps(payMachines, zoneId);
+            payOffline = getOfflineMachinesWithTimestamps(payMachines, zoneId, "PAYXYZ");
         } catch (IntegrationException error) {
             handleIntegrationFailure("PayXYZ", error.getDetails(), previousFailingIntegrations, currentFailingIntegrations);
         } catch (Exception error) {
@@ -159,7 +176,7 @@ public class OfflineMonitorService {
                     List.of("POS"),
                     List.of()
             );
-            zapOffline = getOfflineMachinesWithTimestamps(zapMachines, zoneId);
+            zapOffline = getOfflineMachinesWithTimestamps(zapMachines, zoneId, "ZAPIZI");
         } catch (IntegrationException error) {
             handleIntegrationFailure("Zapizi", error.getDetails(), previousFailingIntegrations, currentFailingIntegrations);
         } catch (Exception error) {
@@ -288,6 +305,10 @@ public class OfflineMonitorService {
     }
 
     public Map<String, String> getOfflineMachinesWithTimestamps(List<JsonNode> machines, ZoneId zoneId) {
+        return getOfflineMachinesWithTimestamps(machines, zoneId, null);
+    }
+
+    public Map<String, String> getOfflineMachinesWithTimestamps(List<JsonNode> machines, ZoneId zoneId, String integracao) {
         Map<String, String> result = new LinkedHashMap<>();
         if (machines == null) {
             return result;
@@ -313,13 +334,79 @@ public class OfflineMonitorService {
                     name = machine.get("name").asText().trim();
                 }
 
-                if (name != null && !name.isBlank()) {
-                    if (name.toLowerCase().contains("sem loja")) {
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+
+                String lowerName = name.toLowerCase();
+                if (lowerName.contains("sem loja")) {
+                    continue;
+                }
+
+                // Extrair externalId para verificação no banco de dados
+                String extId = null;
+                if (machine.hasNonNull("id")) {
+                    extId = machine.get("id").asText().trim();
+                } else if (machine.hasNonNull("uniqueCode")) {
+                    extId = machine.get("uniqueCode").asText().trim();
+                }
+
+                // Se houver repositório de máquinas, validar se a máquina está cadastrada, ativa e alocada em loja
+                if (maquinaRepository != null) {
+                    Maquina dbMaquina = null;
+                    if (extId != null) {
+                        final String finalExtId = extId;
+                        if (integracao != null) {
+                            dbMaquina = maquinaRepository.findByIntegracaoAndExternalId(integracao, finalExtId).orElse(null);
+                        } else {
+                            dbMaquina = maquinaRepository.findAll().stream()
+                                    .filter(m -> finalExtId.equalsIgnoreCase(m.getExternalId()))
+                                    .findFirst()
+                                    .orElse(null);
+                        }
+                    }
+
+                    if (dbMaquina == null) {
+                        List<Maquina> allMaquinas = maquinaRepository.findAll();
+                        for (Maquina m : allMaquinas) {
+                            if (m.getNomeIntegracao() != null && m.getNomeIntegracao().equalsIgnoreCase(name)) {
+                                dbMaquina = m;
+                                break;
+                            }
+                            if (m.getEstabelecimento() != null && m.getEstabelecimento().getNome() != null) {
+                                String estNome = m.getEstabelecimento().getNome().toLowerCase();
+                                if (lowerName.contains(estNome) || estNome.contains(lowerName)) {
+                                    dbMaquina = m;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (dbMaquina != null) {
+                        // Não monitora máquinas inativas
+                        if (!dbMaquina.isAtivo()) {
+                            log.info("Máquina '{}' (ID: {}) está inativa. Ignorando do monitoramento offline.", name, dbMaquina.getId());
+                            continue;
+                        }
+                        // Não monitora máquinas sem estabelecimento associado (depósito)
+                        if (dbMaquina.getEstabelecimento() == null) {
+                            log.info("Máquina '{}' (ID: {}) sem loja alocada. Ignorando do monitoramento offline.", name, dbMaquina.getId());
+                            continue;
+                        }
+                        if (dbMaquina.getEstabelecimento().getNome() != null &&
+                            dbMaquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
+                            continue;
+                        }
+                    } else {
+                        // Máquina não encontrada no cadastro do PlayBox
+                        log.info("Máquina '{}' (extId: {}) não encontrada no cadastro de máquinas ativas. Ignorando offline.", name, extId);
                         continue;
                     }
-                    String formattedDate = extractLatestTimestamp(machine, zoneId);
-                    result.put(name, formattedDate);
                 }
+
+                String formattedDate = extractLatestTimestamp(machine, zoneId);
+                result.put(name, formattedDate);
             }
         }
         return result;
@@ -589,6 +676,10 @@ public class OfflineMonitorService {
         Set<String> offline = loadFileSet(previousOfflineFile);
         offline.removeIf(m -> m.toLowerCase().contains("sem loja"));
         Map<String, String> timestamps = loadOfflineTimestamps(offlineTimestampsFile);
+        timestamps.keySet().removeIf(m -> m.toLowerCase().contains("sem loja"));
+
+        pruneInactiveOrStorelessMachines(offline, timestamps);
+
         Set<String> failing = loadFileSet(failingIntegrationsFile);
         String lastNotification = loadFileText(previousMessageFile);
 
@@ -606,5 +697,39 @@ public class OfflineMonitorService {
         status.put("failingIntegrations", new ArrayList<>(failing));
         status.put("ultimaNotificacao", lastNotification);
         return status;
+    }
+
+    public void pruneInactiveOrStorelessMachines(Set<String> offlineSet, Map<String, String> timestampsMap) {
+        if (maquinaRepository == null || offlineSet == null || offlineSet.isEmpty()) {
+            return;
+        }
+        try {
+            List<Maquina> activeWithStore = maquinaRepository.findByAtivoTrue().stream()
+                    .filter(m -> m.getEstabelecimento() != null &&
+                            !m.getEstabelecimento().getNome().toLowerCase().contains("sem loja"))
+                    .toList();
+
+            Set<String> validKeywords = new HashSet<>();
+            for (Maquina m : activeWithStore) {
+                if (m.getNomeIntegracao() != null) validKeywords.add(m.getNomeIntegracao().toLowerCase().trim());
+                if (m.getDescricao() != null) validKeywords.add(m.getDescricao().toLowerCase().trim());
+                if (m.getExternalId() != null) validKeywords.add(m.getExternalId().toLowerCase().trim());
+                if (m.getEstabelecimento() != null && m.getEstabelecimento().getNome() != null) {
+                    validKeywords.add(m.getEstabelecimento().getNome().toLowerCase().trim());
+                }
+            }
+
+            offlineSet.removeIf(offName -> {
+                String lower = offName.toLowerCase().trim();
+                if (lower.contains("sem loja")) return true;
+                return validKeywords.stream().noneMatch(v -> lower.contains(v) || v.contains(lower));
+            });
+
+            if (timestampsMap != null) {
+                timestampsMap.keySet().removeIf(tsName -> !offlineSet.contains(tsName));
+            }
+        } catch (Exception e) {
+            log.warn("Erro ao filtrar máquinas ativas no cache offline: {}", e.getMessage());
+        }
     }
 }

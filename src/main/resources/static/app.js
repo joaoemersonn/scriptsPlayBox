@@ -833,8 +833,8 @@ async function loadMaquinasData() {
     // Render offline banner
     renderOfflineBanner(monitor);
 
-    // Render machines grid
-    renderMachinesGrid(machines, monitor);
+    // Apply active filters and render machines grid
+    filterMachines();
 
     if (window.lucide) lucide.createIcons();
   } catch (err) {
@@ -870,26 +870,32 @@ function renderMachinesGrid(machines, monitor) {
   }
 
   if (machines.length === 0) {
-    grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-sm">Nenhuma máquina encontrada.</div>`;
+    grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-sm">Nenhuma máquina encontrada com os filtros selecionados.</div>`;
     return;
   }
 
   grid.innerHTML = machines.map(m => {
     const name = m.nomeIntegracao || m.descricao || `Máquina #${m.id}`;
     const cleanName = name.toLowerCase().trim();
-    
-    // Check if offline
+    const est = m.estabelecimento;
+    const estName = (est?.nome || '').toLowerCase().trim();
+    const hasStore = !!est;
+    const isActive = m.ativo !== false;
+
+    // A machine without a store or inactive MUST NEVER be shown as OFFLINE
     let isOffline = false;
     let offlineSince = null;
-    for (const [offName, ts] of offlineMap.entries()) {
-      if (cleanName.includes(offName) || offName.includes(cleanName)) {
-        isOffline = true;
-        offlineSince = ts;
-        break;
+    if (hasStore && isActive) {
+      for (const [offName, ts] of offlineMap.entries()) {
+        if (cleanName.includes(offName) || offName.includes(cleanName) ||
+            (estName && (estName.includes(offName) || offName.includes(estName)))) {
+          isOffline = true;
+          offlineSince = ts;
+          break;
+        }
       }
     }
 
-    const est = m.estabelecimento;
     const atual = m.estoqueAtual || 0;
     const cap = m.capacidadeMaxima || 80;
     const perc = cap > 0 ? Math.min(100, Math.round((atual / cap) * 100)) : 0;
@@ -899,8 +905,36 @@ function renderMachinesGrid(machines, monitor) {
     if (perc <= 30) progressColor = 'bg-rose-500';
     else if (perc <= 50) progressColor = 'bg-amber-500';
 
+    // Status Badge
+    let statusBadgeHtml = '';
+    if (!isActive) {
+      statusBadgeHtml = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span> INATIVA
+        </span>
+      `;
+    } else if (!hasStore) {
+      statusBadgeHtml = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span> SEM LOJA (DEPÓSITO)
+        </span>
+      `;
+    } else if (isOffline) {
+      statusBadgeHtml = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+          <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot-red"></span> OFFLINE
+        </span>
+      `;
+    } else {
+      statusBadgeHtml = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green"></span> ONLINE
+        </span>
+      `;
+    }
+
     return `
-      <div class="glass-card p-5 flex flex-col justify-between space-y-4 border ${isOffline ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'} shadow-sm">
+      <div class="glass-card p-5 flex flex-col justify-between space-y-4 border ${isOffline ? 'border-rose-300 bg-rose-50/20' : (!isActive ? 'border-slate-200 bg-slate-50/60 opacity-80' : (!hasStore ? 'border-amber-200 bg-amber-50/15' : 'border-slate-200'))} shadow-sm">
         <div>
           <!-- Top Row: Name & Status -->
           <div class="flex items-start justify-between gap-2">
@@ -911,21 +945,13 @@ function renderMachinesGrid(machines, monitor) {
               </div>
               <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                 <i data-lucide="store" class="w-3 h-3 text-pink-600"></i>
-                <span>${est ? `${est.nome} (${est.cidade || ''})` : '<em class="text-amber-600 font-semibold">Sem Loja (Depósito)</em>'}</span>
+                <span>${est ? `${est.nome} (${est.cidade || ''})` : '<em class="text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded">Sem Loja (Depósito)</em>'}</span>
               </div>
             </div>
 
             <!-- Status Badge -->
             <div>
-              ${isOffline ? `
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                  <span class="w-2 h-2 rounded-full bg-rose-500 pulse-dot-red"></span> OFFLINE
-                </span>
-              ` : `
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green"></span> ONLINE
-                </span>
-              `}
+              ${statusBadgeHtml}
             </div>
           </div>
 
@@ -984,22 +1010,35 @@ function renderMachinesGrid(machines, monitor) {
 }
 
 function filterMachines() {
-  const search = document.getElementById('machine-search-input').value.toLowerCase().trim();
-  const status = document.getElementById('machine-status-filter').value;
-  const integrator = document.getElementById('machine-integrator-filter').value;
+  const search = (document.getElementById('machine-search-input')?.value || '').toLowerCase().trim();
+  const status = document.getElementById('machine-status-filter')?.value || 'ALL';
+  const activeFilter = document.getElementById('machine-active-filter')?.value || 'ALL';
+  const storeFilter = document.getElementById('machine-store-filter')?.value || 'ALL';
+  const integrator = document.getElementById('machine-integrator-filter')?.value || 'ALL';
 
   const offlineMap = new Map();
   if (state.monitorStatus?.maquinasOffline) {
     state.monitorStatus.maquinasOffline.forEach(m => offlineMap.set(m.nome.toLowerCase().trim(), m.offlineDesde));
   }
 
-  const filtered = state.machines.filter(m => {
+  const allMachines = state.machines || [];
+  const filtered = allMachines.filter(m => {
     const name = (m.nomeIntegracao || m.descricao || '').toLowerCase();
-    const est = (m.estabelecimento?.nome || '').toLowerCase();
+    const estName = (m.estabelecimento?.nome || '').toLowerCase();
     const extId = (m.externalId || '').toLowerCase();
+    const isActive = m.ativo !== false;
+    const hasStore = !!m.estabelecimento;
+
+    // Active filter
+    if (activeFilter === 'ACTIVE' && !isActive) return false;
+    if (activeFilter === 'INACTIVE' && isActive) return false;
+
+    // Store filter
+    if (storeFilter === 'WITH_STORE' && !hasStore) return false;
+    if (storeFilter === 'WITHOUT_STORE' && hasStore) return false;
 
     // Text search
-    if (search && !name.includes(search) && !est.includes(search) && !extId.includes(search)) {
+    if (search && !name.includes(search) && !estName.includes(search) && !extId.includes(search)) {
       return false;
     }
 
@@ -1008,21 +1047,30 @@ function filterMachines() {
       return false;
     }
 
-    // Status filter
+    // Offline check: only active machines with store can be offline
     let isOff = false;
-    for (const offName of offlineMap.keys()) {
-      if (name.includes(offName) || offName.includes(name)) {
-        isOff = true;
-        break;
+    if (hasStore && isActive) {
+      for (const offName of offlineMap.keys()) {
+        if (name.includes(offName) || offName.includes(name) ||
+            (estName && (estName.includes(offName) || offName.includes(estName)))) {
+          isOff = true;
+          break;
+        }
       }
     }
 
-    if (status === 'ONLINE' && isOff) return false;
+    // Status filter
+    if (status === 'ONLINE' && (!hasStore || !isActive || isOff)) return false;
     if (status === 'OFFLINE' && !isOff) return false;
     if (status === 'LOW_STOCK' && (m.estoqueAtual || 0) >= (m.estoqueMinimoAlerta || 30)) return false;
 
     return true;
   });
+
+  const countBadge = document.getElementById('machines-count-info');
+  if (countBadge) {
+    countBadge.textContent = `${filtered.length} de ${allMachines.length} máq.`;
+  }
 
   renderMachinesGrid(filtered, state.monitorStatus);
   if (window.lucide) lucide.createIcons();
