@@ -72,7 +72,7 @@ services:
           while true; do sleep 3600; done;
         else
           echo "[NGROK] Iniciando tunel ngrok para playbox-scheduler:8080 com dominio estatico $$NGROK_DOMAIN...";
-          exec /bin/ngrok http playbox-scheduler:8080 --domain="$$NGROK_DOMAIN";
+          exec /bin/ngrok http playbox-scheduler:8080 --url="$$NGROK_DOMAIN";
         fi
 
 networks:
