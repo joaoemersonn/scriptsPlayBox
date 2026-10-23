@@ -94,18 +94,18 @@ function updateApiStatusBadge(connected, text) {
   if (connected) {
     dot.className = 'w-2 h-2 rounded-full bg-emerald-500 pulse-dot-green';
     label.textContent = text || 'API Conectada';
-    label.className = 'text-slate-300 hidden md:inline';
+    label.className = 'text-slate-600 font-semibold hidden md:inline';
   } else {
     dot.className = 'w-2 h-2 rounded-full bg-rose-500 pulse-dot-red';
     label.textContent = text || 'Desconectado';
-    label.className = 'text-rose-400 hidden md:inline font-semibold';
+    label.className = 'text-rose-600 hidden md:inline font-bold';
   }
 }
 
 function openApiKeyModal() {
   document.getElementById('input-api-key').value = state.apiKey;
   document.getElementById('api-modal-status').textContent = 'Chave atual carregada';
-  document.getElementById('api-modal-status').className = 'text-slate-400';
+  document.getElementById('api-modal-status').className = 'text-slate-500 font-medium';
   openModal('modal-api-key');
 }
 
@@ -113,7 +113,7 @@ async function testApiKey() {
   const key = document.getElementById('input-api-key').value.trim();
   const statusEl = document.getElementById('api-modal-status');
   statusEl.textContent = 'Testando...';
-  statusEl.className = 'text-purple-400';
+  statusEl.className = 'text-pink-600 font-semibold';
 
   try {
     const res = await fetch('/health');
@@ -126,14 +126,14 @@ async function testApiKey() {
 
     if (testRes.ok) {
       statusEl.textContent = '✓ Conexão bem-sucedida!';
-      statusEl.className = 'text-emerald-400 font-semibold';
+      statusEl.className = 'text-emerald-600 font-bold';
     } else {
       statusEl.textContent = '✗ Chave rejeitada pelo servidor';
-      statusEl.className = 'text-rose-400 font-semibold';
+      statusEl.className = 'text-rose-600 font-bold';
     }
   } catch (err) {
     statusEl.textContent = '✗ Servidor inacessível';
-    statusEl.className = 'text-rose-400 font-semibold';
+    statusEl.className = 'text-rose-600 font-bold';
   }
 }
 
@@ -160,9 +160,9 @@ function switchTab(tabId) {
   // Update tabs buttons styling
   document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.getAttribute('data-tab') === tabId) {
-      btn.className = 'tab-btn active-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap bg-purple-600/20 text-purple-300 border border-purple-500/30';
+      btn.className = 'tab-btn active-tab flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-pink-50 text-pink-700 border border-pink-200 shadow-sm';
     } else {
-      btn.className = 'tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition whitespace-nowrap text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+      btn.className = 'tab-btn flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition whitespace-nowrap text-slate-600 hover:text-pink-600 hover:bg-pink-50/50';
     }
   });
 
@@ -1138,35 +1138,35 @@ function renderEstoqueTable(items) {
     const isLow = m.estoqueBaixo;
 
     let barColor = 'bg-emerald-500';
-    let statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Normal</span>';
+    let statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Normal</span>';
 
     if (isLow) {
       barColor = 'bg-rose-500';
-      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">Crítico (&lt; 30)</span>';
+      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Crítico (&lt; 30)</span>';
     } else if (perc <= 50) {
       barColor = 'bg-amber-500';
-      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Atenção</span>';
+      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Atenção</span>';
     }
 
     return `
-      <tr class="hover:bg-slate-900/40 transition">
+      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
         <td class="p-3.5">
-          <div class="font-bold text-white">${m.nome}</div>
-          <div class="text-[11px] text-slate-400">${m.estabelecimentoNome ? `${m.estabelecimentoNome} (${m.cidade || ''})` : 'Sem Loja'}</div>
+          <div class="font-extrabold text-slate-900">${m.nome}</div>
+          <div class="text-[11px] text-slate-500">${m.estabelecimentoNome ? `${m.estabelecimentoNome} (${m.cidade || ''})` : 'Sem Loja'}</div>
         </td>
-        <td class="p-3.5 text-slate-400 font-mono text-[11px]">${m.integracao || '--'}</td>
-        <td class="p-3.5 font-bold ${isLow ? 'text-amber-300' : 'text-slate-100'}">${atual} un</td>
+        <td class="p-3.5 text-slate-600 font-mono text-[11px]">${m.integracao || '--'}</td>
+        <td class="p-3.5 font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}">${atual} un</td>
         <td class="p-3.5 w-40">
-          <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+          <div class="flex justify-between text-[11px] text-slate-500 mb-1 font-medium">
             <span>${perc}%</span>
             <span>Máx: ${cap}</span>
           </div>
-          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/60">
             <div class="${barColor} h-full" style="width: ${perc}%"></div>
           </div>
         </td>
         <td class="p-3.5">${statusBadge}</td>
-        <td class="p-3.5 text-slate-400 text-[11px]">${m.ultimaSaida ? formatDate(m.ultimaSaida) : 'Nenhuma'}</td>
+        <td class="p-3.5 text-slate-600 text-[11px] font-medium">${m.ultimaSaida ? formatDate(m.ultimaSaida) : 'Nenhuma'}</td>
         <td class="p-3.5 text-right space-x-1">
           <button onclick="openAbastecerModal(${m.maquinaId}, '${m.nome}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">
             + Abastecer
@@ -1332,24 +1332,24 @@ async function openHistoricoModal(id, nome) {
 
     list.innerHTML = historico.map(h => {
       let badge = '';
-      if (h.tipo === 'ENTRADA') badge = '<span class="px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300">Entrada +' + h.quantidade + '</span>';
-      else if (h.tipo === 'SAIDA_PREMIO') badge = '<span class="px-2 py-0.5 rounded font-bold bg-rose-500/20 text-rose-300">Prêmio -' + h.quantidade + '</span>';
-      else badge = '<span class="px-2 py-0.5 rounded font-bold bg-purple-500/20 text-purple-300">Balanço (' + h.quantidade + ')</span>';
+      if (h.tipo === 'ENTRADA') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Entrada +' + h.quantidade + '</span>';
+      else if (h.tipo === 'SAIDA_PREMIO') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Prêmio -' + h.quantidade + '</span>';
+      else badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Balanço (' + h.quantidade + ')</span>';
 
       return `
-        <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between">
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
           <div class="space-y-1">
             <div class="flex items-center gap-2">
               ${badge}
-              <span class="text-slate-300 font-medium">${h.observacao || h.origem || 'Movimentação'}</span>
+              <span class="text-slate-800 font-semibold">${h.observacao || h.origem || 'Movimentação'}</span>
             </div>
-            <div class="text-[11px] text-slate-500">
+            <div class="text-[11px] text-slate-500 font-medium">
               ${formatDate(h.dataMovimentacao)} ${h.responsavel ? 'por ' + h.responsavel : ''}
             </div>
           </div>
           <div class="text-right">
-            <div class="font-bold text-slate-200">${h.estoqueNovo} un</div>
-            <div class="text-[10px] text-slate-500">era ${h.estoqueAnterior} un</div>
+            <div class="font-extrabold text-slate-900">${h.estoqueNovo} un</div>
+            <div class="text-[10px] text-slate-500 font-medium">era ${h.estoqueAnterior} un</div>
           </div>
         </div>
       `;
@@ -1406,31 +1406,31 @@ function renderColetasTable(items) {
     let difBadge = '--';
 
     if (c.status === 'PENDENTE_CONFERENCIA') {
-      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Pendente de Conferência</span>';
+      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pendente de Conferência</span>';
     } else if (c.status === 'CONFERIDO') {
-      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Conferido (100% OK)</span>';
-      difBadge = '<span class="text-emerald-400 font-bold">R$ 0,00</span>';
+      statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Conferido (100% OK)</span>';
+      difBadge = '<span class="text-emerald-700 font-bold font-mono">R$ 0,00</span>';
     } else if (c.status === 'CONFERIDO_DIVERGENTE') {
       const dif = c.diferenca || 0;
       if (dif > 0) {
-        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">Sobra no Malote</span>';
-        difBadge = `<span class="text-sky-400 font-bold">+${formatMoney(dif)}</span>`;
+        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">Sobra no Malote</span>';
+        difBadge = `<span class="text-sky-700 font-bold font-mono">+${formatMoney(dif)}</span>`;
       } else {
-        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">Falta no Malote</span>';
-        difBadge = `<span class="text-rose-400 font-bold">${formatMoney(dif)}</span>`;
+        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Falta no Malote</span>';
+        difBadge = `<span class="text-rose-700 font-bold font-mono">${formatMoney(dif)}</span>`;
       }
     }
 
     return `
-      <tr class="hover:bg-slate-900/40 transition">
+      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
         <td class="p-3.5">
-          <div class="font-bold text-white">${c.maquinaNome}</div>
-          <div class="text-[11px] text-slate-400">${c.estabelecimentoNome || 'Sem Loja'}</div>
+          <div class="font-extrabold text-slate-900">${c.maquinaNome}</div>
+          <div class="text-[11px] text-slate-500">${c.estabelecimentoNome || 'Sem Loja'}</div>
         </td>
-        <td class="p-3.5 text-slate-300 font-medium">${formatDate(c.dataHoraColeta)}</td>
-        <td class="p-3.5 text-slate-500 text-[11px]">${c.dataHoraUltimaColeta ? formatDate(c.dataHoraUltimaColeta) : 'Primeira Coleta'}</td>
-        <td class="p-3.5 font-bold text-amber-300 font-mono">${formatMoney(c.valorEsperado || 0)}</td>
-        <td class="p-3.5 font-bold text-slate-200 font-mono">${c.valorReal != null ? formatMoney(c.valorReal) : '<em class="text-slate-500">Aguardando...</em>'}</td>
+        <td class="p-3.5 text-slate-700 font-medium">${formatDate(c.dataHoraColeta)}</td>
+        <td class="p-3.5 text-slate-500 text-[11px] font-medium">${c.dataHoraUltimaColeta ? formatDate(c.dataHoraUltimaColeta) : 'Primeira Coleta'}</td>
+        <td class="p-3.5 font-bold text-amber-800 font-mono">${formatMoney(c.valorEsperado || 0)}</td>
+        <td class="p-3.5 font-bold text-slate-900 font-mono">${c.valorReal != null ? formatMoney(c.valorReal) : '<em class="text-slate-400">Aguardando...</em>'}</td>
         <td class="p-3.5 font-mono">${difBadge}</td>
         <td class="p-3.5">${statusBadge}</td>
         <td class="p-3.5 text-right">
@@ -1642,29 +1642,29 @@ function renderAlugueisTable(items) {
     const est = a.estabelecimento || {};
     const isDinamico = est.tipoAluguel === 'DINAMICO';
     const statusBadge = a.pago
-      ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Pago</span>'
-      : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Pendente</span>';
+      ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pago</span>'
+      : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pendente</span>';
 
     return `
-      <tr class="hover:bg-slate-900/40 transition">
+      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
         <td class="p-3.5">
-          <div class="font-bold text-white">${est.nome || 'Loja Desconhecida'}</div>
-          <div class="text-[11px] text-slate-400">${est.responsavel ? 'Resp: ' + est.responsavel : ''}</div>
+          <div class="font-extrabold text-slate-900">${est.nome || 'Loja Desconhecida'}</div>
+          <div class="text-[11px] text-slate-500 font-medium">${est.responsavel ? 'Resp: ' + est.responsavel : ''}</div>
         </td>
-        <td class="p-3.5 text-slate-300 text-xs">${est.cidade || '--'}</td>
-        <td class="p-3.5 text-slate-300 text-xs font-mono">Dia ${est.diaPagamento || 10}</td>
+        <td class="p-3.5 text-slate-700 text-xs font-medium">${est.cidade || '--'}</td>
+        <td class="p-3.5 text-slate-700 text-xs font-mono font-bold">Dia ${est.diaPagamento || 10}</td>
         <td class="p-3.5">
           ${isDinamico ? `
-            <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-300">
-              <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Dinâmico (${est.percentualRepasse || 25}%)
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-pink-700">
+              <i data-lucide="calculator" class="w-3.5 h-3.5 text-pink-600"></i> Dinâmico (${est.percentualRepasse || 25}%)
             </span>
           ` : `
-            <span class="text-xs text-slate-400">Fixo</span>
+            <span class="text-xs text-slate-600 font-medium">Fixo</span>
           `}
         </td>
-        <td class="p-3.5 font-bold text-white font-mono text-sm">${formatMoney(a.valorAluguel || 0)}</td>
+        <td class="p-3.5 font-extrabold text-slate-900 font-mono text-sm">${formatMoney(a.valorAluguel || 0)}</td>
         <td class="p-3.5">${statusBadge}</td>
-        <td class="p-3.5 text-xs text-slate-400">
+        <td class="p-3.5 text-xs text-slate-600 font-medium">
           ${a.pago ? `${formatDate(a.dataPagamento)} (${a.meioPagamento || 'PIX'})` : '--'}
         </td>
         <td class="p-3.5 text-right space-x-1 whitespace-nowrap">
@@ -1838,16 +1838,16 @@ function renderEstabelecimentosGrid(stores) {
           <div class="flex items-start justify-between">
             <div>
               <div class="flex items-center gap-2">
-                <span class="font-bold text-base text-white">${e.nome}</span>
-                ${e.ativo ? '' : '<span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-950/80 text-rose-300 border border-rose-800">Inativo</span>'}
+                <span class="font-extrabold text-base text-slate-900">${e.nome}</span>
+                ${e.ativo ? '' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Inativo</span>'}
               </div>
-              <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-500"></i>
+              <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-medium">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-pink-600"></i>
                 <span>${e.cidade || 'Cidade não informada'}</span>
               </div>
             </div>
 
-            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold ${isDinamico ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-slate-800 text-slate-300'}">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold ${isDinamico ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}">
               ${isDinamico ? `Dinâmico (${e.percentualRepasse || 25}%)` : `Fixo: ${formatMoney(e.valorAcordado || 0)}`}
             </span>
           </div>
@@ -1994,16 +1994,16 @@ async function openPixModal(id, nome) {
     }
 
     list.innerHTML = keys.map(k => `
-      <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between">
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
         <div>
-          <div class="font-bold text-white flex items-center gap-1.5">
-            <span class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">${k.tipo}</span>
-            <span class="font-mono text-emerald-300 select-all">${k.chaveOuDetalhe}</span>
+          <div class="font-bold text-slate-900 flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">${k.tipo}</span>
+            <span class="font-mono text-emerald-700 font-bold select-all">${k.chaveOuDetalhe}</span>
           </div>
-          <div class="text-[11px] text-slate-400 mt-0.5">${k.descricao || ''}</div>
+          <div class="text-[11px] text-slate-500 font-medium mt-1">${k.descricao || ''}</div>
         </div>
-        <button onclick="removerMeioPagamento(${k.id})" class="p-1 text-slate-500 hover:text-rose-400 transition" title="Remover">
-          <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+        <button onclick="removerMeioPagamento(${k.id})" class="p-1.5 text-slate-400 hover:text-rose-600 transition rounded-lg hover:bg-rose-50" title="Remover">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
         </button>
       </div>
     `).join('');
@@ -2161,21 +2161,21 @@ function showToast(message, type = 'info') {
   if (!container) return;
 
   const toast = document.createElement('div');
-  let bg = 'bg-slate-900 border-slate-700 text-slate-100';
+  let bg = 'bg-slate-900 border-slate-800 text-white';
   let icon = 'info';
 
   if (type === 'success') {
-    bg = 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200';
+    bg = 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20';
     icon = 'check-circle';
   } else if (type === 'error') {
-    bg = 'bg-rose-950/90 border-rose-500/40 text-rose-200';
+    bg = 'bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-600/20';
     icon = 'alert-octagon';
   } else if (type === 'warning') {
-    bg = 'bg-amber-950/90 border-amber-500/40 text-amber-200';
+    bg = 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-600/20';
     icon = 'alert-triangle';
   }
 
-  toast.className = `p-3.5 rounded-xl border shadow-xl flex items-center gap-3 text-xs max-w-sm pointer-events-auto transition-all duration-300 animate-fade-in ${bg}`;
+  toast.className = `p-3.5 rounded-2xl border shadow-2xl flex items-center gap-3 text-xs font-semibold max-w-sm pointer-events-auto transition-all duration-300 animate-fade-in ${bg}`;
   toast.innerHTML = `
     <i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i>
     <span class="flex-1 font-medium">${message}</span>

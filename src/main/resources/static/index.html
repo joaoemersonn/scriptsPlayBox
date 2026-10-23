@@ -526,32 +526,32 @@
         <!-- Estoque KPI Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="glass-card p-4 flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-purple-500/10 text-purple-400">
+            <div class="p-3 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100">
               <i data-lucide="layers" class="w-6 h-6"></i>
             </div>
             <div>
-              <div id="estoque-total-pelucias" class="text-2xl font-bold text-white tracking-tight">0 un</div>
-              <div class="text-xs text-slate-400">Pelúcias Totais em Campo</div>
+              <div id="estoque-total-pelucias" class="text-2xl font-black text-slate-900 tracking-tight">0 un</div>
+              <div class="text-xs text-slate-500 font-semibold">Pelúcias Totais em Campo</div>
             </div>
           </div>
 
           <div class="glass-card p-4 flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <div class="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
               <i data-lucide="pie-chart" class="w-6 h-6"></i>
             </div>
             <div>
-              <div id="estoque-media-maquina" class="text-2xl font-bold text-emerald-400 tracking-tight">0 un</div>
-              <div class="text-xs text-slate-400">Média por Máquina</div>
+              <div id="estoque-media-maquina" class="text-2xl font-black text-emerald-700 tracking-tight">0 un</div>
+              <div class="text-xs text-slate-500 font-semibold">Média por Máquina</div>
             </div>
           </div>
 
           <div class="glass-card p-4 flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+            <div class="p-3 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100">
               <i data-lucide="alert-circle" class="w-6 h-6"></i>
             </div>
             <div>
-              <div id="estoque-maquinas-alerta" class="text-2xl font-bold text-amber-300 tracking-tight">0</div>
-              <div class="text-xs text-slate-400">Máquinas em Nível Crítico (&lt; 30 un)</div>
+              <div id="estoque-maquinas-alerta" class="text-2xl font-black text-rose-700 tracking-tight">0</div>
+              <div class="text-xs text-slate-500 font-semibold">Máquinas em Nível Crítico (&lt; 30 un)</div>
             </div>
           </div>
         </div>
@@ -580,7 +580,7 @@
         <div class="glass-card overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+              <thead class="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                 <tr>
                   <th class="p-3.5">Máquina / Ponto</th>
                   <th class="p-3.5">Integrador</th>
@@ -591,7 +591,7 @@
                   <th class="p-3.5 text-right">Ações Rápidas</th>
                 </tr>
               </thead>
-              <tbody id="estoque-table-body" class="divide-y divide-slate-800/60">
+              <tbody id="estoque-table-body" class="divide-y divide-slate-100">
                 <!-- Dynamically populated -->
               </tbody>
             </table>
@@ -608,32 +608,32 @@
         <!-- Coletas Header Summary -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="glass-card p-4 flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+            <div class="p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
               <i data-lucide="clock" class="w-6 h-6"></i>
             </div>
             <div>
-              <div id="coletas-pendentes-total" class="text-2xl font-bold text-amber-300 tracking-tight">0</div>
-              <div class="text-xs text-slate-400">Malotes Aguardando Contagem</div>
+              <div id="coletas-pendentes-total" class="text-2xl font-black text-amber-700 tracking-tight">0</div>
+              <div class="text-xs text-slate-500 font-semibold">Malotes Aguardando Contagem</div>
             </div>
           </div>
 
           <div class="glass-card p-4 flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-purple-500/10 text-purple-400">
+            <div class="p-3 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100">
               <i data-lucide="calculator" class="w-6 h-6"></i>
             </div>
             <div>
-              <div id="coletas-valor-esperado-pendente" class="text-2xl font-bold text-white tracking-tight">R$ 0,00</div>
-              <div class="text-xs text-slate-400">Valor Esperado em Suspenso</div>
+              <div id="coletas-valor-esperado-pendente" class="text-2xl font-black text-slate-900 tracking-tight">R$ 0,00</div>
+              <div class="text-xs text-slate-500 font-semibold">Valor Esperado em Suspenso</div>
             </div>
           </div>
 
           <div class="glass-card p-4 flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
+            <div class="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
               <i data-lucide="check-check" class="w-6 h-6"></i>
             </div>
             <div>
-              <div id="coletas-conferidas-total" class="text-2xl font-bold text-emerald-400 tracking-tight">0</div>
-              <div class="text-xs text-slate-400">Coletas Conferidas</div>
+              <div id="coletas-conferidas-total" class="text-2xl font-black text-emerald-700 tracking-tight">0</div>
+              <div class="text-xs text-slate-500 font-semibold">Coletas Conferidas</div>
             </div>
           </div>
         </div>
@@ -641,7 +641,7 @@
         <!-- Coletas Toolbar -->
         <div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center gap-3">
-            <select id="coletas-filter-status" onchange="loadColetasData()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+            <select id="coletas-filter-status" onchange="loadColetasData()" class="bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
               <option value="">Status: Todos</option>
               <option value="PENDENTE_CONFERENCIA">Apenas Pendentes de Conferência</option>
               <option value="CONFERIDO">Apenas Conferidos (100% OK)</option>
@@ -650,7 +650,7 @@
           </div>
 
           <div>
-            <button onclick="openNovaColetaModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-900/30 transition">
+            <button onclick="openNovaColetaModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">
               <i data-lucide="plus-circle" class="w-4 h-4"></i> Registrar Nova Coleta (Sangria)
             </button>
           </div>
@@ -660,7 +660,7 @@
         <div class="glass-card overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+              <thead class="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                 <tr>
                   <th class="p-3.5">Máquina / Ponto</th>
                   <th class="p-3.5">Data/Hora Coleta</th>
@@ -672,7 +672,7 @@
                   <th class="p-3.5 text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody id="coletas-table-body" class="divide-y divide-slate-800/60">
+              <tbody id="coletas-table-body" class="divide-y divide-slate-100">
                 <!-- Dynamically populated -->
               </tbody>
             </table>
@@ -689,27 +689,27 @@
         <!-- Aluguéis Summary Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="glass-card p-4">
-            <div class="text-xs text-slate-400">Total a Pagar no Mês</div>
-            <div id="alugueis-total-mes" class="text-xl sm:text-2xl font-bold text-white tracking-tight mt-1">R$ 0,00</div>
+            <div class="text-xs text-slate-500 font-semibold">Total a Pagar no Mês</div>
+            <div id="alugueis-total-mes" class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">R$ 0,00</div>
           </div>
           <div class="glass-card p-4">
-            <div class="text-xs text-slate-400">Total Pago</div>
-            <div id="alugueis-total-pago" class="text-xl sm:text-2xl font-bold text-emerald-400 tracking-tight mt-1">R$ 0,00</div>
+            <div class="text-xs text-slate-500 font-semibold">Total Pago</div>
+            <div id="alugueis-total-pago" class="text-xl sm:text-2xl font-black text-emerald-700 tracking-tight mt-1">R$ 0,00</div>
           </div>
           <div class="glass-card p-4">
-            <div class="text-xs text-slate-400">Total Pendente</div>
-            <div id="alugueis-total-pendente" class="text-xl sm:text-2xl font-bold text-amber-300 tracking-tight mt-1">R$ 0,00</div>
+            <div class="text-xs text-slate-500 font-semibold">Total Pendente</div>
+            <div id="alugueis-total-pendente" class="text-xl sm:text-2xl font-black text-amber-700 tracking-tight mt-1">R$ 0,00</div>
           </div>
           <div class="glass-card p-4">
-            <div class="text-xs text-slate-400">Lojas Repasse Dinâmico (25%)</div>
-            <div id="alugueis-total-dinamico" class="text-xl sm:text-2xl font-bold text-purple-300 tracking-tight mt-1">0</div>
+            <div class="text-xs text-slate-500 font-semibold">Lojas Repasse Dinâmico (25%)</div>
+            <div id="alugueis-total-dinamico" class="text-xl sm:text-2xl font-black text-purple-700 tracking-tight mt-1">0</div>
           </div>
         </div>
 
         <!-- Aluguéis Toolbar -->
         <div class="glass-card p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center gap-3">
-            <label class="text-xs text-slate-600 font-bold">Mês de Referência:</label>
+            <label class="text-xs text-slate-700 font-bold">Mês de Referência:</label>
             <input type="month" id="alugueis-month-picker" onchange="loadAlugueisData()" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-pink-500">
             <button onclick="gerarCobrancasMes()" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shadow-sm transition" title="Gerar lançamentos automáticos deste mês para todos os estabelecimentos">
               Gerar Cobranças
@@ -727,7 +727,7 @@
         <div class="glass-card overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+              <thead class="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                 <tr>
                   <th class="p-3.5">Ponto Comercial</th>
                   <th class="p-3.5">Cidade</th>
@@ -739,7 +739,7 @@
                   <th class="p-3.5 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody id="alugueis-table-body" class="divide-y divide-slate-800/60">
+              <tbody id="alugueis-table-body" class="divide-y divide-slate-100">
                 <!-- Dynamically populated -->
               </tbody>
             </table>
@@ -756,11 +756,11 @@
         <!-- Estabelecimentos Toolbar -->
         <div class="glass-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center gap-3">
-            <input type="text" id="estab-search-input" oninput="filterEstabelecimentos()" placeholder="Buscar ponto ou cidade..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500 w-64">
+            <input type="text" id="estab-search-input" oninput="filterEstabelecimentos()" placeholder="Buscar ponto ou cidade..." class="bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100 shadow-sm w-72 transition">
           </div>
 
           <div>
-            <button onclick="openCreateEstabelecimentoModal()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-900/30 transition">
+            <button onclick="openCreateEstabelecimentoModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">
               <i data-lucide="plus" class="w-4 h-4"></i> Novo Ponto Comercial
             </button>
           </div>
@@ -782,22 +782,22 @@
           
           <!-- Parameters Form Column -->
           <div class="glass-card p-5 space-y-4">
-            <div class="flex items-center gap-2 text-sm font-bold text-slate-100 pb-2 border-b border-slate-800">
-              <i data-lucide="sliders" class="w-4 h-4 text-purple-400"></i> Parâmetros do Relatório
+            <div class="flex items-center gap-2 text-sm font-bold text-slate-900 pb-2 border-b border-slate-100">
+              <i data-lucide="sliders" class="w-4 h-4 text-pink-600"></i> Parâmetros do Relatório
             </div>
 
             <!-- Estabelecimento -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Ponto Comercial:</label>
-              <select id="pdf-param-estab" onchange="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Ponto Comercial:</label>
+              <select id="pdf-param-estab" onchange="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
                 <option value="">Consolidado de Todos</option>
               </select>
             </div>
 
             <!-- Período -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Período:</label>
-              <select id="pdf-param-periodo" onchange="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Período:</label>
+              <select id="pdf-param-periodo" onchange="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
                 <option value="mes">Mês Atual</option>
                 <option value="24h-anterior">Ontem (24h)</option>
                 <option value="12h-atual">Últimas 12 Horas</option>
@@ -807,121 +807,121 @@
 
             <!-- Custo Unitário Pelúcia -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Custo Unitário Pelúcia (R$):</label>
-              <input type="number" step="0.10" id="pdf-param-pelucia" value="19.90" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Custo Unitário Pelúcia (R$):</label>
+              <input type="number" step="0.10" id="pdf-param-pelucia" value="19.90" oninput="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
             </div>
 
             <!-- Taxa Maquininha % -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Taxa Maquininha (%):</label>
-              <input type="number" step="0.01" id="pdf-param-taxa" value="4.99" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Taxa Maquininha (%):</label>
+              <input type="number" step="0.01" id="pdf-param-taxa" value="4.99" oninput="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
             </div>
 
             <!-- Mensalidade Telemetria -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Mensalidade Telemetria (R$):</label>
-              <input type="number" step="1.00" id="pdf-param-telemetria" value="69.90" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Mensalidade Telemetria (R$):</label>
+              <input type="number" step="1.00" id="pdf-param-telemetria" value="69.90" oninput="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
             </div>
 
             <!-- Visitas / Manutenções -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Visitas & Manutenção (R$):</label>
-              <input type="number" step="1.00" id="pdf-param-visitas" value="350.00" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Visitas & Manutenção (R$):</label>
+              <input type="number" step="1.00" id="pdf-param-visitas" value="350.00" oninput="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
             </div>
 
             <!-- % Repasse -->
             <div>
-              <label class="block text-xs font-medium text-slate-400 mb-1">Percentual de Repasse (% sobre Lucro):</label>
-              <input type="number" step="1" id="pdf-param-repasse" value="25.0" oninput="previewRelatorioOperacoes()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Percentual de Repasse (% sobre Lucro):</label>
+              <input type="number" step="1" id="pdf-param-repasse" value="25.0" oninput="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
             </div>
 
             <!-- Download Button -->
-            <button onclick="downloadRelatorioPdf()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-900/40 transition">
+            <button onclick="downloadRelatorioPdf()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs shadow-md shadow-pink-500/20 active:scale-95 transition">
               <i data-lucide="download" class="w-4 h-4"></i> Baixar Relatório em PDF
             </button>
           </div>
 
           <!-- Preview & Breakdown Column (2 Cols on lg) -->
           <div class="glass-card p-5 lg:col-span-2 space-y-5">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div class="text-sm font-bold text-slate-100 flex items-center gap-2">
-                <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i> Demonstrativo Financeiro Operacional
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <i data-lucide="calculator" class="w-4 h-4 text-emerald-600"></i> Demonstrativo Financeiro Operacional
               </div>
-              <span id="pdf-preview-title" class="text-xs text-purple-300 font-semibold">Carregando...</span>
+              <span id="pdf-preview-title" class="text-xs text-pink-600 font-bold">Carregando...</span>
             </div>
 
             <!-- Grid with breakdown cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <!-- Entradas -->
-              <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
-                <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+              <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-2">
+                <div class="text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center justify-between">
                   <span>Entradas Brutas</span>
-                  <i data-lucide="arrow-down-left" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="arrow-down-left" class="w-3.5 h-3.5 text-emerald-600"></i>
                 </div>
-                <div id="pdf-prev-entradas-total" class="text-xl font-bold text-white">R$ 0,00</div>
-                <div class="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
-                  <div class="flex justify-between"><span>Maquininha (Pix/Cartão):</span> <span id="pdf-prev-maquininha" class="text-slate-200 font-mono">R$ 0,00</span></div>
-                  <div class="flex justify-between"><span>Espécie (Cofre):</span> <span id="pdf-prev-especie" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                <div id="pdf-prev-entradas-total" class="text-xl font-black text-slate-900">R$ 0,00</div>
+                <div class="text-xs text-slate-600 space-y-1 pt-1.5 border-t border-emerald-200/60 font-medium">
+                  <div class="flex justify-between"><span>Maquininha (Pix/Cartão):</span> <span id="pdf-prev-maquininha" class="text-slate-900 font-mono font-bold">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Espécie (Cofre):</span> <span id="pdf-prev-especie" class="text-slate-900 font-mono font-bold">R$ 0,00</span></div>
                 </div>
               </div>
 
               <!-- Saídas / Custos -->
-              <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
-                <div class="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center justify-between">
+              <div class="p-4 rounded-2xl bg-rose-50/70 border border-rose-100 space-y-2">
+                <div class="text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center justify-between">
                   <span>Saídas & Custos</span>
-                  <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-rose-600"></i>
                 </div>
-                <div id="pdf-prev-saidas-total" class="text-xl font-bold text-rose-300">R$ 0,00</div>
-                <div class="text-xs text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
-                  <div class="flex justify-between"><span>Taxa Maquininha:</span> <span id="pdf-prev-taxa-valor" class="text-slate-200 font-mono">R$ 0,00</span></div>
-                  <div class="flex justify-between"><span>Telemetria:</span> <span id="pdf-prev-telemetria-valor" class="text-slate-200 font-mono">R$ 0,00</span></div>
-                  <div class="flex justify-between"><span>Visitas Técnicas:</span> <span id="pdf-prev-visitas-valor" class="text-slate-200 font-mono">R$ 0,00</span></div>
-                  <div class="flex justify-between"><span>Reposição Pelúcias:</span> <span id="pdf-prev-pelucias-custo" class="text-slate-200 font-mono">R$ 0,00</span></div>
+                <div id="pdf-prev-saidas-total" class="text-xl font-black text-rose-700">R$ 0,00</div>
+                <div class="text-xs text-slate-600 space-y-1 pt-1.5 border-t border-rose-200/60 font-medium">
+                  <div class="flex justify-between"><span>Taxa Maquininha:</span> <span id="pdf-prev-taxa-valor" class="text-slate-900 font-mono font-bold">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Telemetria:</span> <span id="pdf-prev-telemetria-valor" class="text-slate-900 font-mono font-bold">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Visitas Técnicas:</span> <span id="pdf-prev-visitas-valor" class="text-slate-900 font-mono font-bold">R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Reposição Pelúcias:</span> <span id="pdf-prev-pelucias-custo" class="text-slate-900 font-mono font-bold">R$ 0,00</span></div>
                 </div>
               </div>
 
               <!-- Lucro Líquido -->
-              <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
-                <div class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center justify-between">
+              <div class="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 space-y-2">
+                <div class="text-xs font-bold text-sky-700 uppercase tracking-wider flex items-center justify-between">
                   <span>Lucro Operacional</span>
-                  <i data-lucide="pie-chart" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-sky-600"></i>
                 </div>
-                <div id="pdf-prev-lucro-total" class="text-xl font-bold text-sky-300">R$ 0,00</div>
-                <div class="text-xs text-slate-400 pt-1 border-t border-slate-800/80">
+                <div id="pdf-prev-lucro-total" class="text-xl font-black text-sky-800">R$ 0,00</div>
+                <div class="text-xs text-slate-500 pt-1.5 border-t border-sky-200/60 font-medium">
                   <span>Entradas - Todas as Saídas e Custos</span>
                 </div>
               </div>
 
               <!-- Repasse da Loja -->
-              <div class="p-4 rounded-xl bg-purple-950/40 border border-purple-500/40 space-y-2">
-                <div class="text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center justify-between">
+              <div class="p-4 rounded-2xl bg-purple-50/70 border border-purple-100 space-y-2">
+                <div class="text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center justify-between">
                   <span id="pdf-prev-repasse-badge">Repasse Acordado (25%)</span>
-                  <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5 text-purple-600"></i>
                 </div>
-                <div id="pdf-prev-repasse-valor" class="text-xl font-bold text-purple-200">R$ 0,00</div>
-                <div class="text-xs text-purple-300/80 pt-1 border-t border-purple-800/60">
+                <div id="pdf-prev-repasse-valor" class="text-xl font-black text-purple-800">R$ 0,00</div>
+                <div class="text-xs text-purple-600 pt-1.5 border-t border-purple-200/60 font-medium">
                   <span>Valor exato do aluguel / comissão da loja</span>
                 </div>
               </div>
             </div>
 
             <!-- Pelúcias Details -->
-            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80">
-              <div class="text-xs font-bold text-slate-300 mb-2 flex items-center gap-2">
-                <i data-lucide="gift" class="w-4 h-4 text-pink-400"></i> Métricas de Pelúcia
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <i data-lucide="gift" class="w-4 h-4 text-pink-600"></i> Métricas de Pelúcia
               </div>
               <div class="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <div class="text-slate-400">Pelúcias Saídas:</div>
-                  <div id="pdf-prev-pelucias-qtd" class="text-base font-bold text-white">0 un</div>
+                  <div class="text-slate-500 font-medium">Pelúcias Saídas:</div>
+                  <div id="pdf-prev-pelucias-qtd" class="text-base font-black text-slate-900">0 un</div>
                 </div>
                 <div>
-                  <div class="text-slate-400">Custo Unitário:</div>
-                  <div id="pdf-prev-pelucias-unit" class="text-base font-bold text-white">R$ 19,90</div>
+                  <div class="text-slate-500 font-medium">Custo Unitário:</div>
+                  <div id="pdf-prev-pelucias-unit" class="text-base font-black text-slate-900">R$ 19,90</div>
                 </div>
                 <div>
-                  <div class="text-slate-400">Faturamento por Prêmio:</div>
-                  <div id="pdf-prev-rec-premio" class="text-base font-bold text-emerald-400">R$ 0,00</div>
+                  <div class="text-slate-500 font-medium">Faturamento por Prêmio:</div>
+                  <div id="pdf-prev-rec-premio" class="text-base font-black text-emerald-700">R$ 0,00</div>
                 </div>
               </div>
             </div>
@@ -954,266 +954,266 @@
 
   <!-- Modal 1: Abastecer Estoque -->
   <div id="modal-abastecer" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="package-plus" class="w-4 h-4 text-emerald-400"></i> Abastecer Pelúcias (Entrada)
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="package-plus" class="w-4 h-4 text-emerald-600"></i> Abastecer Pelúcias (Entrada)
         </h3>
-        <button onclick="closeModal('modal-abastecer')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-abastecer')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="abastecer-maquina-id">
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Máquina:</label>
-        <div id="abastecer-maquina-nome" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Máquina:</label>
+        <div id="abastecer-maquina-nome" class="text-sm font-extrabold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">--</div>
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Quantidade a Adicionar (Pelúcias):</label>
-        <input type="number" id="abastecer-quantidade" min="1" value="20" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Quantidade a Adicionar (Pelúcias):</label>
+        <input type="number" id="abastecer-quantidade" min="1" value="20" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Responsável pelo Abastecimento:</label>
-        <input type="text" id="abastecer-responsavel" placeholder="Ex: João, Rota Sertânia..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Responsável pelo Abastecimento:</label>
+        <input type="text" id="abastecer-responsavel" placeholder="Ex: João, Rota Sertânia..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Observações (opcional):</label>
-        <input type="text" id="abastecer-observacao" placeholder="Ex: Pelúcias Pokémon e Disney..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Observações (opcional):</label>
+        <input type="text" id="abastecer-observacao" placeholder="Ex: Pelúcias Pokémon e Disney..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-abastecer')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarAbastecimento()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Confirmar Abastecimento</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-abastecer')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarAbastecimento()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition">Confirmar Abastecimento</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 2: Ajustar Inventário / Balanço -->
   <div id="modal-inventario" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="clipboard-check" class="w-4 h-4 text-purple-400"></i> Ajustar Inventário Físico (Balanço)
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="clipboard-check" class="w-4 h-4 text-purple-600"></i> Ajustar Inventário Físico (Balanço)
         </h3>
-        <button onclick="closeModal('modal-inventario')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-inventario')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="inventario-maquina-id">
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Máquina:</label>
-        <div id="inventario-maquina-nome" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Máquina:</label>
+        <div id="inventario-maquina-nome" class="text-sm font-extrabold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">--</div>
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Quantidade Real Contada no Cesto:</label>
-        <input type="number" id="inventario-novo-estoque" min="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Quantidade Real Contada no Cesto:</label>
+        <input type="number" id="inventario-novo-estoque" min="0" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 shadow-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Responsável pelo Balanço:</label>
-        <input type="text" id="inventario-responsavel" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Responsável pelo Balanço:</label>
+        <input type="text" id="inventario-responsavel" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Motivo / Observação:</label>
-        <input type="text" id="inventario-observacao" placeholder="Ex: Contagem física semanal..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Motivo / Observação:</label>
+        <input type="text" id="inventario-observacao" placeholder="Ex: Contagem física semanal..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-inventario')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarInventario()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Novo Estoque</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-inventario')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarInventario()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Salvar Novo Estoque</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 3: Configurar Limites de Estoque -->
   <div id="modal-limites-estoque" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i> Limites de Capacidade & Alerta
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="sliders" class="w-4 h-4 text-sky-600"></i> Limites de Capacidade & Alerta
         </h3>
-        <button onclick="closeModal('modal-limites-estoque')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-limites-estoque')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="limites-maquina-id">
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Máquina:</label>
-        <div id="limites-maquina-nome" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Máquina:</label>
+        <div id="limites-maquina-nome" class="text-sm font-extrabold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">--</div>
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Estoque Mínimo para Alerta (Pelúcias):</label>
-        <input type="number" id="limites-minimo" min="1" value="30" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Estoque Mínimo para Alerta (Pelúcias):</label>
+        <input type="number" id="limites-minimo" min="1" value="30" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 shadow-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100">
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Capacidade Máxima do Cesto (Pelúcias):</label>
-        <input type="number" id="limites-maximo" min="1" value="80" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Capacidade Máxima do Cesto (Pelúcias):</label>
+        <input type="number" id="limites-maximo" min="1" value="80" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 shadow-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100">
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-limites-estoque')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarLimitesEstoque()" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold">Salvar Limites</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-limites-estoque')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarLimitesEstoque()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-600/20 active:scale-95 transition">Salvar Limites</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 4: Histórico de Movimentações de Estoque -->
   <div id="modal-historico-estoque" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-2xl w-full p-6 space-y-4 animate-fade-in max-h-[90vh] flex flex-col">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="history" class="w-4 h-4 text-purple-400"></i> Histórico de Estoque: <span id="historico-maquina-nome" class="text-purple-300"></span>
+    <div class="glass-card max-w-2xl w-full p-6 space-y-4 animate-fade-in max-h-[90vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="history" class="w-4 h-4 text-purple-600"></i> Histórico de Estoque: <span id="historico-maquina-nome" class="text-pink-600"></span>
         </h3>
-        <button onclick="closeModal('modal-historico-estoque')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-historico-estoque')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <div class="overflow-y-auto flex-1 space-y-2 pr-1">
         <div id="historico-estoque-lista" class="space-y-2 text-xs">
           <!-- Populated dynamically -->
         </div>
       </div>
-      <div class="flex justify-end pt-2 border-t border-slate-800 shrink-0">
-        <button onclick="closeModal('modal-historico-estoque')" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Fechar</button>
+      <div class="flex justify-end pt-3 border-t border-slate-100 shrink-0">
+        <button onclick="closeModal('modal-historico-estoque')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Fechar</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 5: Registrar Nova Coleta (Sangria com Cálculo Automático) -->
   <div id="modal-nova-coleta" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="banknote" class="w-4 h-4 text-amber-400"></i> Registrar Retirada de Espécie (Coleta)
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="banknote" class="w-4 h-4 text-amber-600"></i> Registrar Retirada de Espécie (Coleta)
         </h3>
-        <button onclick="closeModal('modal-nova-coleta')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-nova-coleta')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
       <!-- Select Machine -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Selecione a Máquina:</label>
-        <select id="nova-coleta-maquina" onchange="calcularPreviaColeta()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Selecione a Máquina:</label>
+        <select id="nova-coleta-maquina" onchange="calcularPreviaColeta()" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100">
           <option value="">Selecione...</option>
         </select>
       </div>
 
       <!-- Live Calculation Card -->
-      <div id="previa-coleta-card" class="hidden p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-1.5 text-xs">
-        <div class="flex items-center justify-between text-amber-300 font-bold">
+      <div id="previa-coleta-card" class="hidden p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-1.5 text-xs">
+        <div class="flex items-center justify-between text-amber-900 font-bold">
           <span>Valor Esperado Calculado no Cofre:</span>
-          <span id="previa-valor-esperado" class="text-base font-mono">R$ 0,00</span>
+          <span id="previa-valor-esperado" class="text-base font-mono font-black text-amber-700">R$ 0,00</span>
         </div>
-        <div class="text-[11px] text-amber-200/80 flex items-center justify-between">
+        <div class="text-[11px] text-slate-600 font-medium flex items-center justify-between">
           <span>Última Coleta Registrada:</span>
-          <span id="previa-ultima-data">--</span>
+          <span id="previa-ultima-data" class="font-semibold text-slate-800">--</span>
         </div>
-        <div class="text-[11px] text-amber-200/80 flex items-center justify-between">
+        <div class="text-[11px] text-slate-600 font-medium flex items-center justify-between">
           <span>Dinheiro Físico Entrado desde Então:</span>
-          <span id="previa-total-entradas" class="font-mono">R$ 0,00</span>
+          <span id="previa-total-entradas" class="font-mono font-bold text-slate-800">R$ 0,00</span>
         </div>
       </div>
 
       <!-- Date Time of Collection -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Data e Hora da Retirada:</label>
-        <input type="datetime-local" id="nova-coleta-datahora" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Data e Hora da Retirada:</label>
+        <input type="datetime-local" id="nova-coleta-datahora" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100">
       </div>
 
       <!-- Optional Counted Cash now -->
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Valor Contado em Espécie (opcional):</label>
-        <input type="number" step="0.50" id="nova-coleta-valor-real" placeholder="Deixe em branco para contar depois no malote..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
-        <p class="text-[11px] text-slate-500 mt-1">Se não informado agora, a coleta ficará como <strong>Pendente de Conferência</strong> para você contar mais tarde.</p>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Contado em Espécie (opcional):</label>
+        <input type="number" step="0.50" id="nova-coleta-valor-real" placeholder="Deixe em branco para contar depois no malote..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100">
+        <p class="text-[11px] text-slate-500 mt-1 font-medium">Se não informado agora, a coleta ficará como <strong>Pendente de Conferência</strong> para você contar mais tarde.</p>
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Responsável pela Coleta:</label>
-        <input type="text" id="nova-coleta-responsavel" placeholder="Ex: João Silva" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Responsável pela Coleta:</label>
+        <input type="text" id="nova-coleta-responsavel" placeholder="Ex: João Silva" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100">
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Observações:</label>
-        <input type="text" id="nova-coleta-obs" placeholder="Ex: Malote lacrado #042" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Observações:</label>
+        <input type="text" id="nova-coleta-obs" placeholder="Ex: Malote lacrado #042" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100">
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-nova-coleta')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarNovaColeta()" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold">Salvar Coleta</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-nova-coleta')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarNovaColeta()" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md shadow-amber-600/20 active:scale-95 transition">Salvar Coleta</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 6: Conferir Malote de Coleta Pendente -->
   <div id="modal-conferir-coleta" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Conferência de Malote Físico
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Conferência de Malote Físico
         </h3>
-        <button onclick="closeModal('modal-conferir-coleta')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-conferir-coleta')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="conferir-coleta-id">
       
-      <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 text-xs space-y-1">
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5 font-medium">
         <div class="flex justify-between">
-          <span class="text-slate-400">Máquina:</span>
-          <span id="conferir-coleta-maquina" class="text-white font-medium">--</span>
+          <span class="text-slate-500">Máquina:</span>
+          <span id="conferir-coleta-maquina" class="text-slate-900 font-bold">--</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-slate-400">Data Coleta:</span>
-          <span id="conferir-coleta-data" class="text-white">--</span>
+          <span class="text-slate-500">Data Coleta:</span>
+          <span id="conferir-coleta-data" class="text-slate-900">--</span>
         </div>
-        <div class="flex justify-between font-bold pt-1 border-t border-slate-800">
-          <span class="text-slate-300">Valor Esperado do Cofre:</span>
-          <span id="conferir-coleta-esperado" class="text-amber-300 font-mono">R$ 0,00</span>
+        <div class="flex justify-between font-bold pt-1.5 border-t border-slate-200">
+          <span class="text-slate-700">Valor Esperado do Cofre:</span>
+          <span id="conferir-coleta-esperado" class="text-amber-800 font-mono font-black text-sm">R$ 0,00</span>
         </div>
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Valor Físico Real Contado (R$):</label>
-        <input type="number" step="0.50" id="conferir-coleta-valor-real" oninput="calcularDivergenciaModal()" placeholder="Ex: 500.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-base font-bold text-emerald-400 focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Físico Real Contado (R$):</label>
+        <input type="number" step="0.50" id="conferir-coleta-valor-real" oninput="calcularDivergenciaModal()" placeholder="Ex: 500.00" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-base font-extrabold text-emerald-700 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
 
       <!-- Live Divergence Badge -->
-      <div id="conferir-divergencia-box" class="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs flex items-center justify-between font-medium">
-        <span class="text-slate-400">Divergência:</span>
-        <span id="conferir-divergencia-valor" class="font-bold text-slate-200">Digite o valor...</span>
+      <div id="conferir-divergencia-box" class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between font-medium">
+        <span class="text-slate-600 font-semibold">Divergência:</span>
+        <span id="conferir-divergencia-valor" class="font-extrabold text-slate-800">Digite o valor...</span>
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Observações da Conferência:</label>
-        <input type="text" id="conferir-coleta-obs" placeholder="Ex: Conferido por João, notas em perfeito estado..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Observações da Conferência:</label>
+        <input type="text" id="conferir-coleta-obs" placeholder="Ex: Conferido por João, notas em perfeito estado..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-conferir-coleta')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarConferenciaColeta()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Salvar & Enviar Recibo WhatsApp</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-conferir-coleta')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarConferenciaColeta()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition">Salvar & Enviar Recibo WhatsApp</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 7: Registrar Pagamento de Aluguel -->
   <div id="modal-pagar-aluguel" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i> Registrar Pagamento de Aluguel
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="check" class="w-4 h-4 text-emerald-600"></i> Registrar Pagamento de Aluguel
         </h3>
-        <button onclick="closeModal('modal-pagar-aluguel')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-pagar-aluguel')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="pagar-aluguel-id">
       
-      <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-800 text-xs space-y-1">
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5 font-medium">
         <div class="flex justify-between">
-          <span class="text-slate-400">Ponto Comercial:</span>
-          <span id="pagar-aluguel-loja" class="text-white font-medium">--</span>
+          <span class="text-slate-500">Ponto Comercial:</span>
+          <span id="pagar-aluguel-loja" class="text-slate-900 font-bold">--</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-slate-400">Mês de Referência:</span>
-          <span id="pagar-aluguel-mes" class="text-white">--</span>
+          <span class="text-slate-500">Mês de Referência:</span>
+          <span id="pagar-aluguel-mes" class="text-slate-900 font-semibold">--</span>
         </div>
-        <div class="flex justify-between font-bold pt-1 border-t border-slate-800">
-          <span class="text-slate-300">Valor a Pagar:</span>
-          <span id="pagar-aluguel-valor" class="text-emerald-400 font-mono text-sm">R$ 0,00</span>
+        <div class="flex justify-between font-bold pt-1.5 border-t border-slate-200">
+          <span class="text-slate-700">Valor a Pagar:</span>
+          <span id="pagar-aluguel-valor" class="text-emerald-700 font-mono font-black text-sm">R$ 0,00</span>
         </div>
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Data do Pagamento:</label>
-        <input type="date" id="pagar-aluguel-data" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Data do Pagamento:</label>
+        <input type="date" id="pagar-aluguel-data" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Forma de Pagamento:</label>
-        <select id="pagar-aluguel-meio" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Forma de Pagamento:</label>
+        <select id="pagar-aluguel-meio" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
           <option value="PIX">PIX</option>
           <option value="DINHEIRO">Dinheiro em Espécie</option>
           <option value="TRANSFERENCIA">Transferência / TED</option>
@@ -1222,140 +1222,141 @@
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Comprovante / Observações:</label>
-        <input type="text" id="pagar-aluguel-obs" placeholder="Ex: Comprovante enviado via WhatsApp..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Comprovante / Observações:</label>
+        <input type="text" id="pagar-aluguel-obs" placeholder="Ex: Comprovante enviado via WhatsApp..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-pagar-aluguel')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarPagamentoAluguel()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Confirmar Pagamento</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-pagar-aluguel')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarPagamentoAluguel()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition">Confirmar Pagamento</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 8: Definir Valor Manual de Aluguel -->
   <div id="modal-valor-aluguel" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="edit-3" class="w-4 h-4 text-purple-400"></i> Definir Valor do Aluguel
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4 text-purple-600"></i> Definir Valor do Aluguel
         </h3>
-        <button onclick="closeModal('modal-valor-aluguel')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-valor-aluguel')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="valor-aluguel-id">
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Ponto Comercial:</label>
-        <div id="valor-aluguel-loja" class="text-sm font-bold text-white bg-slate-900 p-2.5 rounded-lg border border-slate-800">--</div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Ponto Comercial:</label>
+        <div id="valor-aluguel-loja" class="text-sm font-extrabold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">--</div>
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Novo Valor do Aluguel (R$):</label>
-        <input type="number" step="0.01" id="valor-aluguel-novo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-base font-bold text-white focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Novo Valor do Aluguel (R$):</label>
+        <input type="number" step="0.01" id="valor-aluguel-novo" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-base font-extrabold text-slate-900 shadow-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
       </div>
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Motivo do Ajuste (opcional):</label>
-        <input type="text" id="valor-aluguel-obs" placeholder="Ex: Acordo especial de inauguração..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Motivo do Ajuste (opcional):</label>
+        <input type="text" id="valor-aluguel-obs" placeholder="Ex: Acordo especial de inauguração..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-valor-aluguel')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="confirmarDefinirValorAluguel()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Valor</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-valor-aluguel')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarDefinirValorAluguel()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Salvar Valor</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 9: Cadastrar / Editar Ponto Comercial -->
+  <!-- Modal 9: Cadastrar / Editar Ponto Comercial -->
   <div id="modal-estabelecimento" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 id="modal-estab-title" class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="store" class="w-4 h-4 text-purple-400"></i> Ponto Comercial
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="modal-estab-title" class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="store" class="w-4 h-4 text-pink-600"></i> Ponto Comercial
         </h3>
-        <button onclick="closeModal('modal-estabelecimento')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-estabelecimento')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="estab-id">
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Nome do Estabelecimento:</label>
-        <input type="text" id="estab-nome" placeholder="Ex: Praça do Sabor" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Nome do Estabelecimento:</label>
+        <input type="text" id="estab-nome" placeholder="Ex: Praça do Sabor" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Cidade:</label>
-          <input type="text" id="estab-cidade" placeholder="Ex: Sertânia" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Cidade:</label>
+          <input type="text" id="estab-cidade" placeholder="Ex: Sertânia" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Responsável / Contato:</label>
-          <input type="text" id="estab-responsavel" placeholder="Ex: Seu Carlos" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Responsável / Contato:</label>
+          <input type="text" id="estab-responsavel" placeholder="Ex: Seu Carlos" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Tipo de Aluguel:</label>
-          <select id="estab-tipo-aluguel" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tipo de Aluguel:</label>
+          <select id="estab-tipo-aluguel" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
             <option value="FIXO">Fixo (Valor Mensal)</option>
             <option value="DINAMICO">Dinâmico (% do Lucro)</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Dia do Vencimento:</label>
-          <input type="number" min="1" max="31" id="estab-dia-vencimento" value="10" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Dia do Vencimento:</label>
+          <input type="number" min="1" max="31" id="estab-dia-vencimento" value="10" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Valor Acordado (se Fixo):</label>
-          <input type="number" step="10.00" id="estab-valor-acordado" value="250.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Acordado (se Fixo):</label>
+          <input type="number" step="10.00" id="estab-valor-acordado" value="250.00" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">% do Lucro (se Dinâmico):</label>
-          <input type="number" step="1.0" id="estab-percentual-repasse" value="25.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">% do Lucro (se Dinâmico):</label>
+          <input type="number" step="1.0" id="estab-percentual-repasse" value="25.0" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-pink-700 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
       </div>
 
       <div class="flex items-center gap-2 pt-1">
-        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-          <input type="checkbox" id="estab-ativo" checked class="rounded border-slate-700 text-purple-600 focus:ring-0">
+        <label class="flex items-center gap-2 text-xs text-slate-700 font-semibold cursor-pointer">
+          <input type="checkbox" id="estab-ativo" checked class="rounded border-slate-300 text-pink-600 focus:ring-0">
           Estabelecimento Ativo (gera aluguel normalmente)
         </label>
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-estabelecimento')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="salvarEstabelecimento()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Estabelecimento</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-estabelecimento')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="salvarEstabelecimento()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Salvar Estabelecimento</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 10: Cadastrar / Editar Máquina -->
   <div id="modal-maquina" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 id="modal-maquina-title" class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i> Máquina
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="modal-maquina-title" class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="cpu" class="w-4 h-4 text-pink-600"></i> Máquina
         </h3>
-        <button onclick="closeModal('modal-maquina')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-maquina')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="modal-maquina-id">
 
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Nome / Descrição da Máquina:</label>
-        <input type="text" id="modal-maquina-nome" placeholder="Ex: Grua Rosa - Loja 01" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Nome / Descrição da Máquina:</label>
+        <input type="text" id="modal-maquina-nome" placeholder="Ex: Grua Rosa - Loja 01" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Número na Planilha:</label>
-          <input type="number" id="modal-maquina-numero-planilha" placeholder="Ex: 2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Número na Planilha:</label>
+          <input type="number" id="modal-maquina-numero-planilha" placeholder="Ex: 2" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Plataforma / Integrador:</label>
-          <select id="modal-maquina-integrador" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Plataforma / Integrador:</label>
+          <select id="modal-maquina-integrador" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
             <option value="VENDPROMAX">VendProMax</option>
             <option value="PAYXYZ">PayXYZ</option>
             <option value="ZAPIZI">Zapizi</option>
@@ -1366,39 +1367,39 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">ID Externo no Integrador:</label>
-          <input type="text" id="modal-maquina-external-id" placeholder="Ex: 11481" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">ID Externo no Integrador:</label>
+          <input type="text" id="modal-maquina-external-id" placeholder="Ex: 11481" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Ponto Comercial Alocado:</label>
-          <select id="modal-maquina-estab" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ponto Comercial Alocado:</label>
+          <select id="modal-maquina-estab" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
             <option value="">Sem Estabelecimento (Depósito/Sem Loja)</option>
           </select>
         </div>
       </div>
 
       <div class="flex items-center gap-2 pt-1">
-        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-          <input type="checkbox" id="modal-maquina-ativo" checked class="rounded border-slate-700 text-purple-600 focus:ring-0">
+        <label class="flex items-center gap-2 text-xs text-slate-700 font-semibold cursor-pointer">
+          <input type="checkbox" id="modal-maquina-ativo" checked class="rounded border-slate-300 text-pink-600 focus:ring-0">
           Máquina Ativa na Operação
         </label>
       </div>
 
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-maquina')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="salvarMaquina()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Máquina</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-maquina')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="salvarMaquina()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Salvar Máquina</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 11: Chaves PIX do Estabelecimento -->
   <div id="modal-pix" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="qr-code" class="w-4 h-4 text-emerald-400"></i> Meios de Pagamento & PIX: <span id="pix-estab-nome" class="text-emerald-300"></span>
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="qr-code" class="w-4 h-4 text-emerald-600"></i> Meios de Pagamento & PIX: <span id="pix-estab-nome" class="text-emerald-700"></span>
         </h3>
-        <button onclick="closeModal('modal-pix')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-pix')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
       <input type="hidden" id="pix-estab-id">
 
@@ -1408,51 +1409,51 @@
       </div>
 
       <!-- Add New Key Form -->
-      <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2 text-xs">
-        <div class="font-bold text-slate-300">Adicionar Meio de Pagamento</div>
+      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+        <div class="font-bold text-slate-800">Adicionar Meio de Pagamento</div>
         <div class="grid grid-cols-2 gap-2">
-          <select id="pix-new-tipo" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+          <select id="pix-new-tipo" class="bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-emerald-500">
             <option value="PIX">PIX (Chave)</option>
             <option value="ESPECIE">Espécie</option>
             <option value="CONTA_BANCARIA">Conta Bancária</option>
           </select>
-          <input type="text" id="pix-new-chave" placeholder="Chave PIX / Detalhe" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+          <input type="text" id="pix-new-chave" placeholder="Chave PIX / Detalhe" class="bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-emerald-500">
         </div>
-        <input type="text" id="pix-new-obs" placeholder="Descrição (Ex: Chave Telefone de Carlos)" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
-        <button onclick="adicionarMeioPagamento()" class="w-full py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
+        <input type="text" id="pix-new-obs" placeholder="Descrição (Ex: Chave Telefone de Carlos)" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-medium text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-emerald-500">
+        <button onclick="adicionarMeioPagamento()" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition">
           Salvar Meio de Pagamento
         </button>
       </div>
 
-      <div class="flex justify-end pt-2">
-        <button onclick="closeModal('modal-pix')" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Fechar</button>
+      <div class="flex justify-end pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-pix')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Fechar</button>
       </div>
     </div>
   </div>
 
   <!-- Modal 12: Chave de API (X-API-KEY) -->
   <div id="modal-api-key" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
-    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
-          <i data-lucide="shield-check" class="w-4 h-4 text-purple-400"></i> Conexão & Chave de API
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4 text-pink-600"></i> Conexão & Chave de API
         </h3>
-        <button onclick="closeModal('modal-api-key')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="closeModal('modal-api-key')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
-      <p class="text-xs text-slate-400">
-        As requisições à API REST do PlayBox são autenticadas via header <code class="text-purple-300">X-API-KEY</code>.
+      <p class="text-xs text-slate-600 font-medium">
+        As requisições à API REST do PlayBox são autenticadas via header <code class="text-pink-700 font-bold bg-pink-50 px-1 py-0.5 rounded border border-pink-200">X-API-KEY</code>.
       </p>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Chave de Acesso:</label>
-        <input type="password" id="input-api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs font-mono text-purple-200 focus:outline-none focus:border-purple-500">
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Chave de Acesso:</label>
+        <input type="password" id="input-api-key" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-900 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
       </div>
       <div class="flex items-center justify-between text-xs">
-        <span id="api-modal-status" class="text-slate-400">Clique para testar</span>
-        <button onclick="testApiKey()" class="text-purple-400 hover:underline">Testar Conexão</button>
+        <span id="api-modal-status" class="text-slate-500 font-medium">Clique para testar</span>
+        <button onclick="testApiKey()" class="text-pink-600 font-bold hover:underline">Testar Conexão</button>
       </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button onclick="closeModal('modal-api-key')" class="px-3.5 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium">Cancelar</button>
-        <button onclick="saveApiKey()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Salvar Chave</button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-api-key')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Salvar Chave</button>
       </div>
     </div>
   </div>
