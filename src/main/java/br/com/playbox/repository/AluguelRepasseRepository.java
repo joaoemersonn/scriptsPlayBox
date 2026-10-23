@@ -27,6 +27,18 @@ public interface AluguelRepasseRepository extends JpaRepository<AluguelRepasse, 
 
     List<AluguelRepasse> findByMesAno(String mesAno);
 
+    @Query("SELECT a FROM AluguelRepasse a WHERE a.mesAno = :mesAno ORDER BY a.dataVencimento ASC")
+    List<AluguelRepasse> findByMesAnoOrderByDataVencimentoAsc(@Param("mesAno") String mesAno);
+
+    @Query("SELECT DISTINCT a.mesAno FROM AluguelRepasse a ORDER BY a.mesAno DESC")
+    List<String> findDistinctMesAno();
+
+    @Query("SELECT a FROM AluguelRepasse a ORDER BY a.mesAno DESC, a.dataVencimento ASC")
+    List<AluguelRepasse> findAllOrdered();
+
+    @Query("SELECT a FROM AluguelRepasse a WHERE a.estabelecimento.id = :estabelecimentoId ORDER BY a.mesAno DESC, a.dataVencimento DESC")
+    List<AluguelRepasse> findByEstabelecimentoIdOrderByMesAnoDesc(@Param("estabelecimentoId") Long estabelecimentoId);
+
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
     @Query("DELETE FROM AluguelRepasse a WHERE a.estabelecimento.id = :estabelecimentoId")

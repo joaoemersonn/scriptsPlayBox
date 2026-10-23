@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -249,6 +251,120 @@ public class AluguelService {
 
     public List<AluguelRepasse> listarPagos() {
         return aluguelRepository.findByPagoTrueOrderByDataPagamentoDesc();
+    }
+
+    public List<String> listarMesesDisponiveis() {
+        List<String> meses = new ArrayList<>(aluguelRepository.findDistinctMesAno());
+        String mesAtual = YearMonth.now().toString();
+        if (!meses.contains(mesAtual)) {
+            meses.add(0, mesAtual);
+        }
+        return meses;
+    }
+
+    public List<AluguelRepasse> listar(String mesAno, String status, Long estabelecimentoId, String cidade) {
+        List<AluguelRepasse> lista;
+        if (mesAno != null && !mesAno.isBlank() && !"TODOS".equalsIgnoreCase(mesAno)) {
+            lista = aluguelRepository.findByMesAnoOrderByDataVencimentoAsc(mesAno.trim());
+        } else {
+            lista = aluguelRepository.findAllOrdered();
+        }
+
+        LocalDate hoje = LocalDate.now();
+
+        return lista.stream()
+                .filter(a -> {
+                    if (estabelecimentoId != null && !estabelecimentoId.equals(a.getEstabelecimento().getId())) {
+                        return false;
+                    }
+                    if (cidade != null && !cidade.isBlank() && !"TODAS".equalsIgnoreCase(cidade)) {
+                        if (a.getEstabelecimento().getCidade() == null ||
+                                !a.getEstabelecimento().getCidade().equalsIgnoreCase(cidade.trim())) {
+                            return false;
+                        }
+                    }
+                    if (status != null && !status.isBlank() && !"TODOS".equalsIgnoreCase(status)) {
+                        String st = status.toUpperCase().trim();
+                        switch (st) {
+                            case "PAGO":
+                            case "PAGOS":
+                                return a.isPago();
+                            case "PENDENTE":
+                            case "PENDENTES":
+                            case "EM_ABERTO":
+                            case "ABERTO":
+                                return !a.isPago();
+                            case "VENCIDO":
+                            case "VENCIDOS":
+                                return !a.isPago() && a.getDataVencimento() != null && a.getDataVencimento().isBefore(hoje);
+                            case "NO_PRAZO":
+                                return !a.isPago() && a.getDataVencimento() != null && !a.getDataVencimento().isBefore(hoje);
+                            default:
+                                return true;
+                        }
+                    }
+                    return true;
+                })
+                .toList();
+    }
+
+    public List<AluguelRepasse> listarHistoricoEstabelecimento(Long estabelecimentoId) {
+        return aluguelRepository.findByEstabelecimentoIdOrderByMesAnoDesc(estabelecimentoId);
+    }
+
+    public Map<String, Object> obterResumo(String mesAno) {
+        List<AluguelRepasse> itens;
+        if (mesAno != null && !mesAno.isBlank() && !"TODOS".equalsIgnoreCase(mesAno)) {
+            itens = aluguelRepository.findByMesAnoOrderByDataVencimentoAsc(mesAno.trim());
+        } else {
+            itens = aluguelRepository.findAllOrdered();
+        }
+
+        LocalDate hoje = LocalDate.now();
+
+        double totalGeral = 0.0;
+        double totalPago = 0.0;
+        double totalPendente = 0.0;
+        double totalVencido = 0.0;
+        int qtdPago = 0;
+        int qtdPendente = 0;
+        int qtdVencido = 0;
+        int qtdDinamicos = 0;
+
+        for (AluguelRepasse a : itens) {
+            double val = a.getValor() != null ? a.getValor() : 0.0;
+            totalGeral += val;
+            if (a.isAluguelDinamico() || "DINAMICO".equalsIgnoreCase(a.getTipoAluguel())) {
+                qtdDinamicos++;
+            }
+            if (a.isPago()) {
+                totalPago += val;
+                qtdPago++;
+            } else {
+                if (a.getDataVencimento() != null && a.getDataVencimento().isBefore(hoje)) {
+                    totalVencido += val;
+                    qtdVencido++;
+                } else {
+                    totalPendente += val;
+                    qtdPendente++;
+                }
+            }
+        }
+
+        Map<String, Object> resumo = new HashMap<>();
+        resumo.put("mesAno", (mesAno != null && !mesAno.isBlank()) ? mesAno : "TODOS");
+        resumo.put("totalGeral", Math.round(totalGeral * 100.0) / 100.0);
+        resumo.put("totalPago", Math.round(totalPago * 100.0) / 100.0);
+        resumo.put("totalPendente", Math.round(totalPendente * 100.0) / 100.0);
+        resumo.put("totalVencido", Math.round(totalVencido * 100.0) / 100.0);
+        resumo.put("totalEmAberto", Math.round((totalPendente + totalVencido) * 100.0) / 100.0);
+        resumo.put("qtdTotal", itens.size());
+        resumo.put("qtdPago", qtdPago);
+        resumo.put("qtdPendente", qtdPendente);
+        resumo.put("qtdVencido", qtdVencido);
+        resumo.put("qtdEmAberto", qtdPendente + qtdVencido);
+        resumo.put("qtdDinamicos", qtdDinamicos);
+        return resumo;
     }
 
     @Transactional

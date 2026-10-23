@@ -1823,103 +1823,520 @@ async function excluirColeta(id) {
 // TAB 5: ALUGUÉIS & REPASSES
 // ============================================================================
 
-async function loadAlugueisData() {
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatOnlyDate(dateStr) {
+  if (!dateStr) return '--';
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return formatDate(dateStr);
+}
+
+function formatMesAnoLabel(mesAnoStr) {
+  if (!mesAnoStr) return '--';
+  if (mesAnoStr === 'TODOS') return 'Histórico Geral (Todos os Meses)';
+  const parts = mesAnoStr.split('-');
+  if (parts.length < 2) return mesAnoStr;
+  const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const mIndex = parseInt(parts[1], 10) - 1;
+  const mesNome = (mIndex >= 0 && mIndex < 12) ? meses[mIndex] : parts[1];
+  return `${mesNome} / ${parts[0]}`;
+}
+
+async function loadAlugueisData(preserveFilters = false) {
   try {
-    const monthPicker = document.getElementById('alugueis-month-picker');
-    if (!monthPicker.value) {
-      const today = new Date();
-      monthPicker.value = today.toISOString().slice(0, 7);
+    if (!state.alugueis || typeof state.alugueis !== 'object' || Array.isArray(state.alugueis)) {
+      state.alugueis = {};
     }
-    const targetMonth = monthPicker.value;
+    if (!state.alugueis.selectedStatus) state.alugueis.selectedStatus = 'TODOS';
+    if (!state.alugueis.selectedCidade) state.alugueis.selectedCidade = 'TODAS';
+    if (!state.alugueis.selectedMes) {
+      const today = new Date();
+      state.alugueis.selectedMes = today.toISOString().slice(0, 7);
+    }
 
-    const [pendentes, pagos] = await Promise.all([
-      apiRequest('/api/alugueis/pendentes'),
-      apiRequest('/api/alugueis/pagos')
-    ]);
+    // 1. Carrega lista de meses disponíveis
+    try {
+      const meses = await apiRequest('/api/alugueis/meses');
+      if (Array.isArray(meses) && meses.length > 0) {
+        state.alugueis.mesesDisponiveis = meses;
+        populateAlugueisMesesSelect(meses);
+      }
+    } catch (e) {
+      console.warn('Não foi possível carregar lista de meses de aluguel:', e);
+    }
 
-    state.alugueis = { pendentes, pagos };
+    // 2. Carrega lista de aluguéis do backend
+    let url = '/api/alugueis';
+    if (state.alugueis.selectedMes && state.alugueis.selectedMes !== 'TODOS') {
+      url += `?mesAno=${encodeURIComponent(state.alugueis.selectedMes)}`;
+    }
+    const items = await apiRequest(url);
+    state.alugueis.rawList = Array.isArray(items) ? items : [];
 
-    // Filter by month
-    const all = [...pendentes, ...pagos].filter(a => a.mesReferencia === targetMonth);
+    // 3. Atualiza cidades no select
+    populateAlugueisCidadesSelect(state.alugueis.rawList);
 
-    const totalPagar = all.reduce((acc, a) => acc + (a.valorAluguel || 0), 0);
-    const totalPago = all.filter(a => a.pago).reduce((acc, a) => acc + (a.valorAluguel || 0), 0);
-    const totalPendente = all.filter(a => !a.pago).reduce((acc, a) => acc + (a.valorAluguel || 0), 0);
-    const totalDinamicos = all.filter(a => a.estabelecimento?.tipoAluguel === 'DINAMICO').length;
+    // 4. Aplica filtros e renderiza
+    applyAlugueisFilter();
 
-    document.getElementById('alugueis-total-mes').textContent = formatMoney(totalPagar);
-    document.getElementById('alugueis-total-pago').textContent = formatMoney(totalPago);
-    document.getElementById('alugueis-total-pendente').textContent = formatMoney(totalPendente);
-    document.getElementById('alugueis-total-dinamico').textContent = totalDinamicos;
-
-    renderAlugueisTable(all);
-    if (window.lucide) lucide.createIcons();
   } catch (err) {
     showToast('Erro ao carregar aluguéis: ' + err.message, 'error');
   }
+}
+
+function populateAlugueisMesesSelect(meses) {
+  const select = document.getElementById('alugueis-mes-select');
+  if (!select) return;
+
+  const currentVal = state.alugueis.selectedMes || select.value;
+  select.innerHTML = '';
+
+  // Opção Todos os Meses
+  const optTodos = document.createElement('option');
+  optTodos.value = 'TODOS';
+  optTodos.textContent = 'Histórico Geral (Todos os Meses)';
+  select.appendChild(optTodos);
+
+  meses.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = formatMesAnoLabel(m);
+    select.appendChild(opt);
+  });
+
+  if (currentVal && (meses.includes(currentVal) || currentVal === 'TODOS')) {
+    select.value = currentVal;
+  } else if (meses.length > 0) {
+    select.value = meses[0];
+    state.alugueis.selectedMes = meses[0];
+  }
+
+  updateAluguelMesAtalhoVisual();
+}
+
+function populateAlugueisCidadesSelect(items) {
+  const select = document.getElementById('alugueis-cidade-select');
+  if (!select) return;
+
+  const currentCidade = state.alugueis.selectedCidade || 'TODAS';
+  const cidadesSet = new Set();
+  items.forEach(a => {
+    if (a.estabelecimento && a.estabelecimento.cidade) {
+      cidadesSet.add(a.estabelecimento.cidade.trim());
+    }
+  });
+
+  const cidades = Array.from(cidadesSet).sort();
+  select.innerHTML = '<option value="TODAS">Todas as Cidades</option>';
+  cidades.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    select.appendChild(opt);
+  });
+
+  if (cidades.includes(currentCidade)) {
+    select.value = currentCidade;
+  } else {
+    select.value = 'TODAS';
+    state.alugueis.selectedCidade = 'TODAS';
+  }
+}
+
+function onAluguelMesSelectChange() {
+  const select = document.getElementById('alugueis-mes-select');
+  if (!select) return;
+  state.alugueis.selectedMes = select.value;
+  updateAluguelMesAtalhoVisual();
+  loadAlugueisData(true);
+}
+
+function setAluguelMesAtalho(tipo) {
+  const today = new Date();
+  const mesAtual = today.toISOString().slice(0, 7);
+
+  const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const mesAnterior = prevDate.toISOString().slice(0, 7);
+
+  if (tipo === 'ATUAL') {
+    state.alugueis.selectedMes = mesAtual;
+  } else if (tipo === 'ANTERIOR') {
+    state.alugueis.selectedMes = mesAnterior;
+  } else if (tipo === 'TODOS') {
+    state.alugueis.selectedMes = 'TODOS';
+  }
+
+  const select = document.getElementById('alugueis-mes-select');
+  if (select) select.value = state.alugueis.selectedMes;
+
+  updateAluguelMesAtalhoVisual();
+  loadAlugueisData(true);
+}
+
+function updateAluguelMesAtalhoVisual() {
+  const current = state.alugueis.selectedMes;
+  const today = new Date();
+  const mesAtual = today.toISOString().slice(0, 7);
+  const prevDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const mesAnterior = prevDate.toISOString().slice(0, 7);
+
+  const btnAtual = document.getElementById('btn-atalho-mes-atual');
+  const btnAnterior = document.getElementById('btn-atalho-mes-anterior');
+  const btnTodos = document.getElementById('btn-atalho-mes-todos');
+
+  const activeClass = 'px-2.5 py-1 text-xs font-bold rounded-lg transition text-pink-600 bg-white shadow-xs';
+  const inactiveClass = 'px-2.5 py-1 text-xs font-semibold rounded-lg transition text-slate-600 hover:text-slate-900';
+
+  if (btnAtual) btnAtual.className = (current === mesAtual) ? activeClass : inactiveClass;
+  if (btnAnterior) btnAnterior.className = (current === mesAnterior) ? activeClass : inactiveClass;
+  if (btnTodos) btnTodos.className = (current === 'TODOS') ? activeClass : inactiveClass;
+}
+
+function setAluguelStatusFiltro(status) {
+  state.alugueis.selectedStatus = status;
+
+  // Atualiza visual dos pills
+  const statusMap = {
+    'TODOS': 'filtro-status-todos',
+    'EM_ABERTO': 'filtro-status-em-aberto',
+    'VENCIDO': 'filtro-status-vencido',
+    'PAGO': 'filtro-status-pago'
+  };
+
+  Object.entries(statusMap).forEach(([st, btnId]) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (st === status) {
+      btn.className = 'aluguel-status-pill px-3 py-1 rounded-xl text-xs font-bold transition bg-slate-900 text-white shadow-xs';
+    } else {
+      btn.className = 'aluguel-status-pill px-3 py-1 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200';
+    }
+  });
+
+  applyAlugueisFilter();
+}
+
+function applyAlugueisFilter() {
+  const raw = state.alugueis.rawList || [];
+  const hojeStr = new Date().toISOString().slice(0, 10);
+
+  // 1. Contagens e Totais Gerais para os Cards e Badges
+  let totalPrevisto = 0;
+  let totalPago = 0;
+  let totalPendente = 0;
+  let totalVencido = 0;
+  let qtdTotal = raw.length;
+  let qtdPago = 0;
+  let qtdPendente = 0;
+  let qtdVencido = 0;
+
+  raw.forEach(a => {
+    const val = a.valor || 0;
+    totalPrevisto += val;
+
+    const isVencido = !a.pago && a.dataVencimento && a.dataVencimento < hojeStr;
+
+    if (a.pago) {
+      totalPago += val;
+      qtdPago++;
+    } else {
+      if (isVencido) {
+        totalVencido += val;
+        qtdVencido++;
+      } else {
+        totalPendente += val;
+        qtdPendente++;
+      }
+    }
+  });
+
+  const qtdEmAberto = qtdPendente + qtdVencido;
+
+  // Atualiza KPI Cards
+  const elTotal = document.getElementById('alugueis-total-mes');
+  const elSubTotal = document.getElementById('alugueis-sub-total');
+  const elPago = document.getElementById('alugueis-total-pago');
+  const elSubPago = document.getElementById('alugueis-sub-pago');
+  const elPendente = document.getElementById('alugueis-total-pendente');
+  const elSubPendente = document.getElementById('alugueis-sub-pendente');
+  const elVencido = document.getElementById('alugueis-total-vencido');
+  const elSubVencido = document.getElementById('alugueis-sub-vencido');
+  const cardVencido = document.getElementById('alugueis-card-vencido');
+
+  if (elTotal) elTotal.textContent = formatMoney(totalPrevisto);
+  if (elSubTotal) elSubTotal.textContent = `${qtdTotal} lojas cadastradas`;
+
+  const pctPago = totalPrevisto > 0 ? Math.round((totalPago / totalPrevisto) * 100) : 0;
+  if (elPago) elPago.textContent = formatMoney(totalPago);
+  if (elSubPago) elSubPago.textContent = `${qtdPago} pagas (${pctPago}% do total)`;
+
+  if (elPendente) elPendente.textContent = formatMoney(totalPendente);
+  if (elSubPendente) elSubPendente.textContent = `${qtdPendente} a vencer no prazo`;
+
+  if (elVencido) elVencido.textContent = formatMoney(totalVencido);
+  if (elSubVencido) elSubVencido.textContent = qtdVencido > 0 ? `${qtdVencido} em atraso!` : 'Nenhum atrasado';
+
+  if (cardVencido) {
+    if (qtdVencido > 0) {
+      cardVencido.classList.add('bg-rose-50/50', 'border-rose-300');
+    } else {
+      cardVencido.classList.remove('bg-rose-50/50', 'border-rose-300');
+    }
+  }
+
+  // Atualiza Badges dos botões de Status
+  const bTodos = document.getElementById('badge-count-todos');
+  const bAberto = document.getElementById('badge-count-aberto');
+  const bVencido = document.getElementById('badge-count-vencido');
+  const bPago = document.getElementById('badge-count-pago');
+
+  if (bTodos) bTodos.textContent = `(${qtdTotal})`;
+  if (bAberto) bAberto.textContent = `(${qtdEmAberto})`;
+  if (bVencido) bVencido.textContent = `(${qtdVencido})`;
+  if (bPago) bPago.textContent = `(${qtdPago})`;
+
+  // 2. Filtra a lista para a Tabela
+  const statusFilter = state.alugueis.selectedStatus || 'TODOS';
+  const cidadeSelect = document.getElementById('alugueis-cidade-select');
+  const cidadeFilter = cidadeSelect ? cidadeSelect.value : 'TODAS';
+  const searchInput = document.getElementById('alugueis-search-input');
+  const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  const filtered = raw.filter(a => {
+    const isVencido = !a.pago && a.dataVencimento && a.dataVencimento < hojeStr;
+
+    // Filtro por status
+    if (statusFilter === 'PAGO' && !a.pago) return false;
+    if (statusFilter === 'EM_ABERTO' && a.pago) return false;
+    if (statusFilter === 'VENCIDO' && (a.pago || !isVencido)) return false;
+
+    // Filtro por cidade
+    if (cidadeFilter !== 'TODAS') {
+      const cid = a.estabelecimento?.cidade || '';
+      if (cid.toLowerCase() !== cidadeFilter.toLowerCase()) return false;
+    }
+
+    // Busca textual
+    if (searchVal) {
+      const estNome = (a.estabelecimento?.nome || '').toLowerCase();
+      const estCid = (a.estabelecimento?.cidade || '').toLowerCase();
+      const estResp = (a.estabelecimento?.responsavel || '').toLowerCase();
+      const obs = (a.comprovanteOuObs || '').toLowerCase();
+      const meio = (a.meioPagamentoUtilizado || '').toLowerCase();
+      const mes = (a.mesAno || '').toLowerCase();
+      const match = estNome.includes(searchVal) ||
+                    estCid.includes(searchVal) ||
+                    estResp.includes(searchVal) ||
+                    obs.includes(searchVal) ||
+                    meio.includes(searchVal) ||
+                    mes.includes(searchVal);
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  renderAlugueisTable(filtered);
+  if (window.lucide) lucide.createIcons();
 }
 
 function renderAlugueisTable(items) {
   const tbody = document.getElementById('alugueis-table-body');
   if (!tbody) return;
 
-  if (items.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500">Nenhum aluguel lançado para o mês selecionado. Clique em "Gerar Cobranças" para criar os lançamentos.</td></tr>`;
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="p-8 text-center text-slate-500">
+          <div class="flex flex-col items-center justify-center gap-2">
+            <i data-lucide="inbox" class="w-8 h-8 text-slate-400"></i>
+            <div class="font-bold text-slate-700">Nenhum aluguel encontrado para os filtros selecionados.</div>
+            <div class="text-xs text-slate-500">Altere o mês, a situação de pagamento ou clique em "Gerar Cobranças".</div>
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const hojeTime = new Date().setHours(0,0,0,0);
+
   tbody.innerHTML = items.map(a => {
     const est = a.estabelecimento || {};
-    const isDinamico = est.tipoAluguel === 'DINAMICO';
-    const statusBadge = a.pago
-      ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pago</span>'
-      : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Pendente</span>';
+    const isDinamico = (a.tipoAluguel === 'DINAMICO') || (est.tipoAluguel === 'DINAMICO');
+    const isVencido = !a.pago && a.dataVencimento && a.dataVencimento < hojeStr;
+
+    // Cálculo de dias de atraso ou dias restantes
+    let prazoHtml = '';
+    if (a.pago) {
+      prazoHtml = `
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+          <i data-lucide="check" class="w-3 h-3"></i> Quitado
+        </span>
+        <div class="text-[10px] text-slate-500 mt-0.5">Venc: ${formatOnlyDate(a.dataVencimento)}</div>
+      `;
+    } else if (isVencido) {
+      let diasAtraso = a.diasAtraso;
+      if (!diasAtraso && a.dataVencimento) {
+        const vencTime = new Date(a.dataVencimento + 'T00:00:00').getTime();
+        diasAtraso = Math.max(1, Math.round((hojeTime - vencTime) / (1000 * 60 * 60 * 24)));
+      }
+      prazoHtml = `
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1 shadow-xs animate-pulse">
+          <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i> Atrasado (${diasAtraso}d)
+        </span>
+        <div class="text-[10px] text-rose-700 font-bold mt-0.5">Venceu em: ${formatOnlyDate(a.dataVencimento)}</div>
+      `;
+    } else if (a.dataVencimento === hojeStr) {
+      prazoHtml = `
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
+          <i data-lucide="clock" class="w-3 h-3 text-amber-700"></i> Vence Hoje!
+        </span>
+        <div class="text-[10px] text-amber-700 font-bold mt-0.5">Data: ${formatOnlyDate(a.dataVencimento)}</div>
+      `;
+    } else {
+      let diasRest = 0;
+      if (a.dataVencimento) {
+        const vencTime = new Date(a.dataVencimento + 'T00:00:00').getTime();
+        diasRest = Math.max(0, Math.round((vencTime - hojeTime) / (1000 * 60 * 60 * 24)));
+      }
+      prazoHtml = `
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 inline-flex items-center gap-1">
+          <i data-lucide="calendar" class="w-3 h-3 text-slate-500"></i> No Prazo (${diasRest}d)
+        </span>
+        <div class="text-[10px] text-slate-500 mt-0.5">Venc: ${formatOnlyDate(a.dataVencimento)}</div>
+      `;
+    }
+
+    // Regra de Repasse HTML
+    let regraHtml = '';
+    if (isDinamico) {
+      regraHtml = `
+        <div class="font-bold text-pink-700 flex items-center gap-1 text-[11px]">
+          <i data-lucide="calculator" class="w-3.5 h-3.5 text-pink-600"></i> Dinâmico (${a.percentualRepasse || est.percentualRepasse || 25}%)
+        </div>
+        <div class="text-[10px] text-slate-500 mt-0.5">
+          Lucro Ref ${a.mesCompetencia || '--'}: <span class="font-mono font-bold text-slate-700">${formatMoney(a.lucroCalculado || 0)}</span>
+        </div>
+        ${a.valorManual ? '<span class="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 mt-0.5 inline-block">Valor Fixado</span>' : ''}
+      `;
+    } else {
+      regraHtml = `
+        <div class="font-bold text-slate-700 text-[11px]">Fixo Mensal</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">Acordo: <span class="font-mono font-semibold text-slate-700">${formatMoney(est.valorAcordado || a.valor || 0)}</span></div>
+        ${a.valorManual ? '<span class="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 mt-0.5 inline-block">Ajuste Manual</span>' : ''}
+      `;
+    }
+
+    // Status do Pagamento HTML
+    let statusPagtoHtml = '';
+    if (a.pago) {
+      statusPagtoHtml = `
+        <div class="text-xs font-bold text-emerald-800 flex items-center gap-1">
+          <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i> Quitado em ${formatOnlyDate(a.dataPagamento)}
+        </div>
+        <div class="text-[11px] text-slate-600 font-medium mt-0.5">
+          Meio: <span class="font-bold uppercase text-slate-800">${a.meioPagamentoUtilizado || 'PIX'}</span>
+        </div>
+        ${a.comprovanteOuObs ? `<div class="text-[10px] text-slate-500 italic max-w-xs truncate mt-0.5" title="${escapeHtml(a.comprovanteOuObs)}">${escapeHtml(a.comprovanteOuObs)}</div>` : ''}
+      `;
+    } else {
+      statusPagtoHtml = `
+        <div class="text-xs font-bold ${isVencido ? 'text-rose-700' : 'text-amber-700'} flex items-center gap-1">
+          <i data-lucide="${isVencido ? 'alert-triangle' : 'clock'}" class="w-3.5 h-3.5"></i> ${isVencido ? 'Aguardando Pagamento (Atrasado)' : 'Aguardando Pagamento'}
+        </div>
+        ${a.comprovanteOuObs ? `<div class="text-[10px] text-slate-500 italic max-w-xs truncate mt-0.5" title="${escapeHtml(a.comprovanteOuObs)}">Obs: ${escapeHtml(a.comprovanteOuObs)}</div>` : ''}
+      `;
+    }
+
+    const rowBg = isVencido ? 'bg-rose-50/20 hover:bg-rose-50/40' : 'hover:bg-slate-50/80';
 
     return `
-      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+      <tr class="${rowBg} transition border-b border-slate-100">
+        <!-- Coluna 1: Ponto Comercial & Local -->
         <td class="p-3.5">
-          <div class="font-extrabold text-slate-900">${est.nome || 'Loja Desconhecida'}</div>
-          <div class="text-[11px] text-slate-500 font-medium">${est.responsavel ? 'Resp: ' + est.responsavel : ''}</div>
+          <div class="font-black text-slate-900 text-xs sm:text-sm hover:text-pink-600 transition cursor-pointer flex items-center gap-1.5" onclick="openHistoricoAluguelModal(${est.id}, '${escapeHtml(est.nome)}')" title="Clique para ver o histórico completo de pagamentos desta loja">
+            <span>${escapeHtml(est.nome || 'Ponto Comercial')}</span>
+            <i data-lucide="history" class="w-3.5 h-3.5 text-slate-400 hover:text-pink-600"></i>
+          </div>
+          <div class="text-[11px] text-slate-500 font-medium flex items-center gap-2 mt-0.5 flex-wrap">
+            <span class="font-bold text-slate-700">${escapeHtml(est.cidade || '--')}</span>
+            ${est.responsavel ? `<span>• ${escapeHtml(est.responsavel)}</span>` : ''}
+          </div>
         </td>
-        <td class="p-3.5 text-slate-700 text-xs font-medium">${est.cidade || '--'}</td>
-        <td class="p-3.5 text-slate-700 text-xs font-mono font-bold">Dia ${est.diaPagamento || 10}</td>
+
+        <!-- Coluna 2: Mês Ref. -->
         <td class="p-3.5">
-          ${isDinamico ? `
-            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-pink-700">
-              <i data-lucide="calculator" class="w-3.5 h-3.5 text-pink-600"></i> Dinâmico (${est.percentualRepasse || 25}%)
-            </span>
-          ` : `
-            <span class="text-xs text-slate-600 font-medium">Fixo</span>
-          `}
+          <span class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-lg text-xs">
+            ${a.mesAno || '--'}
+          </span>
         </td>
-        <td class="p-3.5 font-extrabold text-slate-900 font-mono text-sm">${formatMoney(a.valorAluguel || 0)}</td>
-        <td class="p-3.5">${statusBadge}</td>
-        <td class="p-3.5 text-xs text-slate-600 font-medium">
-          ${a.pago ? `${formatDate(a.dataPagamento)} (${a.meioPagamento || 'PIX'})` : '--'}
+
+        <!-- Coluna 3: Vencimento & Prazo -->
+        <td class="p-3.5">
+          ${prazoHtml}
         </td>
+
+        <!-- Coluna 4: Tipo de Repasse -->
+        <td class="p-3.5">
+          ${regraHtml}
+        </td>
+
+        <!-- Coluna 5: Valor do Aluguel -->
+        <td class="p-3.5">
+          <div class="font-mono font-black text-slate-900 text-sm sm:text-base">
+            ${formatMoney(a.valor || 0)}
+          </div>
+        </td>
+
+        <!-- Coluna 6: Situação / Pagamento -->
+        <td class="p-3.5">
+          ${statusPagtoHtml}
+        </td>
+
+        <!-- Coluna 7: Ações Rápidas -->
         <td class="p-3.5 text-right space-x-1 whitespace-nowrap">
+          ${!a.pago ? `
+            <button onclick="openPagarAluguelModal(${a.id})" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs active:scale-95 transition inline-flex items-center gap-1" title="Registrar quitação deste aluguel">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i> Pagar
+            </button>
+          ` : `
+            <button onclick="estornarAluguel(${a.id})" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition inline-flex items-center gap-1" title="Estornar pagamento para pendente">
+              <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> Estornar
+            </button>
+          `}
+
+          <button onclick="openDefinirValorAluguelModal(${a.id}, '${escapeHtml(est.nome)}', ${a.valor || 0})" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold shadow-xs transition" title="Ajustar valor acordado para este mês">
+            Ajustar
+          </button>
+
           ${isDinamico ? `
-            <button onclick="calcularDinamicoIndividual(${a.id})" class="px-2.5 py-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs font-bold transition" title="Recalcular 25% do lucro">
-              Calcular 25%
+            <button onclick="calcularDinamicoIndividual(${a.id})" class="px-2 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 text-xs font-bold transition" title="Recalcular repasse dinâmico (25% do lucro)">
+              <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
             </button>
           ` : ''}
 
-          <button onclick="openDefinirValorAluguelModal(${a.id}, '${est.nome}', ${a.valorAluguel || 0})" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shadow-sm transition" title="Ajustar valor manual desse mês">
-            Ajustar Valor
+          <button onclick="openPixModal(${est.id}, '${escapeHtml(est.nome)}')" class="p-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-emerald-600 shadow-xs transition" title="Ver chaves PIX da loja">
+            <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
           </button>
 
-          ${!a.pago ? `
-            <button onclick="openPagarAluguelModal(${a.id}, '${est.nome}', '${a.mesReferencia}', ${a.valorAluguel || 0})" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition">
-              Pagar
-            </button>
-          ` : `
-            <button onclick="estornarAluguel(${a.id})" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition" title="Voltar para pendente">
-              Estornar
-            </button>
-          `}
-
-          <button onclick="openPixModal(${est.id}, '${est.nome}')" class="p-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-emerald-600 shadow-sm transition" title="Ver PIX da Loja">
-            <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+          <button onclick="openHistoricoAluguelModal(${est.id}, '${escapeHtml(est.nome)}')" class="p-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-purple-600 shadow-xs transition" title="Histórico de pagamentos desta loja">
+            <i data-lucide="history" class="w-3.5 h-3.5"></i>
           </button>
         </td>
       </tr>
@@ -1927,83 +2344,60 @@ function renderAlugueisTable(items) {
   }).join('');
 }
 
-async function gerarCobrancasMes() {
-  const month = document.getElementById('alugueis-month-picker').value;
-  showToast(`Gerando cobranças para o mês ${month}...`, 'info');
-  try {
-    const gerados = await apiRequest(`/api/alugueis/gerar-mes?mesAno=${month}`, { method: 'POST' });
-    showToast(`Cobranças geradas com sucesso! Total: ${gerados.length || 0}`, 'success');
-    loadAlugueisData();
-  } catch (err) {
-    showToast('Erro ao gerar cobranças: ' + err.message, 'error');
-  }
-}
+async function openPagarAluguelModal(aluguelId) {
+  const item = (state.alugueis.rawList || []).find(a => a.id === aluguelId);
+  const est = item?.estabelecimento || {};
 
-async function recalcularDinamicosMes() {
-  const month = document.getElementById('alugueis-month-picker').value;
-  showToast(`Recalculando aluguéis dinâmicos (25%) para ${month}...`, 'info');
-  try {
-    const atualizados = await apiRequest(`/api/alugueis/calcular-dinamicos?mesAno=${month}`, { method: 'POST' });
-    showToast(`Recalculados com sucesso! ${atualizados.length || 0} lojas dinâmicas.`, 'success');
-    loadAlugueisData();
-  } catch (err) {
-    showToast('Erro ao recalcular: ' + err.message, 'error');
-  }
-}
-
-async function calcularDinamicoIndividual(id) {
-  showToast('Calculando aluguel dinâmico (25% do lucro)...', 'info');
-  try {
-    await apiRequest(`/api/alugueis/${id}/calcular-dinamico`, { method: 'POST' });
-    showToast('Aluguel dinâmico recalculado!', 'success');
-    loadAlugueisData();
-  } catch (err) {
-    showToast('Erro ao calcular: ' + err.message, 'error');
-  }
-}
-
-function openDefinirValorAluguelModal(id, loja, valorAtual) {
-  document.getElementById('valor-aluguel-id').value = id;
-  document.getElementById('valor-aluguel-loja').textContent = loja;
-  document.getElementById('valor-aluguel-novo').value = valorAtual;
-  document.getElementById('valor-aluguel-obs').value = '';
-  openModal('modal-valor-aluguel');
-}
-
-async function confirmarDefinirValorAluguel() {
-  const id = document.getElementById('valor-aluguel-id').value;
-  const valor = parseFloat(document.getElementById('valor-aluguel-novo').value);
-  const obs = document.getElementById('valor-aluguel-obs').value.trim();
-
-  if (isNaN(valor) || valor < 0) {
-    showToast('Informe um valor válido.', 'warning');
-    return;
-  }
-
-  try {
-    let url = `/api/alugueis/${id}/valor?valor=${valor}`;
-    if (obs) url += `&obs=${encodeURIComponent(obs)}`;
-    await apiRequest(url, { method: 'PUT' });
-    showToast('Valor do aluguel atualizado com sucesso!', 'success');
-    closeModal('modal-valor-aluguel');
-    loadAlugueisData();
-  } catch (err) {
-    showToast('Erro ao definir valor: ' + err.message, 'error');
-  }
-}
-
-function openPagarAluguelModal(id, loja, mes, valor) {
-  document.getElementById('pagar-aluguel-id').value = id;
-  document.getElementById('pagar-aluguel-loja').textContent = loja;
-  document.getElementById('pagar-aluguel-mes').textContent = mes;
-  document.getElementById('pagar-aluguel-valor').textContent = formatMoney(valor);
+  document.getElementById('pagar-aluguel-id').value = aluguelId;
+  document.getElementById('pagar-aluguel-loja').textContent = est.nome || '--';
+  document.getElementById('pagar-aluguel-mes').textContent = item?.mesAno || '--';
+  document.getElementById('pagar-aluguel-valor').textContent = formatMoney(item?.valor || 0);
 
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById('pagar-aluguel-data').value = today;
   document.getElementById('pagar-aluguel-meio').value = 'PIX';
   document.getElementById('pagar-aluguel-obs').value = '';
 
+  // Carrega chave PIX cadastrada da loja para facilitar a transferência
+  const pixBox = document.getElementById('pagar-aluguel-pix-box');
+  const pixChaveEl = document.getElementById('pagar-aluguel-pix-chave');
+  const btnCopiar = document.getElementById('btn-copiar-pix-modal');
+
+  state.alugueis.currentModalPixKey = null;
+
+  if (pixChaveEl) pixChaveEl.textContent = 'Buscando chave PIX da loja...';
+  if (btnCopiar) btnCopiar.style.display = 'none';
+
   openModal('modal-pagar-aluguel');
+
+  if (est.id) {
+    try {
+      const keys = await apiRequest(`/api/estabelecimentos/${est.id}/meios-pagamento`);
+      const pixKey = Array.isArray(keys) ? (keys.find(k => k.tipo === 'PIX' || k.principal) || keys[0]) : null;
+      if (pixKey && pixKey.chaveOuDetalhe) {
+        state.alugueis.currentModalPixKey = pixKey.chaveOuDetalhe;
+        if (pixChaveEl) pixChaveEl.textContent = pixKey.chaveOuDetalhe;
+        if (btnCopiar) btnCopiar.style.display = 'inline-block';
+      } else {
+        if (pixChaveEl) pixChaveEl.textContent = 'Nenhuma chave PIX cadastrada para este ponto comercial.';
+      }
+    } catch (e) {
+      if (pixChaveEl) pixChaveEl.textContent = 'Não foi possível carregar a chave PIX.';
+    }
+  }
+}
+
+function copiarPixDoModalPagamento() {
+  const key = state.alugueis.currentModalPixKey;
+  if (!key) {
+    showToast('Nenhuma chave PIX para copiar.', 'warning');
+    return;
+  }
+  navigator.clipboard.writeText(key).then(() => {
+    showToast('Chave PIX copiada para a área de transferência!', 'success');
+  }).catch(() => {
+    showToast('Não foi possível copiar automaticamente.', 'warning');
+  });
 }
 
 async function confirmarPagamentoAluguel() {
@@ -2019,22 +2413,141 @@ async function confirmarPagamentoAluguel() {
     });
     showToast('Pagamento de aluguel registrado com sucesso!', 'success');
     closeModal('modal-pagar-aluguel');
-    loadAlugueisData();
+    loadAlugueisData(true);
   } catch (err) {
     showToast('Erro ao registrar pagamento: ' + err.message, 'error');
   }
 }
 
 async function estornarAluguel(id) {
-  if (!confirm('Deseja estornar o pagamento deste aluguel e colocá-lo como pendente?')) return;
+  if (!confirm('Deseja realmente estornar o pagamento deste aluguel e colocá-lo como em aberto?')) return;
   try {
     await apiRequest(`/api/alugueis/${id}/estornar`, { method: 'PUT' });
-    showToast('Pagamento estornado com sucesso!', 'info');
-    loadAlugueisData();
+    showToast('Pagamento estornado com sucesso! Aluguel voltou para em aberto.', 'info');
+    loadAlugueisData(true);
   } catch (err) {
     showToast('Erro ao estornar: ' + err.message, 'error');
   }
 }
+
+function openDefinirValorAluguelModal(id, loja, valorAtual) {
+  document.getElementById('valor-aluguel-id').value = id;
+  document.getElementById('valor-aluguel-loja').textContent = loja;
+  document.getElementById('valor-aluguel-novo').value = valorAtual || 0;
+  document.getElementById('valor-aluguel-obs').value = '';
+  openModal('modal-valor-aluguel');
+}
+
+async function confirmarDefinirValorAluguel() {
+  const id = document.getElementById('valor-aluguel-id').value;
+  const valor = parseFloat(document.getElementById('valor-aluguel-novo').value);
+  const obs = document.getElementById('valor-aluguel-obs').value.trim();
+
+  if (isNaN(valor) || valor < 0) {
+    showToast('Informe um valor válido maior ou igual a zero.', 'warning');
+    return;
+  }
+
+  try {
+    let url = `/api/alugueis/${id}/valor?valor=${valor}`;
+    if (obs) url += `&obs=${encodeURIComponent(obs)}`;
+    await apiRequest(url, { method: 'PUT' });
+    showToast('Valor do aluguel atualizado com sucesso!', 'success');
+    closeModal('modal-valor-aluguel');
+    loadAlugueisData(true);
+  } catch (err) {
+    showToast('Erro ao definir valor: ' + err.message, 'error');
+  }
+}
+
+async function openHistoricoAluguelModal(estabelecimentoId, nomeLoja) {
+  const sub = document.getElementById('historico-aluguel-loja-sub');
+  const tbody = document.getElementById('historico-aluguel-tbody');
+  if (sub) sub.textContent = `Ponto Comercial: ${nomeLoja}`;
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">Carregando histórico do banco de dados...</td></tr>';
+
+  openModal('modal-historico-aluguel');
+
+  try {
+    const list = await apiRequest(`/api/alugueis/estabelecimento/${estabelecimentoId}`);
+    if (!list || list.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">Nenhum registro de aluguel encontrado para esta loja.</td></tr>';
+      return;
+    }
+
+    const hojeStr = new Date().toISOString().slice(0, 10);
+
+    tbody.innerHTML = list.map(a => {
+      const isVencido = !a.pago && a.dataVencimento && a.dataVencimento < hojeStr;
+      const statusBadge = a.pago
+        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pago</span>'
+        : (isVencido
+            ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Atrasado</span>'
+            : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Em Aberto</span>');
+
+      return `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+          <td class="p-2.5 font-mono font-bold text-slate-900">${a.mesAno}</td>
+          <td class="p-2.5 text-slate-600">${formatOnlyDate(a.dataVencimento)}</td>
+          <td class="p-2.5 text-slate-600 font-medium">${a.tipoAluguel || 'FIXO'}</td>
+          <td class="p-2.5 font-mono font-black text-slate-900">${formatMoney(a.valor || 0)}</td>
+          <td class="p-2.5">${statusBadge}</td>
+          <td class="p-2.5 text-slate-600 text-[11px]">
+            ${a.pago ? `Pago em ${formatOnlyDate(a.dataPagamento)} (${a.meioPagamentoUtilizado || 'PIX'})` : '--'}
+            ${a.comprovanteOuObs ? `<div class="italic text-[10px] text-slate-500">${escapeHtml(a.comprovanteOuObs)}</div>` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-rose-500">Erro ao carregar histórico: ${err.message}</td></tr>`;
+  }
+}
+
+async function gerarCobrancasMes() {
+  let mes = state.alugueis.selectedMes;
+  if (!mes || mes === 'TODOS') {
+    mes = new Date().toISOString().slice(0, 7);
+  }
+  showToast(`Gerando cobranças para o mês ${mes}...`, 'info');
+  try {
+    const gerados = await apiRequest(`/api/alugueis/gerar-mes?mesAno=${encodeURIComponent(mes)}`, { method: 'POST' });
+    showToast(`Cobranças geradas! Total de ${gerados.length || 0} lojas processadas.`, 'success');
+    loadAlugueisData(true);
+  } catch (err) {
+    showToast('Erro ao gerar cobranças: ' + err.message, 'error');
+  }
+}
+
+async function recalcularDinamicosMes() {
+  let mes = state.alugueis.selectedMes;
+  if (!mes || mes === 'TODOS') {
+    mes = new Date().toISOString().slice(0, 7);
+  }
+  showToast(`Recalculando aluguéis dinâmicos (25% do lucro) para ${mes}...`, 'info');
+  try {
+    const atualizados = await apiRequest(`/api/alugueis/calcular-dinamicos?mesAno=${encodeURIComponent(mes)}`, { method: 'POST' });
+    showToast(`Recalculados com sucesso! ${atualizados.length || 0} lojas dinâmicas atualizadas.`, 'success');
+    loadAlugueisData(true);
+  } catch (err) {
+    showToast('Erro ao recalcular: ' + err.message, 'error');
+  }
+}
+
+async function calcularDinamicoIndividual(id) {
+  showToast('Calculando repasse dinâmico (25% do lucro)...', 'info');
+  try {
+    await apiRequest(`/api/alugueis/${id}/calcular-dinamico`, { method: 'POST' });
+    showToast('Repasse dinâmico recalculado com sucesso!', 'success');
+    loadAlugueisData(true);
+  } catch (err) {
+    showToast('Erro ao calcular: ' + err.message, 'error');
+  }
+}
+
 
 // ============================================================================
 // TAB 6: PONTOS COMERCIAIS (ESTABELECIMENTOS)

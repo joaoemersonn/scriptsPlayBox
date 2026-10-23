@@ -27,6 +27,42 @@ public class AluguelController {
         this.aluguelService = aluguelService;
     }
 
+    @GetMapping
+    @Operation(summary = "Listar todos os aluguéis e repasses com filtros por mês, status, cidade ou loja")
+    public List<AluguelRepasse> listar(
+            @Parameter(description = "Mês no formato YYYY-MM (ex: 2026-10) ou 'TODOS'", example = "2026-10")
+            @RequestParam(required = false) String mesAno,
+            @Parameter(description = "Status: 'TODOS', 'EM_ABERTO', 'PAGO', 'VENCIDO'", example = "EM_ABERTO")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "ID do estabelecimento (opcional)")
+            @RequestParam(required = false) Long estabelecimentoId,
+            @Parameter(description = "Nome da cidade para filtro (opcional)")
+            @RequestParam(required = false) String cidade
+    ) {
+        return aluguelService.listar(mesAno, status, estabelecimentoId, cidade);
+    }
+
+    @GetMapping("/meses")
+    @Operation(summary = "Listar todos os meses disponíveis com lançamentos no sistema")
+    public List<String> listarMeses() {
+        return aluguelService.listarMesesDisponiveis();
+    }
+
+    @GetMapping("/resumo")
+    @Operation(summary = "Obter resumo estatístico de aluguéis (total, pago, em aberto, vencidos) para um mês ou geral")
+    public Map<String, Object> obterResumo(
+            @Parameter(description = "Mês no formato YYYY-MM (ex: 2026-10) ou vazio para geral", example = "2026-10")
+            @RequestParam(required = false) String mesAno
+    ) {
+        return aluguelService.obterResumo(mesAno);
+    }
+
+    @GetMapping("/estabelecimento/{id}")
+    @Operation(summary = "Listar histórico completo de aluguéis e repasses de um estabelecimento")
+    public List<AluguelRepasse> listarHistoricoEstabelecimento(@PathVariable Long id) {
+        return aluguelService.listarHistoricoEstabelecimento(id);
+    }
+
     @GetMapping("/pendentes")
     @Operation(summary = "Listar aluguéis pendentes de pagamento")
     public List<AluguelRepasse> listarPendentes() {

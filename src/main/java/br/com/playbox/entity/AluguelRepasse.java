@@ -204,4 +204,30 @@ public class AluguelRepasse {
     public void setValorManual(Boolean valorManual) {
         this.valorManual = valorManual;
     }
+
+    @Transient
+    public boolean isAluguelDinamico() {
+        return "DINAMICO".equalsIgnoreCase(tipoAluguel);
+    }
+
+    @Transient
+    public boolean isVencido() {
+        return !pago && dataVencimento != null && dataVencimento.isBefore(LocalDate.now());
+    }
+
+    @Transient
+    public long getDiasAtraso() {
+        if (isVencido()) {
+            return java.time.temporal.ChronoUnit.DAYS.between(dataVencimento, LocalDate.now());
+        }
+        return 0;
+    }
+
+    @Transient
+    public String getStatusFormatado() {
+        if (pago) return "PAGO";
+        if (isVencido()) return "VENCIDO";
+        return "EM_ABERTO";
+    }
 }
+

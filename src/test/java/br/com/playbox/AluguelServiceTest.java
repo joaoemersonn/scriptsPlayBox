@@ -147,4 +147,36 @@ class AluguelServiceTest {
         service.removerCobrancasPendentesDeInativos();
         verify(aluguelRepository, times(1)).deleteByEstabelecimentoAtivoFalseAndPagoFalse();
     }
+
+    @Test
+    @DisplayName("Deve listar e resumir aluguéis com filtros de status e cálculo de vencidos")
+    void testListarEResumoComFiltros() {
+        Estabelecimento loja1 = new Estabelecimento("Loja 1", "Custódia", "João", "Dia 05", 150.0, "2026-01-01");
+        loja1.setId(1L);
+        loja1.setAtivo(true);
+
+        Estabelecimento loja2 = new Estabelecimento("Loja 2", "Monteiro", "Maria", "Dia 28", 200.0, "2026-01-01");
+        loja2.setId(2L);
+        loja2.setAtivo(true);
+
+        // Aluguel 1: vencido no passado e não pago
+        AluguelRepasse a1 = new AluguelRepasse(loja1, "2026-10", LocalDate.of(2026, 10, 5), 150.0);
+        a1.setPago(false);
+
+        // Aluguel 2: a vencer no futuro e não pago
+        AluguelRepasse a2 = new AluguelRepasse(loja2, "2026-10", LocalDate.of(2026, 10, 28), 200.0);
+        a2.setPago(false);
+
+        when(aluguelRepository.findByMesAnoOrderByDataVencimentoAsc("2026-10")).thenReturn(List.of(a1, a2));
+
+        var listaTodos = service.listar("2026-10", "TODOS", null, null);
+        assertEquals(2, listaTodos.size());
+
+        var resumo = service.obterResumo("2026-10");
+        assertEquals(350.0, resumo.get("totalGeral"));
+        assertEquals(0.0, resumo.get("totalPago"));
+        assertEquals(2, resumo.get("qtdTotal"));
+        assertEquals(2, resumo.get("qtdEmAberto"));
+    }
 }
+
