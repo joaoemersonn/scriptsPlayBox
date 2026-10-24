@@ -92,8 +92,9 @@ class ReportGeneratorServiceTest {
         assertTrue(message.contains("💰 Valor Total: R$ 38,00"));
         assertTrue(message.contains("🎁 Prêmios Liberados: 4 unidades"));
         assertTrue(message.contains("💸 Receita/Prêmio: R$ 9,50"));
-        assertTrue(message.contains("🤖 *Casa Nobre - Sertania*"));
-        assertTrue(message.contains("🤖 *Lan House - Custódia*"));
+        assertFalse(message.contains("*Detalhes por Máquina:*"));
+        assertFalse(message.contains("🤖 *Casa Nobre - Sertania*"));
+        assertFalse(message.contains("🤖 *Lan House - Custódia*"));
     }
 }
 

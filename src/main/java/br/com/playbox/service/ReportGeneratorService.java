@@ -364,20 +364,11 @@ public class ReportGeneratorService {
         double totalPremios = reportData.stream().mapToDouble(MachineReport::getQuantidadePremios).sum();
         double receitaGeral = totalPremios > 0.0 ? (totalValor / totalPremios) : 0.0;
 
+        lines.add("");
         lines.add("*Resumo Geral:*");
         lines.add("💰 Valor Total: " + formatCurrency(totalValor));
         lines.add("🎁 Prêmios Liberados: " + ((int) totalPremios) + " unidades");
         lines.add("💸 Receita/Prêmio: " + formatCurrency(receitaGeral));
-        lines.add("");
-        lines.add("*Detalhes por Máquina:*");
-
-        for (MachineReport row : reportData) {
-            lines.add("🤖 *" + row.getNomeMaquina() + "*");
-            lines.add("  💰 Total: " + formatCurrency(row.getValorTotal()));
-            lines.add("  🎁 Prêmios: " + ((int) row.getQuantidadePremios()));
-            lines.add("  💸 Receita/Prêmio: " + formatCurrency(row.getReceitaPorPremioLiberado()));
-            lines.add("");
-        }
 
         return String.join("\n", lines).trim();
     }
