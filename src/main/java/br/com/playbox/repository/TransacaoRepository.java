@@ -19,6 +19,12 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     List<Transacao> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
+    @Query("SELECT t FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp >= :dataHora")
+    List<Transacao> findByMaquinaIdAndTimestampGreaterThanEqual(
+            @Param("maquinaId") Long maquinaId,
+            @Param("dataHora") LocalDateTime dataHora
+    );
+
     @Query("SELECT t FROM Transacao t WHERE t.estabelecimento.id = :estabelecimentoId AND t.timestamp BETWEEN :start AND :end")
     List<Transacao> findByEstabelecimentoAndPeriod(
             @Param("estabelecimentoId") Long estabelecimentoId,

@@ -90,6 +90,19 @@ public class HistoricoVinculoService {
         maquina.setEstabelecimento(estabelecimento);
         maquinaRepository.save(maquina);
 
+        // REPROCESSAMENTO RETROATIVO AUTOMÁTICO:
+        // Caso a data informada seja anterior ao momento atual, reatribui imediatamente todas as transações
+        // já registradas para esta máquina a partir de timestampInicio para o novo estabelecimento.
+        List<Transacao> txsRetroativas = transacaoRepository.findByMaquinaIdAndTimestampGreaterThanEqual(maquinaId, timestampInicio);
+        if (!txsRetroativas.isEmpty()) {
+            for (Transacao tx : txsRetroativas) {
+                tx.setEstabelecimento(estabelecimento);
+            }
+            transacaoRepository.saveAll(txsRetroativas);
+            log.info("[REPROCESSAMENTO-RETROATIVO] {} transações da máquina {} a partir de {} foram transferidas automaticamente para o estabelecimento {}.",
+                    txsRetroativas.size(), maquinaId, timestampInicio, estabelecimentoId);
+        }
+
         log.info("Máquina {} alocada com sucesso no estabelecimento {} a partir de {}.",
                 maquinaId, estabelecimentoId, timestampInicio);
 
@@ -124,6 +137,19 @@ public class HistoricoVinculoService {
         // Remover ponteiro da máquina
         maquina.setEstabelecimento(null);
         maquinaRepository.save(maquina);
+
+        // REPROCESSAMENTO RETROATIVO AUTOMÁTICO NA DESVINCULAÇÃO:
+        // Se a máquina foi retirada retroativamente, as transações a partir da data da retirada
+        // não pertencem mais àquele estabelecimento.
+        List<Transacao> txsRetroativas = transacaoRepository.findByMaquinaIdAndTimestampGreaterThanEqual(maquinaId, timestampFim);
+        if (!txsRetroativas.isEmpty()) {
+            for (Transacao tx : txsRetroativas) {
+                tx.setEstabelecimento(null);
+            }
+            transacaoRepository.saveAll(txsRetroativas);
+            log.info("[REPROCESSAMENTO-RETROATIVO] {} transações da máquina {} a partir de {} foram desvinculadas do estabelecimento por retirada.",
+                    txsRetroativas.size(), maquinaId, timestampFim);
+        }
     }
 
     /**

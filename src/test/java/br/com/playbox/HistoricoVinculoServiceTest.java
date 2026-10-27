@@ -142,4 +142,47 @@ class HistoricoVinculoServiceTest {
         verify(historicoRepository).save(ativo);
         verify(maquinaRepository).save(maquina);
     }
+
+    @Test
+    void deveReprocessarTransacoesRetroativasAoAlocarComDataPassada() {
+        Maquina maquina = new Maquina();
+        maquina.setId(10L);
+
+        Estabelecimento lojaAntiga = new Estabelecimento();
+        lojaAntiga.setId(1L);
+        lojaAntiga.setNome("Loja Antiga");
+
+        Estabelecimento lojaNova = new Estabelecimento();
+        lojaNova.setId(2L);
+        lojaNova.setNome("Loja Nova");
+
+        when(maquinaRepository.findById(10L)).thenReturn(Optional.of(maquina));
+        when(estabelecimentoRepository.findById(2L)).thenReturn(Optional.of(lojaNova));
+
+        // Transações que ocorreram ontem a partir das 14:00 e estavam na loja antiga
+        br.com.playbox.entity.Transacao tx1 = new br.com.playbox.entity.Transacao();
+        tx1.setMaquina(maquina);
+        tx1.setEstabelecimento(lojaAntiga);
+        tx1.setTimestamp(LocalDateTime.of(2026, 10, 26, 15, 30));
+
+        br.com.playbox.entity.Transacao tx2 = new br.com.playbox.entity.Transacao();
+        tx2.setMaquina(maquina);
+        tx2.setEstabelecimento(lojaAntiga);
+        tx2.setTimestamp(LocalDateTime.of(2026, 10, 26, 18, 0));
+
+        LocalDateTime dataTrocaOntem = LocalDateTime.of(2026, 10, 26, 14, 0);
+
+        when(transacaoRepository.findByMaquinaIdAndTimestampGreaterThanEqual(10L, dataTrocaOntem))
+                .thenReturn(List.of(tx1, tx2));
+
+        when(historicoRepository.save(any(HistoricoVinculoMaquina.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.alocarMaquina(10L, 2L, dataTrocaOntem, "Troca feita ontem");
+
+        // Ambas as transações devem ter sido atualizadas para a Loja Nova imediatamente
+        assertEquals(lojaNova, tx1.getEstabelecimento());
+        assertEquals(lojaNova, tx2.getEstabelecimento());
+        verify(transacaoRepository).saveAll(List.of(tx1, tx2));
+    }
 }
