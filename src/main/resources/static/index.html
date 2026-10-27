@@ -81,6 +81,13 @@
           </div>
         </div>
 
+        <div class="flex items-center justify-between text-xs pt-0.5">
+          <label class="flex items-center gap-2 cursor-pointer text-slate-600 select-none">
+            <input type="checkbox" id="login-remember" checked class="w-4 h-4 rounded text-pink-600 focus:ring-pink-500 border-slate-300">
+            <span>Lembrar minhas credenciais neste navegador</span>
+          </label>
+        </div>
+
         <div id="login-error-msg" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-center gap-2">
           <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-500"></i>
           <span id="login-error-text">Credenciais inválidas</span>
@@ -175,6 +182,9 @@
         </button>
         <button onclick="switchTab('relatorios')" data-tab="relatorios" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="file-text" class="w-4 h-4"></i> Relatório PDF
+        </button>
+        <button onclick="switchTab('configuracoes')" data-tab="configuracoes" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="sliders" class="w-4 h-4"></i> Configurações de Relatório
         </button>
       </div>
     </header>
@@ -1284,6 +1294,263 @@
 
       </section>
 
+      <!-- ========================================== -->
+      <!-- TAB 9: CONFIGURAÇÕES DE RELATÓRIO & WHATSAPP -->
+      <!-- ========================================== -->
+      <section id="tab-configuracoes" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Header Banner -->
+        <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-200/90 shadow-sm bg-gradient-to-r from-white via-slate-50/50 to-pink-50/30">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 text-pink-600 font-extrabold text-xs tracking-wider uppercase">
+              <i data-lucide="sliders" class="w-4 h-4"></i> Automação & Disparos
+            </div>
+            <h2 class="text-xl font-black text-slate-900 tracking-tight">Configurações de Relatórios & WhatsApp</h2>
+            <p class="text-xs text-slate-500 max-w-2xl">
+              Configure o formato das mensagens, horários dos agendamentos diários e grupos de destino do WhatsApp em tempo real. As alterações entram em vigor imediatamente sem reiniciar o servidor.
+            </p>
+          </div>
+          <div class="flex items-center gap-2.5 shrink-0">
+            <button onclick="loadConfiguracoesRelatorio()" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm transition flex items-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recarregar
+            </button>
+            <button onclick="salvarConfiguracoesRelatorio()" class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 shadow-md shadow-pink-500/20 active:scale-95 transition flex items-center gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i> Salvar Configurações
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Card 1: Formato e Detalhamento do Relatório WhatsApp -->
+          <div class="glass-card p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 bg-white">
+            <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div class="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-slate-900">Formato do Relatório no WhatsApp</h3>
+                <p class="text-[11px] text-slate-400">Escolha o nível de detalhamento das mensagens disparadas</p>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-slate-700 mb-1">Modo de Exibição das Mensagens:</label>
+              
+              <!-- Option 1: Detalhado por Estabelecimento -->
+              <label class="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 hover:border-pink-300 hover:bg-pink-50/20 cursor-pointer transition">
+                <input type="radio" name="config-tipo-exibicao" value="DETALHADO_ESTABELECIMENTO" id="config-tipo-detalhado" checked class="mt-0.5 text-pink-600 focus:ring-pink-500">
+                <div class="space-y-1 text-xs">
+                  <div class="font-bold text-slate-900 flex items-center gap-2">
+                    <span>Detalhado por Estabelecimento</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] bg-pink-100 text-pink-700 font-bold">Padrão Operacional</span>
+                  </div>
+                  <p class="text-slate-500 text-[11px] leading-relaxed">
+                    Exibe o <strong>Resumo Geral</strong> e o faturamento agrupado por <strong>Ponto Comercial</strong>.
+                    <span class="text-pink-700 font-semibold block mt-1">
+                      • Máquina única: o nome da máquina fica oculto (mostra apenas o estabelecimento).<br>
+                      • Duas ou mais máquinas: detalha cada máquina individualmente abaixo do estabelecimento.
+                    </span>
+                  </p>
+                </div>
+              </label>
+
+              <!-- Option 2: Apenas Resumo Geral -->
+              <label class="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 hover:border-pink-300 hover:bg-pink-50/20 cursor-pointer transition">
+                <input type="radio" name="config-tipo-exibicao" value="GERAL" id="config-tipo-geral" class="mt-0.5 text-pink-600 focus:ring-pink-500">
+                <div class="space-y-1 text-xs">
+                  <div class="font-bold text-slate-900">Apenas Resumo Geral</div>
+                  <p class="text-slate-500 text-[11px] leading-relaxed">
+                    Envia mensagem concisa contendo apenas o faturamento total, valores por forma de pagamento (Pix, Dinheiro, Cartão), prêmios liberados e ticket médio por pelúcia.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <!-- Botão de Disparo Manual de Teste -->
+            <div class="pt-4 border-t border-slate-100">
+              <label class="block text-xs font-bold text-slate-700 mb-2">Testar Disparo Manual Agora:</label>
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="dispararRelatorioManual('24h-anterior')" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1.5">
+                  <i data-lucide="send" class="w-3.5 h-3.5 text-pink-600"></i> Disparar Relatório 24h
+                </button>
+                <button type="button" onclick="dispararRelatorioManual('mes')" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1.5">
+                  <i data-lucide="send" class="w-3.5 h-3.5 text-purple-600"></i> Disparar Relatório Mês
+                </button>
+                <button type="button" onclick="testarEnvioWhatsApp('report')" class="px-3 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition flex items-center gap-1.5">
+                  <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-600"></i> Ping Teste WhatsApp
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Destinatários do WhatsApp (Chat IDs) -->
+          <div class="glass-card p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 bg-white">
+            <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                <i data-lucide="message-circle" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-extrabold text-slate-900">Grupos de Destino no WhatsApp</h3>
+                <p class="text-[11px] text-slate-400">Identificadores dos grupos (JID: 120363...&#64;g.us)</p>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Grupo do Relatório de Faturamento:</label>
+                <div class="relative">
+                  <input type="text" id="config-wa-report-chat" placeholder="120363411732539594@g.us" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500">
+                </div>
+                <span class="text-[10px] text-slate-400">Recebe os relatórios diários (24h), parciais (12h) e consolidados mensais.</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Grupo de Alerta de Monitoramento Offline:</label>
+                <div class="relative">
+                  <input type="text" id="config-wa-monitor-chat" placeholder="120363430600021348@g.us" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500">
+                </div>
+                <span class="text-[10px] text-slate-400">Recebe avisos imediatos quando uma máquina cai ou volta a ficar online.</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Grupo de Alerta de Estoque Baixo:</label>
+                <div class="relative">
+                  <input type="text" id="config-wa-estoque-chat" placeholder="120363411732539594@g.us" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500">
+                </div>
+                <span class="text-[10px] text-slate-400">Recebe a lista de máquinas com menos de 30 pelúcias que precisam de reposição.</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Grupo de Recibo de Coletas em Espécie:</label>
+                <div class="relative">
+                  <input type="text" id="config-wa-coleta-chat" placeholder="120363411732539594@g.us" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500">
+                </div>
+                <span class="text-[10px] text-slate-400">Recebe comprovante quando uma retirada de dinheiro físico é registrada ou conferida.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Agendamentos e Horários dos Disparos -->
+          <div class="glass-card p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 bg-white lg:col-span-2">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
+                  <i data-lucide="clock" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-extrabold text-slate-900">Agendamentos & Horários de Disparo</h3>
+                  <p class="text-[11px] text-slate-400">Defina os horários exatos dos disparos automáticos (fuso horário: Brasília / America/Sao_Paulo)</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                Sem necessidade de restart
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              <!-- Item 1: Relatório Diário 24h -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-pink-600"></i> Relatório Diário (24h)
+                  </span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="config-sched-24h-enabled" checked class="sr-only peer">
+                    <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:left-[0px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-500">Dispara o faturamento consolidado do dia anterior.</p>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">Horário de envio:</label>
+                  <input type="time" id="config-sched-24h-hora" value="00:00" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                </div>
+              </div>
+
+              <!-- Item 2: Relatório 12h (Parcial) -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="clock-3" class="w-3.5 h-3.5 text-blue-600"></i> Relatório Parcial (12h)
+                  </span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="config-sched-12h-enabled" class="sr-only peer">
+                    <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:left-[0px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-500">Dispara o faturamento parcial das últimas 12 horas.</p>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">Horário de envio:</label>
+                  <input type="time" id="config-sched-12h-hora" value="12:00" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                </div>
+              </div>
+
+              <!-- Item 3: Relatório Acumulado do Mês -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-purple-600"></i> Relatório do Mês
+                  </span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="config-sched-mes-enabled" checked class="sr-only peer">
+                    <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:left-[0px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-500">Dispara o faturamento acumulado do mês até o dia anterior.</p>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">Horário de envio:</label>
+                  <input type="time" id="config-sched-mes-hora" value="08:00" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                </div>
+              </div>
+
+              <!-- Item 4: Alerta Diário de Estoque Baixo -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="package-search" class="w-3.5 h-3.5 text-amber-600"></i> Alerta Estoque (&lt; 30)
+                  </span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="config-sched-estoque-enabled" checked class="sr-only peer">
+                    <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:left-[0px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-500">Avisa quais lojas precisam ser reabastecidas para o dia seguinte.</p>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">Horário de envio:</label>
+                  <input type="time" id="config-sched-estoque-hora" value="18:20" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                </div>
+              </div>
+
+              <!-- Item 5: Monitoramento Offline das Máquinas -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-600"></i> Monitor Offline
+                  </span>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="config-sched-monitor-enabled" checked class="sr-only peer">
+                    <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:left-[0px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+                  </label>
+                </div>
+                <p class="text-[11px] text-slate-500">Checa periodicamente as integradoras para detectar falhas de conexão.</p>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">Intervalo de checagem:</label>
+                  <select id="config-sched-monitor-interval" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                    <option value="5">A cada 5 minutos (Padrão)</option>
+                    <option value="10">A cada 10 minutos</option>
+                    <option value="15">A cada 15 minutos</option>
+                    <option value="30">A cada 30 minutos</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </section>
     </main>
 
     <!-- Footer -->

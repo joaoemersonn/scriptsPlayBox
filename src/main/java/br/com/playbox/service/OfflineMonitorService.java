@@ -38,6 +38,7 @@ public class OfflineMonitorService {
     private final AppProperties properties;
     private final ObjectMapper objectMapper;
     private final MaquinaRepository maquinaRepository;
+    private final ConfiguracaoService configuracaoService;
 
     @Autowired
     public OfflineMonitorService(
@@ -46,7 +47,8 @@ public class OfflineMonitorService {
             ZapiziClient zapiziClient,
             AppProperties properties,
             ObjectMapper objectMapper,
-            @Autowired(required = false) MaquinaRepository maquinaRepository
+            @Autowired(required = false) MaquinaRepository maquinaRepository,
+            @Autowired(required = false) ConfiguracaoService configuracaoService
     ) {
         this.vendClient = vendClient;
         this.payxyzClient = payxyzClient;
@@ -54,6 +56,7 @@ public class OfflineMonitorService {
         this.properties = properties;
         this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
         this.maquinaRepository = maquinaRepository;
+        this.configuracaoService = configuracaoService;
 
         AppProperties.Whatsapp wa = properties.getWhatsapp();
         String baseUrl = wa != null ? wa.getBaseUrl() : "http://whatsapp-bot:3035";
@@ -79,9 +82,20 @@ public class OfflineMonitorService {
             PayXYZClient payxyzClient,
             ZapiziClient zapiziClient,
             AppProperties properties,
+            ObjectMapper objectMapper,
+            MaquinaRepository maquinaRepository
+    ) {
+        this(vendClient, payxyzClient, zapiziClient, properties, objectMapper, maquinaRepository, null);
+    }
+
+    public OfflineMonitorService(
+            VendProMaxClient vendClient,
+            PayXYZClient payxyzClient,
+            ZapiziClient zapiziClient,
+            AppProperties properties,
             ObjectMapper objectMapper
     ) {
-        this(vendClient, payxyzClient, zapiziClient, properties, objectMapper, null);
+        this(vendClient, payxyzClient, zapiziClient, properties, objectMapper, null, null);
     }
 
     public OfflineMonitorService(
@@ -90,7 +104,7 @@ public class OfflineMonitorService {
             ZapiziClient zapiziClient,
             AppProperties properties
     ) {
-        this(vendClient, payxyzClient, zapiziClient, properties, new ObjectMapper(), null);
+        this(vendClient, payxyzClient, zapiziClient, properties, new ObjectMapper(), null, null);
     }
 
     public synchronized void run() {
@@ -570,7 +584,8 @@ public class OfflineMonitorService {
             return;
         }
         log.info("Enviando alerta de status via WhatsApp:\n{}", message);
-        sender.sendMessage(message);
+        String targetChatId = configuracaoService != null ? configuracaoService.getMonitorChatId() : null;
+        sender.sendMessage(targetChatId, message);
     }
 
     public void sendIntegrationError(String serviceName, String details) {
@@ -579,7 +594,8 @@ public class OfflineMonitorService {
             message = message + "\n" + details;
         }
         log.error("Alerta de erro de integração: {}", message);
-        sender.sendMessage(message);
+        String targetChatId = configuracaoService != null ? configuracaoService.getMonitorChatId() : null;
+        sender.sendMessage(targetChatId, message);
     }
 
     private void handleIntegrationFailure(

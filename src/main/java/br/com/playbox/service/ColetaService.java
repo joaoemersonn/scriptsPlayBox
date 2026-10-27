@@ -36,6 +36,7 @@ public class ColetaService {
     private final TransactionImportService transactionImportService;
     private final WhatsAppSender whatsAppSender;
     private final AppProperties properties;
+    private final ConfiguracaoService configuracaoService;
 
     @Autowired
     public ColetaService(
@@ -44,13 +45,15 @@ public class ColetaService {
             TransacaoRepository transacaoRepository,
             TransactionImportService transactionImportService,
             AppProperties properties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Autowired(required = false) ConfiguracaoService configuracaoService
     ) {
         this.coletaRepository = coletaRepository;
         this.maquinaRepository = maquinaRepository;
         this.transacaoRepository = transacaoRepository;
         this.transactionImportService = transactionImportService;
         this.properties = properties;
+        this.configuracaoService = configuracaoService;
 
         AppProperties.Whatsapp wa = properties.getWhatsapp();
         String baseUrl = (wa != null && wa.getBaseUrl() != null) ? wa.getBaseUrl() : "http://whatsapp-bot:3035";
@@ -313,7 +316,8 @@ public class ColetaService {
 
         sb.append("\n_Assim que a contagem física for feita, informe o valor real no sistema para fechar a conciliação._");
 
-        whatsAppSender.sendMessage(sb.toString());
+        String targetChatId = configuracaoService != null ? configuracaoService.getColetaChatId() : null;
+        whatsAppSender.sendMessage(targetChatId, sb.toString());
     }
 
     private void notificarColetaConferida(Coleta coleta) {
@@ -366,7 +370,8 @@ public class ColetaService {
             sb.append("📝 *Obs:* ").append(coleta.getObservacoes()).append("\n");
         }
 
-        whatsAppSender.sendMessage(sb.toString());
+        String targetChatId = configuracaoService != null ? configuracaoService.getColetaChatId() : null;
+        whatsAppSender.sendMessage(targetChatId, sb.toString());
     }
 
     private void notificarColetaCancelada(Coleta coleta, String motivo) {
@@ -388,7 +393,8 @@ public class ColetaService {
         }
         sb.append("\n_O registro foi marcado como cancelado e não afetará a apuração dos próximos recolhimentos._");
 
-        whatsAppSender.sendMessage(sb.toString());
+        String targetChatId = configuracaoService != null ? configuracaoService.getColetaChatId() : null;
+        whatsAppSender.sendMessage(targetChatId, sb.toString());
     }
 
 

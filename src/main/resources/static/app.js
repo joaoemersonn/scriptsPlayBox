@@ -207,6 +207,9 @@ function switchTab(tabId) {
     case 'relatorios':
       previewRelatorioOperacoes();
       break;
+    case 'configuracoes':
+      loadConfiguracoesRelatorio();
+      break;
   }
 
   // Re-run Lucide icons
@@ -3052,6 +3055,10 @@ function formatDate(dateStr) {
   }
 }
 
+function formatDateTime(dateStr) {
+  return formatDate(dateStr);
+}
+
 async function loadInitialLookups() {
   try {
     const [stores, machines] = await Promise.all([
@@ -3123,6 +3130,14 @@ function populateMaquinasSelect(selectId, selectedId = null) {
 function showAuthScreen() {
   document.getElementById('auth-screen')?.classList.remove('hidden');
   document.getElementById('app-container')?.classList.add('hidden');
+
+  const savedUser = localStorage.getItem('playbox_saved_username') || localStorage.getItem('playbox_user') || 'admin';
+  const userInput = document.getElementById('login-username');
+  if (userInput) userInput.value = savedUser;
+
+  const remChk = document.getElementById('login-remember');
+  if (remChk) remChk.checked = localStorage.getItem('playbox_remember_login') !== 'false';
+
   if (window.lucide) lucide.createIcons();
 }
 
@@ -3138,6 +3153,7 @@ async function handleLogin(e) {
   if (e) e.preventDefault();
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
+  const remember = document.getElementById('login-remember')?.checked ?? true;
   const errorBox = document.getElementById('login-error-msg');
   const errorText = document.getElementById('login-error-text');
   const btn = document.getElementById('btn-login-submit');
@@ -3163,6 +3179,14 @@ async function handleLogin(e) {
     state.currentUser = data.username || username;
     localStorage.setItem('playbox_session_token', data.token);
     localStorage.setItem('playbox_user', state.currentUser);
+
+    if (remember) {
+      localStorage.setItem('playbox_remember_login', 'true');
+      localStorage.setItem('playbox_saved_username', username);
+    } else {
+      localStorage.removeItem('playbox_remember_login');
+      localStorage.removeItem('playbox_saved_username');
+    }
 
     showAppScreen(state.currentUser);
     showToast(`Bem-vindo, ${state.currentUser}!`, 'success');
@@ -3637,6 +3661,134 @@ async function aplicarTestePeriodoLote() {
   } catch (err) {
     console.error('Erro ao aplicar teste em lote:', err);
     showToast('Erro ao aplicar teste no período: ' + err.message, 'error');
+  }
+}
+
+// ============================================================================
+// CONFIGURAÇÕES DE RELATÓRIO & WHATSAPP
+// ============================================================================
+
+async function loadConfiguracoesRelatorio() {
+  try {
+    const config = await apiRequest('/api/configuracoes/relatorio');
+    if (!config) return;
+
+    // Modos de exibição
+    const isGeral = config.tipoExibicao === 'GERAL';
+    const radioGeral = document.getElementById('config-tipo-geral');
+    const radioDetalhado = document.getElementById('config-tipo-detalhado');
+    if (radioGeral) radioGeral.checked = isGeral;
+    if (radioDetalhado) radioDetalhado.checked = !isGeral;
+
+    // Chat IDs do WhatsApp
+    const reportChat = document.getElementById('config-wa-report-chat');
+    if (reportChat) reportChat.value = config.whatsappReportChatId || '';
+
+    const monitorChat = document.getElementById('config-wa-monitor-chat');
+    if (monitorChat) monitorChat.value = config.whatsappMonitorChatId || '';
+
+    const estoqueChat = document.getElementById('config-wa-estoque-chat');
+    if (estoqueChat) estoqueChat.value = config.whatsappEstoqueChatId || '';
+
+    const coletaChat = document.getElementById('config-wa-coleta-chat');
+    if (coletaChat) coletaChat.value = config.whatsappColetaChatId || '';
+
+    // Agendamentos e Horários
+    const sched24hEnabled = document.getElementById('config-sched-24h-enabled');
+    if (sched24hEnabled) sched24hEnabled.checked = config.scheduleReport24hEnabled ?? true;
+    const sched24hHora = document.getElementById('config-sched-24h-hora');
+    if (sched24hHora) sched24hHora.value = config.scheduleReport24hHora || '00:00';
+
+    const sched12hEnabled = document.getElementById('config-sched-12h-enabled');
+    if (sched12hEnabled) sched12hEnabled.checked = config.scheduleReport12hEnabled ?? false;
+    const sched12hHora = document.getElementById('config-sched-12h-hora');
+    if (sched12hHora) sched12hHora.value = config.scheduleReport12hHora || '12:00';
+
+    const schedMesEnabled = document.getElementById('config-sched-mes-enabled');
+    if (schedMesEnabled) schedMesEnabled.checked = config.scheduleReportMesEnabled ?? true;
+    const schedMesHora = document.getElementById('config-sched-mes-hora');
+    if (schedMesHora) schedMesHora.value = config.scheduleReportMesHora || '08:00';
+
+    const schedEstoqueEnabled = document.getElementById('config-sched-estoque-enabled');
+    if (schedEstoqueEnabled) schedEstoqueEnabled.checked = config.scheduleEstoqueAlertaEnabled ?? true;
+    const schedEstoqueHora = document.getElementById('config-sched-estoque-hora');
+    if (schedEstoqueHora) schedEstoqueHora.value = config.scheduleEstoqueAlertaHora || '18:20';
+
+    const schedMonitorEnabled = document.getElementById('config-sched-monitor-enabled');
+    if (schedMonitorEnabled) schedMonitorEnabled.checked = config.scheduleMonitorEnabled ?? true;
+    const schedMonitorInterval = document.getElementById('config-sched-monitor-interval');
+    if (schedMonitorInterval) schedMonitorInterval.value = String(config.scheduleMonitorIntervalMinutes || 5);
+
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    console.error('Erro ao carregar configurações de relatório:', err);
+    showToast('Falha ao carregar configurações: ' + err.message, 'error');
+  }
+}
+
+async function salvarConfiguracoesRelatorio() {
+  try {
+    const radioGeral = document.getElementById('config-tipo-geral');
+    const tipoExibicao = (radioGeral && radioGeral.checked) ? 'GERAL' : 'DETALHADO_ESTABELECIMENTO';
+
+    const payload = {
+      whatsappReportChatId: document.getElementById('config-wa-report-chat')?.value.trim() || '',
+      whatsappMonitorChatId: document.getElementById('config-wa-monitor-chat')?.value.trim() || '',
+      whatsappEstoqueChatId: document.getElementById('config-wa-estoque-chat')?.value.trim() || '',
+      whatsappColetaChatId: document.getElementById('config-wa-coleta-chat')?.value.trim() || '',
+      tipoExibicao: tipoExibicao,
+      scheduleReport24hEnabled: document.getElementById('config-sched-24h-enabled')?.checked ?? true,
+      scheduleReport24hHora: document.getElementById('config-sched-24h-hora')?.value || '00:00',
+      scheduleReport12hEnabled: document.getElementById('config-sched-12h-enabled')?.checked ?? false,
+      scheduleReport12hHora: document.getElementById('config-sched-12h-hora')?.value || '12:00',
+      scheduleReportMesEnabled: document.getElementById('config-sched-mes-enabled')?.checked ?? true,
+      scheduleReportMesHora: document.getElementById('config-sched-mes-hora')?.value || '08:00',
+      scheduleEstoqueAlertaEnabled: document.getElementById('config-sched-estoque-enabled')?.checked ?? true,
+      scheduleEstoqueAlertaHora: document.getElementById('config-sched-estoque-hora')?.value || '18:20',
+      scheduleMonitorEnabled: document.getElementById('config-sched-monitor-enabled')?.checked ?? true,
+      scheduleMonitorIntervalMinutes: parseInt(document.getElementById('config-sched-monitor-interval')?.value || '5', 10)
+    };
+
+    await apiRequest('/api/configuracoes/relatorio', {
+      method: 'PUT',
+      body: payload
+    });
+
+    showToast('Configurações salvas e agendamentos atualizados com sucesso!', 'success');
+    await loadConfiguracoesRelatorio();
+  } catch (err) {
+    console.error('Erro ao salvar configurações:', err);
+    showToast('Erro ao salvar configurações: ' + err.message, 'error');
+  }
+}
+
+async function dispararRelatorioManual(periodo) {
+  try {
+    showToast(`Disparando relatório (${periodo})...`, 'info');
+    const res = await apiRequest(`/api/trigger/report?periodo=${encodeURIComponent(periodo)}`, {
+      method: 'POST'
+    });
+    showToast(res.message || 'Relatório disparado com sucesso no WhatsApp!', 'success');
+  } catch (err) {
+    console.error('Erro ao disparar relatório manual:', err);
+    showToast('Falha ao disparar relatório: ' + err.message, 'error');
+  }
+}
+
+async function testarEnvioWhatsApp(tipo = 'report') {
+  try {
+    showToast('Enviando mensagem de validação no WhatsApp...', 'info');
+    const res = await apiRequest(`/api/configuracoes/relatorio/testar-envio?tipo=${encodeURIComponent(tipo)}`, {
+      method: 'POST'
+    });
+    if (res && res.status === 'SUCCESS') {
+      showToast(res.message || 'Teste enviado com sucesso no WhatsApp!', 'success');
+    } else {
+      showToast(res.message || 'Falha ao enviar mensagem de teste.', 'warning');
+    }
+  } catch (err) {
+    console.error('Erro ao testar envio WhatsApp:', err);
+    showToast('Erro no teste de WhatsApp: ' + err.message, 'error');
   }
 }
 

@@ -302,6 +302,31 @@ public class RelatorioService {
             estFormas.put("debito", round(estDebito));
             itemEst.put("formasPagamento", estFormas);
 
+            Map<String, List<Transacao>> porMaquinaNoEst = txList.stream()
+                    .collect(Collectors.groupingBy(t -> {
+                        if (t.getMaquina() != null) return "MAQ_" + t.getMaquina().getId();
+                        return "TX_" + (t.getExternalTxId() != null ? t.getExternalTxId() : "NONE");
+                    }));
+
+            List<Map<String, Object>> maquinasDetalhes = new ArrayList<>();
+            for (List<Transacao> maqTxs : porMaquinaNoEst.values()) {
+                if (maqTxs.isEmpty()) continue;
+                Transacao firstMaq = maqTxs.get(0);
+                Maquina m = firstMaq.getMaquina();
+                String mNome = m != null && m.getNomeIntegracao() != null ? m.getNomeIntegracao() : (m != null ? "Máquina #" + m.getId() : firstMaq.getExternalTxId());
+                double maqBruto = maqTxs.stream().mapToDouble(Transacao::getValorEfetivo).sum();
+                double maqPremios = maqTxs.stream().mapToDouble(Transacao::getQuantidadePremiosEfetiva).sum();
+
+                Map<String, Object> maqMap = new LinkedHashMap<>();
+                maqMap.put("id", m != null ? m.getId() : null);
+                maqMap.put("nome", mNome);
+                maqMap.put("faturamentoBruto", round(maqBruto));
+                maqMap.put("quantidadePremios", round(maqPremios));
+                maquinasDetalhes.add(maqMap);
+            }
+            maquinasDetalhes.sort((a, b) -> Double.compare((double) b.get("faturamentoBruto"), (double) a.get("faturamentoBruto")));
+            itemEst.put("maquinas", maquinasDetalhes);
+
             listaEstabelecimentos.add(itemEst);
         }
         listaEstabelecimentos.sort((a, b) -> Double.compare((double) b.get("faturamentoBruto"), (double) a.get("faturamentoBruto")));

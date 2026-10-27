@@ -28,14 +28,18 @@ public class EstoqueAlertaService {
     private final WhatsAppSender whatsAppSender;
     private final AppProperties properties;
 
+    private final ConfiguracaoService configuracaoService;
+
     @Autowired
     public EstoqueAlertaService(
             MaquinaRepository maquinaRepository,
             AppProperties properties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Autowired(required = false) ConfiguracaoService configuracaoService
     ) {
         this.maquinaRepository = maquinaRepository;
         this.properties = properties;
+        this.configuracaoService = configuracaoService;
 
         AppProperties.Whatsapp wa = properties.getWhatsapp();
         String baseUrl = (wa != null && wa.getBaseUrl() != null) ? wa.getBaseUrl() : "http://whatsapp-bot:3035";
@@ -63,9 +67,14 @@ public class EstoqueAlertaService {
         this.maquinaRepository = maquinaRepository;
         this.properties = properties;
         this.whatsAppSender = whatsAppSender;
+        this.configuracaoService = null;
     }
 
     private String getTargetChatId() {
+        if (configuracaoService != null) {
+            String cid = configuracaoService.getEstoqueChatId();
+            if (cid != null && !cid.isBlank()) return cid;
+        }
         return resolveChatId(properties != null ? properties.getWhatsapp() : null);
     }
 

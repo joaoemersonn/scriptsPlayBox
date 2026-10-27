@@ -28,6 +28,7 @@ public class ReportGeneratorService {
     private final AppProperties properties;
     private final RelatorioService relatorioService;
     private final TransactionImportService transactionImportService;
+    private final ConfiguracaoService configuracaoService;
 
     @Autowired
     public ReportGeneratorService(
@@ -36,7 +37,8 @@ public class ReportGeneratorService {
             ZapiziClient zapiziClient,
             AppProperties properties,
             RelatorioService relatorioService,
-            TransactionImportService transactionImportService
+            TransactionImportService transactionImportService,
+            ConfiguracaoService configuracaoService
     ) {
         this.vendClient = vendClient;
         this.payxyzClient = payxyzClient;
@@ -44,6 +46,8 @@ public class ReportGeneratorService {
         this.properties = properties;
         this.relatorioService = relatorioService;
         this.transactionImportService = transactionImportService;
+        this.configuracaoService = configuracaoService;
+
         AppProperties.Whatsapp wa = properties != null ? properties.getWhatsapp() : null;
         String baseUrl = wa != null && wa.getBaseUrl() != null ? wa.getBaseUrl() : "http://whatsapp_bot:3035";
         String sendPath = wa != null && wa.getSendPath() != null ? wa.getSendPath() : "/api/messages/send";
@@ -66,7 +70,7 @@ public class ReportGeneratorService {
             ZapiziClient zapiziClient,
             AppProperties properties
     ) {
-        this(vendClient, payxyzClient, zapiziClient, properties, null, null);
+        this(vendClient, payxyzClient, zapiziClient, properties, null, null, null);
     }
 
     public record ReportPeriod(String title, String startDate, String endDate) {}
@@ -191,7 +195,7 @@ public class ReportGeneratorService {
             }
 
             Object maquinaId = maquina.get("id").asText();
-            String nome = maquina.hasNonNull("nome") ? maquina.get("nome").asText().trim() : "N/A";
+            String nome = machineName(maquina);
 
             double valorEstornos = 0.0;
             double valorEspecie = 0.0;
@@ -251,6 +255,10 @@ public class ReportGeneratorService {
         }
 
         return reportList;
+    }
+
+    private String machineName(JsonNode maquina) {
+        return maquina.hasNonNull("nome") ? maquina.get("nome").asText().trim() : "N/A";
     }
 
     public List<MachineReport> buildZapiziReport(String inicio, String fim) {
@@ -351,6 +359,9 @@ public class ReportGeneratorService {
         return df.format(value);
     }
 
+    /**
+     * Formatação simplificada compatível com a lista de MachineReports.
+     */
     public String formatWhatsAppMessage(List<MachineReport> reportData, String title) {
         List<String> lines = new ArrayList<>();
         lines.add("*📊 " + title + " 📊*");
@@ -373,46 +384,136 @@ public class ReportGeneratorService {
         return String.join("\n", lines).trim();
     }
 
+    /**
+     * Formatação detalhada com suporte a "Resumo Geral" e "Detalhado por Estabelecimento".
+     * Regra do usuário: Se o estabelecimento tiver apenas 1 máquina, a máquina fica oculta.
+     * Só detalha cada máquina se o estabelecimento tiver 2 ou mais máquinas.
+     */
+    public String formatWhatsAppMessageDetailed(Map<String, Object> relatorioData, String title, String tipoExibicao) {
+        List<String> lines = new ArrayList<>();
+        lines.add("*📊 " + title + " 📊*");
+
+        if (relatorioData == null || !relatorioData.containsKey("resumoGeral")) {
+            lines.add("Nenhum dado disponível para este período.");
+            return String.join("\n", lines);
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> resumo = (Map<String, Object>) relatorioData.get("resumoGeral");
+        double bruto = resumo.containsKey("faturamentoBruto") ? ((Number) resumo.get("faturamentoBruto")).doubleValue() : 0.0;
+        double liquido = resumo.containsKey("faturamentoLiquido") ? ((Number) resumo.get("faturamentoLiquido")).doubleValue() : bruto;
+        double estornos = resumo.containsKey("totalEstornos") ? ((Number) resumo.get("totalEstornos")).doubleValue() : 0.0;
+        double premios = resumo.containsKey("quantidadePremios") ? ((Number) resumo.get("quantidadePremios")).doubleValue() : 0.0;
+        double receitaPorPremio = premios > 0.0 ? (bruto / premios) : 0.0;
+        double testesDesc = resumo.containsKey("totalTestesDesconsiderados") ? ((Number) resumo.get("totalTestesDesconsiderados")).doubleValue() : 0.0;
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> formas = resumo.containsKey("formasPagamento") ? (Map<String, Object>) resumo.get("formasPagamento") : Map.of();
+        double especie = formas.containsKey("especie") ? ((Number) formas.get("especie")).doubleValue() : 0.0;
+        double pix = formas.containsKey("pix") ? ((Number) formas.get("pix")).doubleValue() : 0.0;
+        double cartao = (formas.containsKey("credito") ? ((Number) formas.get("credito")).doubleValue() : 0.0)
+                + (formas.containsKey("debito") ? ((Number) formas.get("debito")).doubleValue() : 0.0);
+
+        lines.add("");
+        lines.add("*Resumo Geral:*");
+        lines.add("💰 Faturamento Total: " + formatCurrency(bruto));
+        lines.add("💵 Espécie: " + formatCurrency(especie) + " | 📱 PIX: " + formatCurrency(pix) + " | 💳 Cartão: " + formatCurrency(cartao));
+        if (estornos > 0) {
+            lines.add("↩️ Estornos: -" + formatCurrency(estornos) + " (Líq.: " + formatCurrency(liquido) + ")");
+        }
+        if (testesDesc > 0) {
+            lines.add("🧪 Testes Desconsiderados: -" + formatCurrency(testesDesc));
+        }
+        lines.add("🎁 Prêmios Liberados: " + ((int) premios) + " unidades");
+        lines.add("💸 Média/Prêmio: " + formatCurrency(receitaPorPremio));
+
+        // Se o modo for DETALHADO_ESTABELECIMENTO:
+        if ("DETALHADO_ESTABELECIMENTO".equalsIgnoreCase(tipoExibicao) && relatorioData.containsKey("porEstabelecimento")) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> estabelecimentos = (List<Map<String, Object>>) relatorioData.get("porEstabelecimento");
+
+            if (estabelecimentos != null && !estabelecimentos.isEmpty()) {
+                lines.add("");
+                lines.add("━━━━━━━━━━━━━━━━━━━━━━");
+                lines.add("*📍 Detalhamento por Estabelecimento:*");
+
+                for (Map<String, Object> est : estabelecimentos) {
+                    String nome = (String) est.getOrDefault("nome", "Sem Estabelecimento");
+                    String cidade = (String) est.getOrDefault("cidade", "");
+                    double fatEst = est.containsKey("faturamentoBruto") ? ((Number) est.get("faturamentoBruto")).doubleValue() : 0.0;
+                    double premEst = est.containsKey("quantidadePremios") ? ((Number) est.get("quantidadePremios")).doubleValue() : 0.0;
+
+                    String estHeader = "📍 *" + nome + "*";
+                    if (cidade != null && !cidade.isBlank()) {
+                        estHeader += " (" + cidade + ")";
+                    }
+                    lines.add("");
+                    lines.add(estHeader);
+                    lines.add("   💰 Faturamento: " + formatCurrency(fatEst) + " | 🎁 " + ((int) premEst) + " prêmios");
+
+                    // Regra do usuário: Se o estabelecimento tiver apenas 1 máquina, a máquina fica oculta.
+                    // Só detalha cada máquina se o estabelecimento tiver mais de uma (> 1).
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> maquinas = (List<Map<String, Object>>) est.get("maquinas");
+
+                    if (maquinas != null && maquinas.size() > 1) {
+                        for (Map<String, Object> m : maquinas) {
+                            String mNome = (String) m.getOrDefault("nome", "Máquina");
+                            double mBruto = m.containsKey("faturamentoBruto") ? ((Number) m.get("faturamentoBruto")).doubleValue() : 0.0;
+                            double mPremios = m.containsKey("quantidadePremios") ? ((Number) m.get("quantidadePremios")).doubleValue() : 0.0;
+                            lines.add("   • " + mNome + ": " + formatCurrency(mBruto) + " (" + ((int) mPremios) + " prêmios)");
+                        }
+                    }
+                }
+            }
+        }
+
+        return String.join("\n", lines).trim();
+    }
+
     public synchronized void generateAndSendReport(String periodo) {
         ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
         ReportPeriod reportPeriod = buildReportDates(periodo, zoneId);
 
-        log.info("Iniciando geração de relatório. Período: {}, Título: {}, Início: {}, Fim: {}",
-                periodo, reportPeriod.title(), reportPeriod.startDate(), reportPeriod.endDate());
+        String tipoExibicao = configuracaoService != null ? configuracaoService.getTipoExibicaoRelatorio() : "DETALHADO_ESTABELECIMENTO";
+        String targetChatId = configuracaoService != null ? configuracaoService.getReportChatId() : null;
+
+        log.info("Iniciando geração de relatório. Período: {}, Título: {}, Modo: {}, Destino WhatsApp: {}",
+                periodo, reportPeriod.title(), tipoExibicao, targetChatId != null ? targetChatId : "(default)");
 
         try {
-            List<MachineReport> unified = null;
+            String message = null;
 
             // 1. Prioriza geração a partir do banco de dados local com import automático do período
-            if (relatorioService != null && transactionImportService != null) {
-                RelatorioService.PeriodoCalculado p = relatorioService.calcularPeriodo(periodo, null, null);
+            if (relatorioService != null) {
                 try {
-                    transactionImportService.ensureTransactionsImported(p.inicio().toLocalDate(), p.fim().toLocalDate());
+                    Map<String, Object> relatorioCompleto = relatorioService.gerarRelatorioJson(periodo, null, null, null, null, null, null, false);
+                    if (relatorioCompleto != null && relatorioCompleto.containsKey("resumoGeral")) {
+                        message = formatWhatsAppMessageDetailed(relatorioCompleto, reportPeriod.title(), tipoExibicao);
+                    }
                 } catch (Exception e) {
-                    log.warn("Falha ao sincronizar transações antes do relatório: {}", e.getMessage());
+                    log.warn("Falha ao gerar relatório detalhado a partir da base local: {}", e.getMessage());
                 }
-                unified = relatorioService.getMachineReportsFromDatabase(p.inicio(), p.fim(), null, null, null, null);
             }
 
             // 2. Se o banco não tiver dados para o período ou serviços não estiverem disponíveis, fallback direto nas APIs
-            if (unified == null || unified.isEmpty()) {
-                log.info("Banco local sem dados para o período. Executando consulta direta nas APIs integradoras (fallback)...");
+            if (message == null) {
+                log.info("Executando consulta direta nas APIs integradoras (fallback)...");
                 List<MachineReport> vendReport = buildVendProMaxReport(reportPeriod.startDate(), reportPeriod.endDate());
                 List<MachineReport> payReport = buildPayXYZReport(reportPeriod.startDate(), reportPeriod.endDate());
                 List<MachineReport> zapiziReport = buildZapiziReport(reportPeriod.startDate(), reportPeriod.endDate());
-                unified = unifyReports(vendReport, payReport, zapiziReport);
+                List<MachineReport> unified = unifyReports(vendReport, payReport, zapiziReport);
+                message = formatWhatsAppMessage(unified, reportPeriod.title());
             }
 
-            String message = formatWhatsAppMessage(unified, reportPeriod.title());
             log.info("--- Mensagem WhatsApp - {} ---\n{}", reportPeriod.title(), message);
-            sender.sendMessage(message);
+            sender.sendMessage(targetChatId, message);
         } catch (IntegrationException error) {
             log.error("Erro na integração ao gerar relatório: {}", error.getMessage());
-            sender.sendMessage(error.getMessage());
+            sender.sendMessage(targetChatId, error.getMessage());
         } catch (Exception error) {
             log.error("Erro inesperado ao gerar relatório: {}", error.getMessage(), error);
-            sender.sendMessage("Erro inesperado ao gerar relatório: " + error.getMessage());
+            sender.sendMessage(targetChatId, "Erro inesperado ao gerar relatório: " + error.getMessage());
         }
     }
 }
-

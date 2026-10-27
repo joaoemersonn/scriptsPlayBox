@@ -96,5 +96,84 @@ class ReportGeneratorServiceTest {
         assertFalse(message.contains("🤖 *Casa Nobre - Sertania*"));
         assertFalse(message.contains("🤖 *Lan House - Custódia*"));
     }
+
+    @Test
+    void testFormatWhatsAppMessageDetailed_GeralOnly() {
+        java.util.Map<String, Object> resumo = new java.util.LinkedHashMap<>();
+        resumo.put("faturamentoBruto", 500.0);
+        resumo.put("faturamentoLiquido", 500.0);
+        resumo.put("totalEstornos", 0.0);
+        resumo.put("quantidadePremios", 10.0);
+        resumo.put("totalTestesDesconsiderados", 50.0);
+        resumo.put("formasPagamento", java.util.Map.of("especie", 200.0, "pix", 300.0, "credito", 0.0, "debito", 0.0));
+
+        java.util.Map<String, Object> relatorioData = java.util.Map.of(
+                "resumoGeral", resumo,
+                "porEstabelecimento", List.of(
+                        java.util.Map.of("nome", "Pau Brasil", "cidade", "Custódia", "faturamentoBruto", 500.0, "quantidadePremios", 10.0, "maquinas", List.of())
+                )
+        );
+
+        String msg = reportService.formatWhatsAppMessageDetailed(relatorioData, "Relatório de 26/10/2026", "GERAL");
+
+        assertTrue(msg.contains("*📊 Relatório de 26/10/2026 📊*"));
+        assertTrue(msg.contains("💰 Faturamento Total: R$ 500,00"));
+        assertTrue(msg.contains("🧪 Testes Desconsiderados: -R$ 50,00"));
+        assertFalse(msg.contains("Detalhamento por Estabelecimento"));
+        assertFalse(msg.contains("Pau Brasil"));
+    }
+
+    @Test
+    void testFormatWhatsAppMessageDetailed_Estabelecimento_HidesSingleMachineAndShowsMultiple() {
+        java.util.Map<String, Object> resumo = new java.util.LinkedHashMap<>();
+        resumo.put("faturamentoBruto", 800.0);
+        resumo.put("faturamentoLiquido", 800.0);
+        resumo.put("totalEstornos", 0.0);
+        resumo.put("quantidadePremios", 20.0);
+        resumo.put("formasPagamento", java.util.Map.of("especie", 400.0, "pix", 400.0, "credito", 0.0, "debito", 0.0));
+
+        // Estabelecimento 1: Pau Brasil tem APENAS 1 MÁQUINA -> máquina deve ficar OCULTA
+        java.util.Map<String, Object> maqUnica = java.util.Map.of("nome", "Chaves", "faturamentoBruto", 300.0, "quantidadePremios", 8.0);
+        java.util.Map<String, Object> est1 = java.util.Map.of(
+                "nome", "Pau Brasil",
+                "cidade", "Custódia",
+                "faturamentoBruto", 300.0,
+                "quantidadePremios", 8.0,
+                "maquinas", List.of(maqUnica)
+        );
+
+        // Estabelecimento 2: Br Arena tem 2 MÁQUINAS -> deve DETALHAR cada máquina
+        java.util.Map<String, Object> maq1 = java.util.Map.of("nome", "Times Cavalinho", "faturamentoBruto", 350.0, "quantidadePremios", 9.0);
+        java.util.Map<String, Object> maq2 = java.util.Map.of("nome", "PretaCyber", "faturamentoBruto", 150.0, "quantidadePremios", 3.0);
+        java.util.Map<String, Object> est2 = java.util.Map.of(
+                "nome", "Br Arena",
+                "cidade", "Monteiro",
+                "faturamentoBruto", 500.0,
+                "quantidadePremios", 12.0,
+                "maquinas", List.of(maq1, maq2)
+        );
+
+        java.util.Map<String, Object> relatorioData = java.util.Map.of(
+                "resumoGeral", resumo,
+                "porEstabelecimento", List.of(est1, est2)
+        );
+
+        String msg = reportService.formatWhatsAppMessageDetailed(relatorioData, "Relatório de 26/10/2026", "DETALHADO_ESTABELECIMENTO");
+
+        // 1. Resumo geral presente
+        assertTrue(msg.contains("💰 Faturamento Total: R$ 800,00"));
+        assertTrue(msg.contains("*📍 Detalhamento por Estabelecimento:*"));
+
+        // 2. Estabelecimento 1 presente, mas sua máquina "Chaves" está OCULTA
+        assertTrue(msg.contains("📍 *Pau Brasil* (Custódia)"));
+        assertTrue(msg.contains("💰 Faturamento: R$ 300,00 | 🎁 8 prêmios"));
+        assertFalse(msg.contains("• Chaves:"), "Máquina única deve ficar oculta!");
+
+        // 3. Estabelecimento 2 presente E suas duas máquinas estão DETALHADAS
+        assertTrue(msg.contains("📍 *Br Arena* (Monteiro)"));
+        assertTrue(msg.contains("💰 Faturamento: R$ 500,00 | 🎁 12 prêmios"));
+        assertTrue(msg.contains("• Times Cavalinho: R$ 350,00 (9 prêmios)"), "Máquinas devem ser detalhadas quando > 1");
+        assertTrue(msg.contains("• PretaCyber: R$ 150,00 (3 prêmios)"), "Máquinas devem ser detalhadas quando > 1");
+    }
 }
 

@@ -31,7 +31,27 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
         try (Connection conn = ds.getConnection();
              Statement stmt = conn.createStatement()) {
 
-            // 1. Verificar tabela transacoes
+            // 1. Tabela user_sessions (persistência de sessão de login)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS user_sessions (
+                    token VARCHAR(64) PRIMARY KEY,
+                    username VARCHAR(100) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP NOT NULL
+                )
+            """);
+
+            // 2. Tabela configuracoes_sistema (configurações dinâmicas sem restart)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS configuracoes_sistema (
+                    chave VARCHAR(100) PRIMARY KEY,
+                    valor TEXT,
+                    descricao VARCHAR(255),
+                    updated_at TIMESTAMP
+                )
+            """);
+
+            // 3. Verificar colunas na tabela transacoes
             boolean transacoesExists = false;
             try (ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='transacoes'")) {
                 if (rs.next()) {
