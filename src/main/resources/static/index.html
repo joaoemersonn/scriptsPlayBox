@@ -987,6 +987,7 @@
                   <option value="">Todas as Transações</option>
                   <option value="VALIDAS">Apenas Válidas (Sem Testes)</option>
                   <option value="TESTES">Apenas Testes / Desconsideradas</option>
+                  <option value="SEM_ESTABELECIMENTO">Apenas Sem Estabelecimento (Órfãs)</option>
                 </select>
               </div>
 
@@ -997,10 +998,20 @@
             </div>
 
             <!-- Action buttons -->
-            <div class="flex items-center gap-2 shrink-0">
-              <button onclick="openModalTestePeriodo()" class="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition" title="Desconsiderar transações de um período de testes para uma máquina">
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+              <button onclick="openModalAssociarEstabelecimentoLote()" class="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 transition" title="Associar transações de um período/máquina a um estabelecimento">
+                <i data-lucide="store" class="w-4 h-4 text-pink-600"></i>
+                <span>Associar Loja em Lote</span>
+              </button>
+
+              <button onclick="executarReassociacaoAutomatica()" class="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition" title="Preencher automaticamente lojas das transações órfãs usando histórico de vigência">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-600"></i>
+                <span>Auto-Associar</span>
+              </button>
+
+              <button onclick="openModalTestePeriodo()" class="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition" title="Desconsiderar transações de um período de testes para uma máquina">
                 <i data-lucide="flask-conical" class="w-4 h-4 text-purple-600"></i>
-                <span>Desconsiderar Período de Testes</span>
+                <span>Testes em Lote</span>
               </button>
 
               <button onclick="loadTransacoesData(true)" class="p-2 rounded-xl bg-slate-100 hover:bg-pink-50 hover:text-pink-600 text-slate-600 border border-slate-200 transition" title="Sincronizar transações das APIs">
@@ -2091,11 +2102,37 @@
           <input type="text" id="modal-maquina-external-id" placeholder="Ex: POSX-27725 ou 76847412" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Ponto Comercial Alocado:</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-semibold text-slate-700">Ponto Comercial Alocado:</label>
+            <button type="button" id="btn-modal-maquina-hist" onclick="openHistoricoMaquinaModal(document.getElementById('modal-maquina-id').value)" class="text-[10px] font-bold text-purple-600 hover:text-purple-700 flex items-center gap-1" title="Ver histórico de movimentações desta máquina">
+              <i data-lucide="history" class="w-3 h-3"></i> Ver Histórico
+            </button>
+          </div>
           <select id="modal-maquina-estab" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
             <option value="">Sem Estabelecimento (Depósito/Sem Loja)</option>
           </select>
         </div>
+      </div>
+
+      <!-- Detalhes da Movimentação / Transferência -->
+      <div id="modal-maquina-mov-box" class="p-3 bg-purple-50/50 rounded-xl border border-purple-100 space-y-2 text-xs">
+        <div class="flex items-center gap-1.5 font-bold text-purple-900 text-[11px]">
+          <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-purple-600"></i>
+          <span>Data/Hora e Justificativa da Movimentação (Opcional):</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Quando ocorreu a troca/retirada?</label>
+            <input type="datetime-local" id="modal-maquina-mov-data" class="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Motivo / Observação:</label>
+            <input type="text" id="modal-maquina-mov-motivo" placeholder="Ex: Inauguração, Troca de ponto..." class="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+          </div>
+        </div>
+        <span class="text-[10px] text-slate-400 block leading-tight">
+          Deixe a data em branco para registrar no momento atual. As transações anteriores a essa data permanecerão vinculadas ao ponto anterior.
+        </span>
       </div>
 
       <div class="flex items-center gap-2 pt-1">
@@ -2336,6 +2373,155 @@
         <button type="button" onclick="aplicarTestePeriodoLote()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-600/20 active:scale-95 transition">
           Aplicar no Período
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 15: Associar Estabelecimento em Lote nas Transações -->
+  <div id="modal-associar-estabelecimento-lote" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="store" class="w-4 h-4 text-pink-600"></i>
+          <span>Associar Estabelecimento em Lote</span>
+        </h3>
+        <button onclick="closeModal('modal-associar-estabelecimento-lote')" class="text-slate-400 hover:text-slate-700 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">
+        Vincule transações de um determinado período a um estabelecimento de destino. Útil para corrigir transações importadas antes da máquina ser alocada ou que pertencem a um ponto comercial específico.
+      </p>
+
+      <div class="space-y-3.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Filtrar por Máquina (Opcional):</label>
+          <select id="associar-lote-maquina" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+            <option value="">Todas as Máquinas</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Estabelecimento de Destino:</label>
+          <select id="associar-lote-estab" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+            <option value="">Selecione um estabelecimento...</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Data Inicial:</label>
+            <input type="date" id="associar-lote-inicio" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Data Final:</label>
+            <input type="date" id="associar-lote-fim" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+            <input type="checkbox" id="associar-lote-apenas-orfas" checked class="rounded border-slate-300 text-pink-600 focus:ring-0">
+            <span>Apenas transações que ainda <strong>não possuem</strong> estabelecimento</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal-associar-estabelecimento-lote')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">Cancelar</button>
+        <button type="button" onclick="aplicarAssociacaoEstabelecimentoLote()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">
+          Vincular no Período
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 16: Associar Estabelecimento em Transação Individual -->
+  <div id="modal-associar-estabelecimento-individual" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-md w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="store" class="w-4 h-4 text-pink-600"></i>
+          <span>Vincular Loja à Transação</span>
+        </h3>
+        <button onclick="closeModal('modal-associar-estabelecimento-individual')" class="text-slate-400 hover:text-slate-700 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="associar-indiv-tx-id">
+
+      <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+        <div class="flex justify-between">
+          <span class="text-slate-500">ID da Transação:</span>
+          <span id="associar-indiv-external" class="font-mono font-bold text-slate-800">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Máquina:</span>
+          <span id="associar-indiv-maquina" class="font-bold text-slate-800">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Data/Hora:</span>
+          <span id="associar-indiv-data" class="font-bold text-slate-800">--</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Valor Bruto:</span>
+          <span id="associar-indiv-valor" class="font-bold text-pink-700">--</span>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <label class="block font-semibold text-slate-700">Estabelecimento de Destino:</label>
+        <select id="associar-indiv-estab" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+          <option value="">Sem Estabelecimento (Desvincular)</option>
+        </select>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal-associar-estabelecimento-individual')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">Cancelar</button>
+        <button type="button" onclick="salvarAssociacaoEstabelecimentoIndividual()" class="px-4 py-2 rounded-xl bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">
+          Salvar Vínculo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 17: Histórico Temporal de Vínculos da Máquina -->
+  <div id="modal-historico-vinculos-maquina" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-2xl w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="space-y-0.5">
+          <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-purple-600"></i>
+            <span>Histórico de Movimentação da Máquina</span>
+          </h3>
+          <p id="hist-maq-subtitulo" class="text-[11px] text-slate-500 font-medium">Linha do tempo de pontos comerciais</p>
+        </div>
+        <button onclick="closeModal('modal-historico-vinculos-maquina')" class="text-slate-400 hover:text-slate-700 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="max-h-80 overflow-y-auto rounded-xl border border-slate-200">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] font-black border-b border-slate-200 sticky top-0">
+            <tr>
+              <th class="py-2.5 px-3">Ponto Comercial</th>
+              <th class="py-2.5 px-3">Data/Hora Entrada</th>
+              <th class="py-2.5 px-3">Data/Hora Saída</th>
+              <th class="py-2.5 px-3">Status</th>
+              <th class="py-2.5 px-3">Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="hist-maq-tbody" class="divide-y divide-slate-100">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal-historico-vinculos-maquina')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">Fechar</button>
       </div>
     </div>
   </div>

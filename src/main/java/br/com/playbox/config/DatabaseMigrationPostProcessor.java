@@ -81,6 +81,40 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
                 }
             }
 
+            // 4. Tabela historico_vinculos_maquina (histórico de vigência e movimentação de máquinas)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS historico_vinculos_maquina (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    maquina_id INTEGER NOT NULL,
+                    estabelecimento_id INTEGER NOT NULL,
+                    data_inicio TIMESTAMP NOT NULL,
+                    data_fim TIMESTAMP,
+                    motivo TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_hist_maq ON historico_vinculos_maquina(maquina_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_hist_est ON historico_vinculos_maquina(estabelecimento_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_hist_datas ON historico_vinculos_maquina(data_inicio, data_fim)");
+
+            // Inicializar histórico para máquinas que já possuem estabelecimento e ainda não têm registro
+            boolean maquinasExists = false;
+            try (ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='maquinas'")) {
+                if (rs.next()) maquinasExists = true;
+            }
+
+            if (maquinasExists) {
+                stmt.execute("""
+                    INSERT INTO historico_vinculos_maquina (maquina_id, estabelecimento_id, data_inicio, created_at, motivo)
+                    SELECT m.id, m.estabelecimento_id, '2026-01-01 00:00:00', CURRENT_TIMESTAMP, 'Vínculo inicial cadastrado'
+                    FROM maquinas m
+                    WHERE m.estabelecimento_id IS NOT NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM historico_vinculos_maquina h WHERE h.maquina_id = m.id
+                      )
+                """);
+            }
+
             log.info("[DB-MIGRATION] Migração de esquema verificada com sucesso.");
         } catch (Exception e) {
             log.warn("[DB-MIGRATION] Aviso durante migração de esquema: {}", e.getMessage());

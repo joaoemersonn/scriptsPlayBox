@@ -1285,6 +1285,13 @@ function openCreateMachineModal() {
   document.getElementById('modal-maquina-external-id').value = '';
   document.getElementById('modal-maquina-ativo').checked = true;
 
+  const movData = document.getElementById('modal-maquina-mov-data');
+  if (movData) movData.value = '';
+  const movMotivo = document.getElementById('modal-maquina-mov-motivo');
+  if (movMotivo) movMotivo.value = '';
+  const btnHist = document.getElementById('btn-modal-maquina-hist');
+  if (btnHist) btnHist.classList.add('hidden');
+
   populateEstabelecimentosSelect('modal-maquina-estab');
   openModal('modal-maquina');
 }
@@ -1324,6 +1331,13 @@ function openEditMachineModal(id) {
   document.getElementById('modal-maquina-external-id').value = m.externalId || '';
   document.getElementById('modal-maquina-ativo').checked = m.ativo !== false;
 
+  const movData = document.getElementById('modal-maquina-mov-data');
+  if (movData) movData.value = '';
+  const movMotivo = document.getElementById('modal-maquina-mov-motivo');
+  if (movMotivo) movMotivo.value = '';
+  const btnHist = document.getElementById('btn-modal-maquina-hist');
+  if (btnHist) btnHist.classList.remove('hidden');
+
   populateEstabelecimentosSelect('modal-maquina-estab', m.estabelecimento?.id);
   openModal('modal-maquina');
 }
@@ -1336,6 +1350,9 @@ async function salvarMaquina() {
   const extId = document.getElementById('modal-maquina-external-id').value.trim();
   const estabId = document.getElementById('modal-maquina-estab').value;
   const ativo = document.getElementById('modal-maquina-ativo').checked;
+
+  const movData = document.getElementById('modal-maquina-mov-data')?.value || '';
+  const movMotivo = document.getElementById('modal-maquina-mov-motivo')?.value.trim() || '';
 
   if (!nome) {
     showToast('Informe o nome da máquina.', 'warning');
@@ -1351,21 +1368,25 @@ async function salvarMaquina() {
     ativo: ativo
   };
 
+  let queryParams = '';
+  if (movData) queryParams += `?dataHora=${encodeURIComponent(movData)}`;
+  if (movMotivo) queryParams += `${queryParams ? '&' : '?'}motivo=${encodeURIComponent(movMotivo)}`;
+
   try {
     let saved;
     if (id) {
       saved = await apiRequest(`/api/maquinas/${id}`, { method: 'PUT', body: payload });
-      // Update allocation if changed
+      // Atualizar alocação com histórico e vigência
       if (estabId) {
-        await apiRequest(`/api/maquinas/${id}/alocar/${estabId}`, { method: 'PUT' });
+        await apiRequest(`/api/maquinas/${id}/alocar/${estabId}${queryParams}`, { method: 'PUT' });
       } else {
-        await apiRequest(`/api/maquinas/${id}/desalocar`, { method: 'DELETE' });
+        await apiRequest(`/api/maquinas/${id}/desalocar${queryParams}`, { method: 'DELETE' });
       }
       showToast('Máquina atualizada com sucesso!', 'success');
     } else {
       saved = await apiRequest('/api/maquinas', { method: 'POST', body: payload });
       if (estabId && saved.id) {
-        await apiRequest(`/api/maquinas/${saved.id}/alocar/${estabId}`, { method: 'PUT' });
+        await apiRequest(`/api/maquinas/${saved.id}/alocar/${estabId}${queryParams}`, { method: 'PUT' });
       }
       showToast('Máquina cadastrada com sucesso!', 'success');
     }
@@ -3313,6 +3334,8 @@ function filterTransacoesTable() {
     filtered = filtered.filter(t => !t.teste);
   } else if (statusFilter === 'TESTES') {
     filtered = filtered.filter(t => t.teste);
+  } else if (statusFilter === 'SEM_ESTABELECIMENTO') {
+    filtered = filtered.filter(t => !t.estabelecimentoId || t.estabelecimentoNome === 'Sem Estabelecimento');
   }
 
   if (search) {
@@ -3426,9 +3449,21 @@ function renderTransacoesTable(list) {
         <td class="py-3 px-4 font-bold text-slate-800">
           ${escapeHtml(t.maquinaNome || '--')}
         </td>
-        <td class="py-3 px-4 font-medium text-slate-600">
-          ${escapeHtml(t.estabelecimentoNome || 'Sem Estabelecimento')}
-          ${t.cidade ? `<span class="text-[10px] text-slate-400 block">${escapeHtml(t.cidade)}</span>` : ''}
+        <td class="py-3 px-4">
+          ${(t.estabelecimentoId && t.estabelecimentoNome && t.estabelecimentoNome !== 'Sem Estabelecimento') ? `
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-slate-800 text-xs">${escapeHtml(t.estabelecimentoNome)}</span>
+              <button onclick="openModalAssociarEstabelecimentoIndividual(${t.id})" class="text-slate-400 hover:text-pink-600 transition" title="Alterar loja desta transação">
+                <i data-lucide="edit-3" class="w-3 h-3"></i>
+              </button>
+            </div>
+            ${t.cidade ? `<span class="text-[10px] text-slate-400 block">${escapeHtml(t.cidade)}</span>` : ''}
+          ` : `
+            <button onclick="openModalAssociarEstabelecimentoIndividual(${t.id})" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 shadow-sm transition" title="Clique para associar a um estabelecimento">
+              <i data-lucide="store" class="w-3 h-3 text-amber-600"></i>
+              <span>Sem Loja (+ Vincular)</span>
+            </button>
+          `}
         </td>
         <td class="py-3 px-4 whitespace-nowrap">
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
@@ -3661,6 +3696,206 @@ async function aplicarTestePeriodoLote() {
   } catch (err) {
     console.error('Erro ao aplicar teste em lote:', err);
     showToast('Erro ao aplicar teste no período: ' + err.message, 'error');
+  }
+}
+
+// ============================================================================
+// ASSOCIAÇÃO MANUAL E HISTÓRICO DE MÁQUINAS E ESTABELECIMENTOS
+// ============================================================================
+
+function openModalAssociarEstabelecimentoLote() {
+  const maqSelect = document.getElementById('associar-lote-maquina');
+  const estabSelect = document.getElementById('associar-lote-estab');
+
+  if (maqSelect) {
+    maqSelect.innerHTML = '<option value="">Todas as Máquinas</option>' +
+      (state.machines || []).map(m => {
+        const nome = m.nomeIntegracao || m.descricao || `Máquina #${m.id}`;
+        return `<option value="${m.id}">${escapeHtml(nome)}</option>`;
+      }).join('');
+  }
+
+  if (estabSelect) {
+    estabSelect.innerHTML = '<option value="">Selecione um estabelecimento...</option>' +
+      (state.stores || []).map(s => {
+        return `<option value="${s.id}">${escapeHtml(s.nome)} ${s.cidade ? `(${escapeHtml(s.cidade)})` : ''}</option>`;
+      }).join('');
+  }
+
+  // Preencher datas padrão
+  const inicioInput = document.getElementById('associar-lote-inicio');
+  const fimInput = document.getElementById('associar-lote-fim');
+  const hojeStr = new Date().toISOString().split('T')[0];
+  const primeiroDiaMes = hojeStr.substring(0, 8) + '01';
+
+  if (inicioInput && !inicioInput.value) inicioInput.value = primeiroDiaMes;
+  if (fimInput && !fimInput.value) fimInput.value = hojeStr;
+
+  openModal('modal-associar-estabelecimento-lote');
+}
+
+async function aplicarAssociacaoEstabelecimentoLote() {
+  const maquinaId = document.getElementById('associar-lote-maquina')?.value;
+  const estabId = document.getElementById('associar-lote-estab')?.value;
+  const dataInicio = document.getElementById('associar-lote-inicio')?.value;
+  const dataFim = document.getElementById('associar-lote-fim')?.value;
+  const apenasOrfas = document.getElementById('associar-lote-apenas-orfas')?.checked ?? true;
+
+  if (!estabId) {
+    showToast('Selecione o estabelecimento de destino.', 'warning');
+    return;
+  }
+  if (!dataInicio || !dataFim) {
+    showToast('Informe as datas de início e fim do período.', 'warning');
+    return;
+  }
+
+  try {
+    const res = await apiRequest('/api/transacoes/associar-estabelecimento-lote', {
+      method: 'POST',
+      body: {
+        maquinaId: maquinaId ? Number(maquinaId) : null,
+        estabelecimentoId: Number(estabId),
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        apenasSemEstabelecimento: apenasOrfas
+      }
+    });
+
+    closeModal('modal-associar-estabelecimento-lote');
+    showToast(res.mensagem || `${res.transacoesAfetadas} transações vinculadas com sucesso!`, 'success');
+    await loadTransacoesData();
+  } catch (err) {
+    console.error('Erro ao associar em lote:', err);
+    showToast('Falha ao associar transações: ' + err.message, 'error');
+  }
+}
+
+function openModalAssociarEstabelecimentoIndividual(txId) {
+  const tx = (state.transacoes || []).find(x => x.id === txId);
+  if (!tx) {
+    showToast('Transação não encontrada.', 'error');
+    return;
+  }
+
+  document.getElementById('associar-indiv-tx-id').value = tx.id;
+  document.getElementById('associar-indiv-external').textContent = tx.externalTxId || '--';
+  document.getElementById('associar-indiv-maquina').textContent = tx.maquinaNome || '--';
+  document.getElementById('associar-indiv-data').textContent = formatDateTime(tx.dataHora);
+  document.getElementById('associar-indiv-valor').textContent = formatMoney(tx.valorBruto);
+
+  const select = document.getElementById('associar-indiv-estab');
+  if (select) {
+    let opts = '<option value="">Sem Estabelecimento (Desvincular)</option>';
+    (state.stores || []).forEach(s => {
+      const isSel = (tx.estabelecimentoId && tx.estabelecimentoId === s.id);
+      opts += `<option value="${s.id}" ${isSel ? 'selected' : ''}>${escapeHtml(s.nome)} ${s.cidade ? `(${escapeHtml(s.cidade)})` : ''}</option>`;
+    });
+    select.innerHTML = opts;
+  }
+
+  openModal('modal-associar-estabelecimento-individual');
+}
+
+async function salvarAssociacaoEstabelecimentoIndividual() {
+  const txId = document.getElementById('associar-indiv-tx-id')?.value;
+  const estabId = document.getElementById('associar-indiv-estab')?.value;
+
+  if (!txId) return;
+
+  try {
+    const res = await apiRequest(`/api/transacoes/${txId}/estabelecimento?estabelecimentoId=${estabId || ''}`, {
+      method: 'PUT'
+    });
+
+    closeModal('modal-associar-estabelecimento-individual');
+    showToast('Estabelecimento da transação atualizado com sucesso!', 'success');
+    await loadTransacoesData();
+  } catch (err) {
+    console.error('Erro ao vincular estabelecimento:', err);
+    showToast('Falha ao salvar vínculo: ' + err.message, 'error');
+  }
+}
+
+async function executarReassociacaoAutomatica() {
+  if (!confirm('Deseja executar a associação automática de todas as transações sem loja com base no histórico temporal das máquinas?')) {
+    return;
+  }
+
+  try {
+    showToast('Processando reassociação automática...', 'info');
+    const res = await apiRequest('/api/transacoes/reassociar-automatico', {
+      method: 'POST'
+    });
+
+    showToast(res.mensagem || `${res.reassociadas} transações foram reassociadas!`, 'success');
+    await loadTransacoesData();
+  } catch (err) {
+    console.error('Erro na reassociação automática:', err);
+    showToast('Falha ao reassociar: ' + err.message, 'error');
+  }
+}
+
+async function openHistoricoMaquinaModal(maquinaId) {
+  if (!maquinaId) {
+    showToast('ID da máquina não fornecido.', 'warning');
+    return;
+  }
+
+  const maq = (state.machines || []).find(m => String(m.id) === String(maquinaId));
+  const maqNome = maq ? (maq.nomeIntegracao || maq.descricao || `Máquina #${maquinaId}`) : `Máquina #${maquinaId}`;
+
+  document.getElementById('hist-maq-subtitulo').textContent = `Linha do tempo de pontos comerciais: ${maqNome}`;
+
+  const tbody = document.getElementById('hist-maq-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400"><span class="spinner w-4 h-4 inline-block mr-2"></span> Carregando histórico...</td></tr>';
+
+  openModal('modal-historico-vinculos-maquina');
+
+  try {
+    const list = await apiRequest(`/api/maquinas/${maquinaId}/historico-vinculos`);
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="py-8 text-center text-slate-400">
+            Nenhum histórico de movimentação registrado para esta máquina.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = list.map(h => {
+      const isAtivo = h.ativo || !h.dataFim;
+      return `
+        <tr class="hover:bg-slate-50/80 transition">
+          <td class="py-3 px-3">
+            <div class="font-bold text-slate-900">${escapeHtml(h.estabelecimentoNome || 'Sem Loja')}</div>
+            ${h.estabelecimentoCidade ? `<span class="text-[10px] text-slate-400">${escapeHtml(h.estabelecimentoCidade)}</span>` : ''}
+          </td>
+          <td class="py-3 px-3 font-semibold text-slate-700 whitespace-nowrap">
+            ${formatDateTime(h.dataInicio)}
+          </td>
+          <td class="py-3 px-3 whitespace-nowrap">
+            ${isAtivo ? `<span class="text-emerald-700 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Atualmente nesta loja</span>` : formatDateTime(h.dataFim)}
+          </td>
+          <td class="py-3 px-3">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isAtivo ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
+              ${isAtivo ? 'Ativa' : 'Encerrada'}
+            </span>
+          </td>
+          <td class="py-3 px-3 text-slate-500 text-[11px]">
+            ${escapeHtml(h.motivo || '--')}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    console.error('Erro ao carregar histórico da máquina:', err);
+    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-rose-500">Erro ao carregar histórico: ${err.message}</td></tr>`;
   }
 }
 

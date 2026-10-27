@@ -40,6 +40,7 @@ public class TransactionImportService {
     private final MaquinaRepository maquinaRepository;
     private final TransacaoRepository transacaoRepository;
     private final EstoqueService estoqueService;
+    private final HistoricoVinculoService historicoVinculoService;
 
     public TransactionImportService(
             VendProMaxClient vendClient,
@@ -50,6 +51,20 @@ public class TransactionImportService {
             TransacaoRepository transacaoRepository,
             EstoqueService estoqueService
     ) {
+        this(vendClient, payxyzClient, zapiziClient, properties, maquinaRepository, transacaoRepository, estoqueService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TransactionImportService(
+            VendProMaxClient vendClient,
+            PayXYZClient payxyzClient,
+            ZapiziClient zapiziClient,
+            AppProperties properties,
+            MaquinaRepository maquinaRepository,
+            TransacaoRepository transacaoRepository,
+            EstoqueService estoqueService,
+            HistoricoVinculoService historicoVinculoService
+    ) {
         this.vendClient = vendClient;
         this.payxyzClient = payxyzClient;
         this.zapiziClient = zapiziClient;
@@ -57,6 +72,7 @@ public class TransactionImportService {
         this.maquinaRepository = maquinaRepository;
         this.transacaoRepository = transacaoRepository;
         this.estoqueService = estoqueService;
+        this.historicoVinculoService = historicoVinculoService;
     }
 
     public int importDailyTransactions(LocalDate date) {
@@ -273,7 +289,18 @@ public class TransactionImportService {
     ) {
         Optional<Maquina> optMaquina = maquinaRepository.findByIntegracaoAndExternalId(integracao, machineExternalId);
         Maquina maquina = optMaquina.orElse(null);
-        Estabelecimento estabelecimento = (maquina != null) ? maquina.getEstabelecimento() : null;
+
+        // Resolução temporal do estabelecimento no momento exato em que a venda ocorreu
+        Estabelecimento estabelecimento = null;
+        if (maquina != null) {
+            if (historicoVinculoService != null && timestamp != null) {
+                estabelecimento = historicoVinculoService.findEstabelecimentoVigente(maquina.getId(), timestamp);
+            }
+            if (estabelecimento == null) {
+                // Fallback para o estabelecimento associado atualmente à máquina se não houver histórico específico
+                estabelecimento = maquina.getEstabelecimento();
+            }
+        }
 
         Optional<Transacao> existing = transacaoRepository.findByIntegracaoAndExternalTxId(integracao, externalTxId);
         if (existing.isPresent()) {
@@ -286,7 +313,11 @@ public class TransactionImportService {
             tx.setValorEstorno(valorEstorno);
             tx.setQuantidadePremios(quantidadePremios);
             if (maquina != null) tx.setMaquina(maquina);
-            if (estabelecimento != null) tx.setEstabelecimento(estabelecimento);
+            // IMUTABILIDADE HISTÓRICA: Não sobrescreve o estabelecimento anterior se a máquina foi movida posteriormente.
+            // Apenas atualiza se a transação estiver sem estabelecimento ou se foi resolvido via histórico temporal.
+            if (tx.getEstabelecimento() == null && estabelecimento != null) {
+                tx.setEstabelecimento(estabelecimento);
+            }
             transacaoRepository.save(tx);
         } else {
             Transacao tx = new Transacao(

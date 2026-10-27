@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -30,15 +31,21 @@ public class TransacaoController {
     private final TransacaoRepository transacaoRepository;
     private final TransactionImportService transactionImportService;
     private final RelatorioService relatorioService;
+    private final br.com.playbox.repository.EstabelecimentoRepository estabelecimentoRepository;
+    private final br.com.playbox.service.HistoricoVinculoService historicoVinculoService;
 
     public TransacaoController(
             TransacaoRepository transacaoRepository,
             TransactionImportService transactionImportService,
-            RelatorioService relatorioService
+            RelatorioService relatorioService,
+            br.com.playbox.repository.EstabelecimentoRepository estabelecimentoRepository,
+            br.com.playbox.service.HistoricoVinculoService historicoVinculoService
     ) {
         this.transacaoRepository = transacaoRepository;
         this.transactionImportService = transactionImportService;
         this.relatorioService = relatorioService;
+        this.estabelecimentoRepository = estabelecimentoRepository;
+        this.historicoVinculoService = historicoVinculoService;
     }
 
     public record TransacaoDTO(
@@ -204,6 +211,95 @@ public class TransacaoController {
                 "acao", isTeste ? "MARCADO_TESTE" : "REVERTIDO_VALIDO",
                 "mensagem", String.format("%d transação(ões) %s com sucesso para o período de %s a %s.",
                         lista.size(), isTeste ? "desconsideradas como teste" : "revalidadas", start, end)
+        ));
+    }
+
+    @PutMapping("/{id}/estabelecimento")
+    @Operation(summary = "Associar ou alterar manualmente o estabelecimento de uma transação individual")
+    public ResponseEntity<TransacaoDTO> associarEstabelecimento(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long estabelecimentoId
+    ) {
+        Transacao t = transacaoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada para o ID: " + id));
+
+        if (estabelecimentoId != null) {
+            br.com.playbox.entity.Estabelecimento est = estabelecimentoRepository.findById(estabelecimentoId)
+                    .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado para o ID: " + estabelecimentoId));
+            t.setEstabelecimento(est);
+        } else {
+            t.setEstabelecimento(null);
+        }
+
+        Transacao salva = transacaoRepository.save(t);
+        return ResponseEntity.ok(toDTO(salva));
+    }
+
+    @PostMapping("/associar-estabelecimento-lote")
+    @Operation(summary = "Associar em lote transações de um período/máquina a um estabelecimento")
+    public ResponseEntity<Map<String, Object>> associarEstabelecimentoLote(
+            @RequestBody br.com.playbox.dto.AssociarEstabelecimentoLoteDTO body
+    ) {
+        if (body.dataInicio() == null || body.dataFim() == null) {
+            throw new IllegalArgumentException("As datas inicial e final são obrigatórias.");
+        }
+        if (body.estabelecimentoId() == null) {
+            throw new IllegalArgumentException("O estabelecimento de destino é obrigatório.");
+        }
+
+        br.com.playbox.entity.Estabelecimento est = estabelecimentoRepository.findById(body.estabelecimentoId())
+                .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado para o ID: " + body.estabelecimentoId()));
+
+        LocalDate start = body.dataInicio();
+        LocalDate end = body.dataFim();
+        if (start.isAfter(end)) {
+            LocalDate temp = start;
+            start = end;
+            end = temp;
+        }
+
+        LocalDateTime inicio = start.atStartOfDay();
+        LocalDateTime fim = end.atTime(LocalTime.MAX);
+
+        List<Transacao> lista = transacaoRepository.findByTimestampBetween(inicio, fim);
+
+        if (body.maquinaId() != null) {
+            lista = lista.stream()
+                    .filter(t -> t.getMaquina() != null && t.getMaquina().getId().equals(body.maquinaId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        if (Boolean.TRUE.equals(body.apenasSemEstabelecimento())) {
+            lista = lista.stream()
+                    .filter(t -> t.getEstabelecimento() == null)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        for (Transacao t : lista) {
+            t.setEstabelecimento(est);
+        }
+
+        transacaoRepository.saveAll(lista);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "transacoesAfetadas", lista.size(),
+                "estabelecimentoNome", est.getNome(),
+                "mensagem", String.format("%d transação(ões) vinculadas ao estabelecimento '%s' no período de %s a %s.",
+                        lista.size(), est.getNome(), start, end)
+        ));
+    }
+
+    @PostMapping("/reassociar-automatico")
+    @Operation(summary = "Reassociar automaticamente transações sem estabelecimento baseando-se no histórico temporal")
+    public ResponseEntity<Map<String, Object>> reassociarAutomatico(
+            @RequestParam(required = false) Long maquinaId
+    ) {
+        int total = historicoVinculoService.reassociarTransacoesOrfas(maquinaId);
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "reassociadas", total,
+                "mensagem", String.format("%d transação(ões) sem loja foram reassociadas com sucesso pelo histórico temporal.", total)
         ));
     }
 

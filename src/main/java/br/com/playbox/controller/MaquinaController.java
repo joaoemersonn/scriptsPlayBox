@@ -25,15 +25,18 @@ public class MaquinaController {
     private final MaquinaRepository maquinaRepository;
     private final EstabelecimentoRepository estabelecimentoRepository;
     private final MachineSyncService machineSyncService;
+    private final br.com.playbox.service.HistoricoVinculoService historicoVinculoService;
 
     public MaquinaController(
             MaquinaRepository maquinaRepository,
             EstabelecimentoRepository estabelecimentoRepository,
-            MachineSyncService machineSyncService
+            MachineSyncService machineSyncService,
+            br.com.playbox.service.HistoricoVinculoService historicoVinculoService
     ) {
         this.maquinaRepository = maquinaRepository;
         this.estabelecimentoRepository = estabelecimentoRepository;
         this.machineSyncService = machineSyncService;
+        this.historicoVinculoService = historicoVinculoService;
     }
 
     @GetMapping
@@ -104,28 +107,52 @@ public class MaquinaController {
     }
 
     @PutMapping("/{id}/alocar/{estabelecimentoId}")
-    @Operation(summary = "Mudar ou associar a máquina a um estabelecimento específico")
-    public ResponseEntity<Maquina> alocarEstabelecimento(@PathVariable Long id, @PathVariable Long estabelecimentoId) {
-        Maquina maquina = maquinaRepository.findById(id).orElse(null);
-        if (maquina == null) {
+    @Operation(summary = "Mudar ou associar a máquina a um estabelecimento específico com data/hora de vigência")
+    public ResponseEntity<Maquina> alocarEstabelecimento(
+            @PathVariable Long id,
+            @PathVariable Long estabelecimentoId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dataHora,
+            @RequestParam(required = false) String motivo
+    ) {
+        if (!maquinaRepository.existsById(id) || !estabelecimentoRepository.existsById(estabelecimentoId)) {
             return ResponseEntity.notFound().build();
         }
 
-        Estabelecimento est = estabelecimentoRepository.findById(estabelecimentoId).orElse(null);
-        if (est == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        maquina.setEstabelecimento(est);
-        return ResponseEntity.ok(maquinaRepository.save(maquina));
+        historicoVinculoService.alocarMaquina(id, estabelecimentoId, dataHora, motivo);
+        return ResponseEntity.ok(maquinaRepository.findById(id).orElse(null));
     }
 
     @DeleteMapping("/{id}/desalocar")
-    @Operation(summary = "Desvincular máquina do estabelecimento atual (fica sem estabelecimento)")
-    public ResponseEntity<Maquina> desalocarEstabelecimento(@PathVariable Long id) {
-        return maquinaRepository.findById(id).map(maquina -> {
-            maquina.setEstabelecimento(null);
-            return ResponseEntity.ok(maquinaRepository.save(maquina));
-        }).orElse(ResponseEntity.notFound().build());
+    @Operation(summary = "Desvincular máquina do estabelecimento atual com data/hora de encerramento")
+    public ResponseEntity<Maquina> desalocarEstabelecimento(
+            @PathVariable Long id,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime dataHora,
+            @RequestParam(required = false) String motivo
+    ) {
+        if (!maquinaRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        historicoVinculoService.desalocarMaquina(id, dataHora, motivo);
+        return ResponseEntity.ok(maquinaRepository.findById(id).orElse(null));
+    }
+
+    @GetMapping("/{id}/historico-vinculos")
+    @Operation(summary = "Listar histórico temporal de alocações desta máquina")
+    public ResponseEntity<List<br.com.playbox.dto.HistoricoVinculoDTO>> getHistorico(@PathVariable Long id) {
+        if (!maquinaRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(historicoVinculoService.getHistoricoByMaquina(id));
+    }
+
+    @PostMapping("/{id}/reassociar-transacoes")
+    @Operation(summary = "Reassociar transações órfãs desta máquina ao estabelecimento baseado no histórico temporal")
+    public ResponseEntity<Map<String, Object>> reassociarTransacoes(@PathVariable Long id) {
+        if (!maquinaRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        int total = historicoVinculoService.reassociarTransacoesOrfas(id);
+        return ResponseEntity.ok(Map.of("status", "SUCCESS", "reassociadas", total));
     }
 }
