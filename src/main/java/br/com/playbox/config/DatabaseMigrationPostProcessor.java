@@ -79,6 +79,32 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
                     log.info("[DB-MIGRATION] Adicionando coluna 'motivo_teste' na tabela transacoes...");
                     stmt.execute("ALTER TABLE transacoes ADD COLUMN motivo_teste TEXT");
                 }
+                if (!columns.contains("valor_cash")) {
+                    log.info("[DB-MIGRATION] Adicionando coluna 'valor_cash' na tabela transacoes...");
+                    stmt.execute("ALTER TABLE transacoes ADD COLUMN valor_cash REAL DEFAULT 0.0");
+                }
+                if (!columns.contains("valor_pix")) {
+                    log.info("[DB-MIGRATION] Adicionando coluna 'valor_pix' na tabela transacoes...");
+                    stmt.execute("ALTER TABLE transacoes ADD COLUMN valor_pix REAL DEFAULT 0.0");
+                }
+                if (!columns.contains("valor_credito")) {
+                    log.info("[DB-MIGRATION] Adicionando coluna 'valor_credito' na tabela transacoes...");
+                    stmt.execute("ALTER TABLE transacoes ADD COLUMN valor_credito REAL DEFAULT 0.0");
+                }
+                if (!columns.contains("valor_debito")) {
+                    log.info("[DB-MIGRATION] Adicionando coluna 'valor_debito' na tabela transacoes...");
+                    stmt.execute("ALTER TABLE transacoes ADD COLUMN valor_debito REAL DEFAULT 0.0");
+                }
+
+                // Sanitização de nulos para garantir cálculos exatos de caixa e coletas
+                stmt.execute("UPDATE transacoes SET valor_cash = 0.0 WHERE valor_cash IS NULL");
+                stmt.execute("UPDATE transacoes SET valor_pix = 0.0 WHERE valor_pix IS NULL");
+                stmt.execute("UPDATE transacoes SET valor_credito = 0.0 WHERE valor_credito IS NULL");
+                stmt.execute("UPDATE transacoes SET valor_debito = 0.0 WHERE valor_debito IS NULL");
+                stmt.execute("UPDATE transacoes SET valor_estorno = 0.0 WHERE valor_estorno IS NULL");
+                stmt.execute("UPDATE transacoes SET quantidade_premios = 0.0 WHERE quantidade_premios IS NULL");
+                stmt.execute("UPDATE transacoes SET teste = 0 WHERE teste IS NULL");
+                stmt.execute("UPDATE transacoes SET valor_teste = 0.0 WHERE valor_teste IS NULL");
             }
 
             // 4. Tabela historico_vinculos_maquina (histórico de vigência e movimentação de máquinas)

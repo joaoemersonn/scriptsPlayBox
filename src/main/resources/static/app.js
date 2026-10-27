@@ -1751,30 +1751,140 @@ async function openHistoricoModal(id, nome) {
 
 async function loadColetasData() {
   try {
-    const statusFilter = document.getElementById('coletas-filter-status').value;
+    const statusFilter = document.getElementById('coletas-filter-status') ? document.getElementById('coletas-filter-status').value : '';
     let url = '/api/coletas';
     if (statusFilter) url += `?status=${statusFilter}`;
 
-    const [coletas, pendentes] = await Promise.all([
+    const [painelProximas, coletas, pendentes] = await Promise.all([
+      apiRequest('/api/coletas/painel-proximas').catch(e => { console.warn('Erro painel proximas:', e); return null; }),
       apiRequest(url),
       apiRequest('/api/coletas/pendentes')
     ]);
 
     state.coletas = coletas;
+    state.painelProximasColetas = painelProximas;
 
-    // Highlights
+    // Highlights do Painel de Próximas Coletas
+    if (painelProximas) {
+      if (document.getElementById('coletas-saldo-total-cofres')) {
+        document.getElementById('coletas-saldo-total-cofres').textContent = formatMoney(painelProximas.totalEsperadoCofres || 0);
+      }
+      if (document.getElementById('coletas-maquinas-saldo-count')) {
+        document.getElementById('coletas-maquinas-saldo-count').textContent = `${painelProximas.maquinasComSaldo || 0} / ${painelProximas.totalMaquinas || 0}`;
+      }
+      if (document.getElementById('coletas-maquinas-alerta-count')) {
+        document.getElementById('coletas-maquinas-alerta-count').textContent = painelProximas.maquinasAlerta || 0;
+      }
+      renderProximasColetasTable(painelProximas.maquinas || []);
+    }
+
+    // Highlights de Coletas Realizadas / Malotes
     const totalPendente = pendentes.length;
     const valorEsperadoPendente = pendentes.reduce((acc, c) => acc + (c.valorEsperado || 0), 0);
     const conferidas = coletas.filter(c => c.status === 'CONFERIDO' || c.status === 'CONFERIDO_DIVERGENTE').length;
 
-    document.getElementById('coletas-pendentes-total').textContent = totalPendente;
-    document.getElementById('coletas-valor-esperado-pendente').textContent = formatMoney(valorEsperadoPendente);
-    document.getElementById('coletas-conferidas-total').textContent = conferidas;
+    if (document.getElementById('coletas-pendentes-total')) {
+      document.getElementById('coletas-pendentes-total').textContent = totalPendente;
+    }
+    if (document.getElementById('coletas-valor-esperado-pendente')) {
+      document.getElementById('coletas-valor-esperado-pendente').textContent = formatMoney(valorEsperadoPendente) + ' em suspenso';
+    }
+    if (document.getElementById('coletas-conferidas-total')) {
+      document.getElementById('coletas-conferidas-total').textContent = conferidas;
+    }
 
     renderColetasTable(coletas);
     if (window.lucide) lucide.createIcons();
   } catch (err) {
     showToast('Erro ao carregar coletas: ' + err.message, 'error');
+  }
+}
+
+function renderProximasColetasTable(items) {
+  const tbody = document.getElementById('proximas-coletas-table-body');
+  if (!tbody) return;
+
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">Nenhuma máquina cadastrada no sistema.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map(m => {
+    let diasBadge = '';
+    if (m.primeiraColeta) {
+      diasBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Marco Zero (1ª Coleta)</span>';
+    } else if (m.diasSemColeta === 0) {
+      diasBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Hoje</span>';
+    } else if (m.diasSemColeta === 1) {
+      diasBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">1 dia</span>';
+    } else if (m.diasSemColeta < 7) {
+      diasBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">${m.diasSemColeta} dias</span>`;
+    } else if (m.diasSemColeta < 14) {
+      diasBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">${m.diasSemColeta} dias (Atenção)</span>`;
+    } else {
+      diasBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">${m.diasSemColeta} dias (Urgente)</span>`;
+    }
+
+    const valorClass = m.valorEsperado > 0 ? 'text-amber-800 font-black' : 'text-slate-400 font-medium';
+
+    return `
+      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+        <td class="p-3">
+          <div class="font-bold text-slate-900">${escapeHtml(m.maquinaNome || '')}</div>
+          <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(m.integracao || '')} • ${escapeHtml(m.externalId || '')}</div>
+        </td>
+        <td class="p-3">
+          <div class="font-medium text-slate-800">${escapeHtml(m.estabelecimentoNome || 'Sem Loja')}</div>
+          ${m.cidade ? `<div class="text-[10px] text-slate-400">${escapeHtml(m.cidade)}</div>` : ''}
+        </td>
+        <td class="p-3 text-slate-600 font-medium text-[11px]">
+          ${m.dataHoraUltimaColeta ? formatDate(m.dataHoraUltimaColeta) : '<span class="text-slate-400 italic">Nunca coletada</span>'}
+        </td>
+        <td class="p-3">${diasBadge}</td>
+        <td class="p-3 font-mono text-slate-600 font-medium text-[11px]">
+          ${formatMoney(m.faturamentoTotalPeriodo || 0)}
+          ${m.quantidadePremiosPeriodo > 0 ? `<span class="text-[10px] text-purple-600 ml-1">(${Math.round(m.quantidadePremiosPeriodo)} prêmios)</span>` : ''}
+        </td>
+        <td class="p-3 font-mono text-sm ${valorClass}">
+          ${formatMoney(m.valorEsperado || 0)}
+        </td>
+        <td class="p-3 text-right whitespace-nowrap">
+          <button onclick="openNovaColetaComMaquina(${m.maquinaId})" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-pink-600 hover:from-amber-500 hover:to-pink-500 text-white font-bold text-xs shadow-xs active:scale-95 transition inline-flex items-center gap-1.5">
+            <i data-lucide="hand-coins" class="w-3.5 h-3.5"></i> Coletar Agora
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filtrarProximasColetas() {
+  const query = (document.getElementById('proximas-coletas-search')?.value || '').toLowerCase().trim();
+  if (!state.painelProximasColetas || !state.painelProximasColetas.maquinas) return;
+
+  if (!query) {
+    renderProximasColetasTable(state.painelProximasColetas.maquinas);
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const filtered = state.painelProximasColetas.maquinas.filter(m => {
+    return (m.maquinaNome && m.maquinaNome.toLowerCase().includes(query)) ||
+           (m.estabelecimentoNome && m.estabelecimentoNome.toLowerCase().includes(query)) ||
+           (m.cidade && m.cidade.toLowerCase().includes(query)) ||
+           (m.externalId && m.externalId.toLowerCase().includes(query));
+  });
+
+  renderProximasColetasTable(filtered);
+  if (window.lucide) lucide.createIcons();
+}
+
+function openNovaColetaComMaquina(maquinaId) {
+  openNovaColetaModal();
+  const select = document.getElementById('nova-coleta-maquina');
+  if (select) {
+    select.value = maquinaId;
+    calcularPreviaColeta();
   }
 }
 
@@ -1863,6 +1973,9 @@ function openNovaColetaModal() {
   document.getElementById('nova-coleta-valor-real').value = '';
   document.getElementById('nova-coleta-responsavel').value = '';
   document.getElementById('nova-coleta-obs').value = '';
+  if (document.getElementById('previa-periodo-texto')) {
+    document.getElementById('previa-periodo-texto').textContent = '--';
+  }
   document.getElementById('previa-coleta-card').classList.add('hidden');
 
   openModal('modal-nova-coleta');
@@ -1885,9 +1998,13 @@ async function calcularPreviaColeta() {
     const previa = await apiRequest(url);
     card.classList.remove('hidden');
 
-    document.getElementById('previa-valor-esperado').textContent = formatMoney(previa.valorEsperado || 0);
-    document.getElementById('previa-ultima-data').textContent = previa.dataHoraUltimaColeta ? formatDate(previa.dataHoraUltimaColeta) : 'Nenhuma (primeira coleta)';
-    document.getElementById('previa-total-entradas').textContent = formatMoney(previa.totalEntradasEspecie || 0);
+    const valorEsperado = previa.valorEsperado != null ? previa.valorEsperado : (previa.totalEntradasEspecie || 0);
+    document.getElementById('previa-valor-esperado').textContent = formatMoney(valorEsperado);
+    document.getElementById('previa-ultima-data').textContent = previa.dataHoraUltimaColeta ? formatDate(previa.dataHoraUltimaColeta) : 'Nenhuma (Marco Zero: Primeira Coleta)';
+    if (document.getElementById('previa-periodo-texto')) {
+      document.getElementById('previa-periodo-texto').textContent = previa.periodoFormatado || '--';
+    }
+    document.getElementById('previa-total-entradas').textContent = formatMoney(valorEsperado);
   } catch (err) {
     console.error('Erro na prévia:', err);
   }

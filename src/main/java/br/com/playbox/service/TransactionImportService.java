@@ -110,7 +110,13 @@ public class TransactionImportService {
                 JsonNode pagamentos = vendClient.getReport(token, "relatorio-03-pagamentos", extId, inicio, fim, false);
                 JsonNode premios = vendClient.getReport(token, "relatorio-premios", extId, inicio, fim, false);
 
-                double valorCash = (cash != null && cash.hasNonNull("valor")) ? cash.get("valor").asDouble() : 0.0;
+                double valorCash = 0.0;
+                if (cash != null) {
+                    if (cash.hasNonNull("valor")) valorCash = cash.get("valor").asDouble();
+                    else if (cash.hasNonNull("total")) valorCash = cash.get("total").asDouble();
+                    else if (cash.hasNonNull("cash")) valorCash = cash.get("cash").asDouble();
+                    else if (cash.hasNonNull("valorTotal")) valorCash = cash.get("valorTotal").asDouble();
+                }
                 double valorEstornos = (estornos != null && estornos.hasNonNull("valor")) ? estornos.get("valor").asDouble() : 0.0;
                 double valorPix = (pagamentos != null && pagamentos.hasNonNull("pix")) ? pagamentos.get("pix").asDouble() : 0.0;
                 double valorCredito = (pagamentos != null && pagamentos.hasNonNull("credito")) ? pagamentos.get("credito").asDouble() : 0.0;
@@ -171,7 +177,7 @@ public class TransactionImportService {
                             valorTotal += vt;
                             valorEstornos += ve;
 
-                            if ("especie".equalsIgnoreCase(forma)) valorEspecie += vt;
+                            if ("especie".equalsIgnoreCase(forma) || "dinheiro".equalsIgnoreCase(forma) || "cash".equalsIgnoreCase(forma)) valorEspecie += vt;
                             else if ("pix".equalsIgnoreCase(forma)) valorPix += vt;
                             else if ("credito".equalsIgnoreCase(forma)) valorCredito += vt;
                             else if ("debito".equalsIgnoreCase(forma)) valorDebito += vt;
@@ -230,7 +236,7 @@ public class TransactionImportService {
                         }
                     }
 
-                    double cash = item.hasNonNull("cash") ? item.get("cash").asDouble() : 0.0;
+                    double cash = item.hasNonNull("cash") ? item.get("cash").asDouble() : (item.hasNonNull("especie") ? item.get("especie").asDouble() : (item.hasNonNull("dinheiro") ? item.get("dinheiro").asDouble() : 0.0));
                     double pix = item.hasNonNull("pix") ? item.get("pix").asDouble() : 0.0;
                     double card = item.hasNonNull("card") ? item.get("card").asDouble() : 0.0;
                     double total = item.hasNonNull("total") ? item.get("total").asDouble() : (cash + pix + card);

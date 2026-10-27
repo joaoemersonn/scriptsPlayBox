@@ -107,6 +107,15 @@ public class ColetaController {
         return ResponseEntity.ok(previa);
     }
 
+    @GetMapping("/painel-proximas")
+    @Operation(
+            summary = "Acompanhamento do valor esperado da próxima coleta por máquina",
+            description = "Retorna o saldo acumulado em dinheiro físico nos cofres de todas as máquinas para a próxima coleta, tempo decorrido e status de urgência."
+    )
+    public ResponseEntity<ColetaService.PainelProximasColetasDTO> obterPainelProximasColetas() {
+        return ResponseEntity.ok(coletaService.obterPainelProximasColetas());
+    }
+
     @PostMapping
     @Operation(
             summary = "Registrar nova retirada/coleta de dinheiro na máquina",

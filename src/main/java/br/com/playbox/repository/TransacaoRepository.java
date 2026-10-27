@@ -38,8 +38,14 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
         SELECT COALESCE(SUM(
             CASE
                 WHEN t.teste = true AND (t.valorTeste IS NULL OR t.valorTeste <= 0.0) THEN 0.0
-                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (CASE WHEN t.valorCash > t.valorTeste THEN (t.valorCash - t.valorTeste) ELSE 0.0 END)
-                ELSE COALESCE(t.valorCash, 0.0)
+                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (
+                    CASE 
+                        WHEN COALESCE(t.valorCash, CASE WHEN UPPER(COALESCE(t.tipoPagamento, '')) IN ('DINHEIRO', 'ESPECIE', 'CASH') THEN t.valor ELSE 0.0 END) > t.valorTeste 
+                        THEN (COALESCE(t.valorCash, CASE WHEN UPPER(COALESCE(t.tipoPagamento, '')) IN ('DINHEIRO', 'ESPECIE', 'CASH') THEN t.valor ELSE 0.0 END) - t.valorTeste) 
+                        ELSE 0.0 
+                    END
+                )
+                ELSE COALESCE(t.valorCash, CASE WHEN UPPER(COALESCE(t.tipoPagamento, '')) IN ('DINHEIRO', 'ESPECIE', 'CASH') THEN t.valor ELSE 0.0 END, 0.0)
             END
         ), 0.0)
         FROM Transacao t
@@ -55,14 +61,96 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
         SELECT COALESCE(SUM(
             CASE
                 WHEN t.teste = true AND (t.valorTeste IS NULL OR t.valorTeste <= 0.0) THEN 0.0
-                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (CASE WHEN t.valorCash > t.valorTeste THEN (t.valorCash - t.valorTeste) ELSE 0.0 END)
-                ELSE COALESCE(t.valorCash, 0.0)
+                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (
+                    CASE 
+                        WHEN COALESCE(t.valorCash, CASE WHEN UPPER(COALESCE(t.tipoPagamento, '')) IN ('DINHEIRO', 'ESPECIE', 'CASH') THEN t.valor ELSE 0.0 END) > t.valorTeste 
+                        THEN (COALESCE(t.valorCash, CASE WHEN UPPER(COALESCE(t.tipoPagamento, '')) IN ('DINHEIRO', 'ESPECIE', 'CASH') THEN t.valor ELSE 0.0 END) - t.valorTeste) 
+                        ELSE 0.0 
+                    END
+                )
+                ELSE COALESCE(t.valorCash, CASE WHEN UPPER(COALESCE(t.tipoPagamento, '')) IN ('DINHEIRO', 'ESPECIE', 'CASH') THEN t.valor ELSE 0.0 END, 0.0)
             END
         ), 0.0)
         FROM Transacao t
         WHERE t.maquina.id = :maquinaId AND t.timestamp <= :fim
     """)
     Double sumValorCashByMaquinaUntil(
+            @Param("maquinaId") Long maquinaId,
+            @Param("fim") LocalDateTime fim
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true AND (t.valorTeste IS NULL OR t.valorTeste <= 0.0) THEN 0.0
+                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (
+                    CASE 
+                        WHEN COALESCE(t.valor, 0.0) > t.valorTeste 
+                        THEN (COALESCE(t.valor, 0.0) - t.valorTeste) 
+                        ELSE 0.0 
+                    END
+                )
+                ELSE COALESCE(t.valor, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp >= :inicio AND t.timestamp <= :fim
+    """)
+    Double sumValorTotalByMaquinaAndPeriod(
+            @Param("maquinaId") Long maquinaId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true AND (t.valorTeste IS NULL OR t.valorTeste <= 0.0) THEN 0.0
+                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (
+                    CASE 
+                        WHEN COALESCE(t.valor, 0.0) > t.valorTeste 
+                        THEN (COALESCE(t.valor, 0.0) - t.valorTeste) 
+                        ELSE 0.0 
+                    END
+                )
+                ELSE COALESCE(t.valor, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp <= :fim
+    """)
+    Double sumValorTotalByMaquinaUntil(
+            @Param("maquinaId") Long maquinaId,
+            @Param("fim") LocalDateTime fim
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true THEN 0.0
+                ELSE COALESCE(t.quantidadePremios, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp >= :inicio AND t.timestamp <= :fim
+    """)
+    Double sumQuantidadePremiosByMaquinaAndPeriod(
+            @Param("maquinaId") Long maquinaId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true THEN 0.0
+                ELSE COALESCE(t.quantidadePremios, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp <= :fim
+    """)
+    Double sumQuantidadePremiosByMaquinaUntil(
             @Param("maquinaId") Long maquinaId,
             @Param("fim") LocalDateTime fim
     );

@@ -83,9 +83,37 @@ public class ColetaService {
             LocalDateTime dataHoraColeta,
             LocalDateTime dataHoraUltimaColeta,
             Double valorEsperado,
+            Double totalEntradasEspecie,
+            Double totalFaturadoPeriodo,
+            Double quantidadePremiosPeriodo,
             boolean primeiraColeta,
             int diasApurados,
             String periodoFormatado
+    ) {}
+
+    public record StatusProximaColetaDTO(
+            Long maquinaId,
+            String maquinaNome,
+            String integracao,
+            String externalId,
+            Long estabelecimentoId,
+            String estabelecimentoNome,
+            String cidade,
+            LocalDateTime dataHoraUltimaColeta,
+            int diasSemColeta,
+            boolean primeiraColeta,
+            Double valorEsperado,
+            Double faturamentoTotalPeriodo,
+            Double quantidadePremiosPeriodo,
+            String statusUrgencia
+    ) {}
+
+    public record PainelProximasColetasDTO(
+            Double totalEsperadoCofres,
+            int totalMaquinas,
+            int maquinasComSaldo,
+            int maquinasAlerta,
+            List<StatusProximaColetaDTO> maquinas
     ) {}
 
     public PreviaColetaDTO calcularPrevia(Long maquinaId, LocalDateTime dataHoraColeta) {
@@ -101,41 +129,63 @@ public class ColetaService {
         boolean primeiraColeta = (ultimaDataHora == null);
 
         LocalDate dataFim = dataHora.toLocalDate();
+        LocalDate dataInicioImportacao = primeiraColeta
+                ? dataFim.minusDays(30).withDayOfMonth(1)
+                : ultimaDataHora.toLocalDate();
 
-        // Sincronizar transações recentes (ontem e hoje) para garantir dados frescos do dia
+        // Garantir sincronização das transações recentes e do período
         try {
+            transactionImportService.ensureTransactionsImported(dataInicioImportacao, dataFim);
             transactionImportService.importDailyTransactions(dataFim.minusDays(1));
             transactionImportService.importDailyTransactions(dataFim);
         } catch (Exception e) {
-            log.warn("Aviso ao atualizar transações na prévia da coleta: {}", e.getMessage());
+            log.warn("Aviso ao atualizar transações na prévia da coleta para máquina {}: {}", maquinaId, e.getMessage());
         }
 
         Double valorEsperado;
+        Double totalFaturado;
+        Double totalPremios;
         int diasApurados;
         String periodoFormatado;
 
         if (primeiraColeta) {
             // Marco zero: soma tudo que houver até o dia da coleta
             valorEsperado = transacaoRepository.sumValorCashByMaquinaUntil(maquinaId, dataFim.atTime(LocalTime.MAX));
-            diasApurados = 1;
+            totalFaturado = transacaoRepository.sumValorTotalByMaquinaUntil(maquinaId, dataFim.atTime(LocalTime.MAX));
+            totalPremios = transacaoRepository.sumQuantidadePremiosByMaquinaUntil(maquinaId, dataFim.atTime(LocalTime.MAX));
+            diasApurados = 30;
             periodoFormatado = "Marco Zero (Até " + dataHora.format(DATE_TIME_FORMATTER) + ")";
         } else {
             // A partir da segunda coleta: soma do dia seguinte à última coleta até o dia da coleta atual
             LocalDate startDay = ultimaDataHora.toLocalDate().isEqual(dataFim)
-                    ? dataFim
+                    ? dataFim.plusDays(1)
                     : ultimaDataHora.toLocalDate().plusDays(1);
 
             LocalDateTime startDt = startDay.atStartOfDay();
             LocalDateTime endDt = dataFim.atTime(LocalTime.MAX);
 
-            valorEsperado = transacaoRepository.sumValorCashByMaquinaAndPeriod(maquinaId, startDt, endDt);
-            diasApurados = (int) java.time.temporal.ChronoUnit.DAYS.between(startDay, dataFim) + 1;
+            if (startDt.isAfter(endDt)) {
+                valorEsperado = 0.0;
+                totalFaturado = 0.0;
+                totalPremios = 0.0;
+                diasApurados = 0;
+            } else {
+                valorEsperado = transacaoRepository.sumValorCashByMaquinaAndPeriod(maquinaId, startDt, endDt);
+                totalFaturado = transacaoRepository.sumValorTotalByMaquinaAndPeriod(maquinaId, startDt, endDt);
+                totalPremios = transacaoRepository.sumQuantidadePremiosByMaquinaAndPeriod(maquinaId, startDt, endDt);
+                diasApurados = (int) java.time.temporal.ChronoUnit.DAYS.between(ultimaDataHora.toLocalDate(), dataFim);
+                if (diasApurados < 1) diasApurados = 1;
+            }
             periodoFormatado = "De " + ultimaDataHora.format(DATE_TIME_FORMATTER) + " até " + dataHora.format(DATE_TIME_FORMATTER);
         }
 
-        if (valorEsperado == null) {
-            valorEsperado = 0.0;
-        }
+        if (valorEsperado == null) valorEsperado = 0.0;
+        if (totalFaturado == null) totalFaturado = 0.0;
+        if (totalPremios == null) totalPremios = 0.0;
+
+        double valorEsperadoArredondado = Math.round(valorEsperado * 100.0) / 100.0;
+        double totalFaturadoArredondado = Math.round(totalFaturado * 100.0) / 100.0;
+        double totalPremiosArredondado = Math.round(totalPremios * 100.0) / 100.0;
 
         String nomeMaq = maquina.getNomeIntegracao() != null ? maquina.getNomeIntegracao() : maquina.getDescricao();
         Estabelecimento est = maquina.getEstabelecimento();
@@ -149,10 +199,120 @@ public class ColetaService {
                 est != null ? est.getNome() : "Sem Estabelecimento",
                 dataHora,
                 ultimaDataHora,
-                Math.round(valorEsperado * 100.0) / 100.0,
+                valorEsperadoArredondado,
+                valorEsperadoArredondado,
+                totalFaturadoArredondado,
+                totalPremiosArredondado,
                 primeiraColeta,
                 diasApurados,
                 periodoFormatado
+        );
+    }
+
+    public PainelProximasColetasDTO obterPainelProximasColetas() {
+        List<Maquina> maquinas = maquinaRepository.findByAtivoTrue();
+        if (maquinas.isEmpty()) {
+            maquinas = maquinaRepository.findAll();
+        }
+
+        LocalDateTime agora = LocalDateTime.now(ZONE_SP);
+        LocalDate hoje = agora.toLocalDate();
+
+        List<StatusProximaColetaDTO> lista = new ArrayList<>();
+        double totalGeral = 0.0;
+        int comSaldo = 0;
+        int alerta = 0;
+
+        for (Maquina m : maquinas) {
+            Optional<Coleta> optUltima = coletaRepository.findFirstByMaquinaIdAndStatusNotOrderByDataHoraColetaDesc(m.getId(), "CANCELADA");
+            boolean primeira = optUltima.isEmpty();
+            LocalDateTime ultimaDt = optUltima.map(Coleta::getDataHoraColeta).orElse(null);
+
+            Double esperado;
+            Double faturamento;
+            Double premios;
+            int dias;
+
+            if (primeira) {
+                esperado = transacaoRepository.sumValorCashByMaquinaUntil(m.getId(), hoje.atTime(LocalTime.MAX));
+                faturamento = transacaoRepository.sumValorTotalByMaquinaUntil(m.getId(), hoje.atTime(LocalTime.MAX));
+                premios = transacaoRepository.sumQuantidadePremiosByMaquinaUntil(m.getId(), hoje.atTime(LocalTime.MAX));
+                dias = 30; // Marco zero indicativo
+            } else {
+                LocalDate startDay = ultimaDt.toLocalDate().plusDays(1);
+                LocalDateTime startDt = startDay.atStartOfDay();
+                LocalDateTime endDt = hoje.atTime(LocalTime.MAX);
+
+                dias = (int) java.time.temporal.ChronoUnit.DAYS.between(ultimaDt.toLocalDate(), hoje);
+                if (dias < 0) dias = 0;
+
+                if (startDt.isAfter(endDt)) {
+                    esperado = 0.0;
+                    faturamento = 0.0;
+                    premios = 0.0;
+                } else {
+                    esperado = transacaoRepository.sumValorCashByMaquinaAndPeriod(m.getId(), startDt, endDt);
+                    faturamento = transacaoRepository.sumValorTotalByMaquinaAndPeriod(m.getId(), startDt, endDt);
+                    premios = transacaoRepository.sumQuantidadePremiosByMaquinaAndPeriod(m.getId(), startDt, endDt);
+                }
+            }
+
+            if (esperado == null) esperado = 0.0;
+            if (faturamento == null) faturamento = 0.0;
+            if (premios == null) premios = 0.0;
+
+            esperado = Math.round(esperado * 100.0) / 100.0;
+            faturamento = Math.round(faturamento * 100.0) / 100.0;
+            premios = Math.round(premios * 100.0) / 100.0;
+
+            totalGeral += esperado;
+            if (esperado > 0.0) comSaldo++;
+
+            String urgencia = "NORMAL";
+            if (dias >= 14 || esperado >= 600.0) {
+                urgencia = "CRITICO";
+                alerta++;
+            } else if (dias >= 7 || esperado >= 300.0) {
+                urgencia = "ATENCAO";
+                alerta++;
+            }
+
+            String nomeMaq = m.getNomeIntegracao() != null ? m.getNomeIntegracao() : (m.getDescricao() != null ? m.getDescricao() : "Máquina #" + m.getId());
+            Estabelecimento est = m.getEstabelecimento();
+
+            lista.add(new StatusProximaColetaDTO(
+                    m.getId(),
+                    nomeMaq,
+                    m.getIntegracao(),
+                    m.getExternalId(),
+                    est != null ? est.getId() : null,
+                    est != null ? est.getNome() : "Sem Estabelecimento",
+                    est != null && est.getCidade() != null ? est.getCidade() : "",
+                    ultimaDt,
+                    dias,
+                    primeira,
+                    esperado,
+                    faturamento,
+                    premios,
+                    urgencia
+            ));
+        }
+
+        // Ordenar primeiro por valor esperado decrescente, depois por dias sem coleta decrescente
+        lista.sort((a, b) -> {
+            int cmp = Double.compare(b.valorEsperado(), a.valorEsperado());
+            if (cmp != 0) return cmp;
+            return Integer.compare(b.diasSemColeta(), a.diasSemColeta());
+        });
+
+        totalGeral = Math.round(totalGeral * 100.0) / 100.0;
+
+        return new PainelProximasColetasDTO(
+                totalGeral,
+                maquinas.size(),
+                comSaldo,
+                alerta,
+                lista
         );
     }
 
