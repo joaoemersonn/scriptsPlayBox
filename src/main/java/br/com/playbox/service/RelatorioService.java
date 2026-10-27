@@ -187,12 +187,12 @@ public class RelatorioService {
             }
 
             MachineReport rep = reportMap.computeIfAbsent(key, k -> new MachineReport(idMaquina, nomeMaquina));
-            rep.setValorEstornos(rep.getValorEstornos() + (t.getValorEstorno() != null ? t.getValorEstorno() : 0.0));
-            rep.setValorEspecie(rep.getValorEspecie() + (t.getValorCash() != null ? t.getValorCash() : 0.0));
-            rep.setValorPix(rep.getValorPix() + (t.getValorPix() != null ? t.getValorPix() : 0.0));
-            rep.setValorCredito(rep.getValorCredito() + (t.getValorCredito() != null ? t.getValorCredito() : 0.0));
-            rep.setValorDebito(rep.getValorDebito() + (t.getValorDebito() != null ? t.getValorDebito() : 0.0));
-            rep.setQuantidadePremios(rep.getQuantidadePremios() + (t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0));
+            rep.setValorEstornos(rep.getValorEstornos() + t.getValorEstornoEfetivo());
+            rep.setValorEspecie(rep.getValorEspecie() + t.getValorCashEfetivo());
+            rep.setValorPix(rep.getValorPix() + t.getValorPixEfetivo());
+            rep.setValorCredito(rep.getValorCredito() + t.getValorCreditoEfetivo());
+            rep.setValorDebito(rep.getValorDebito() + t.getValorDebitoEfetivo());
+            rep.setQuantidadePremios(rep.getQuantidadePremios() + t.getQuantidadePremiosEfetiva());
             rep.updateTotals();
         }
 
@@ -216,15 +216,17 @@ public class RelatorioService {
         double totalCredito = 0.0;
         double totalDebito = 0.0;
         double totalPremios = 0.0;
+        double totalTestes = 0.0;
 
         for (Transacao t : transacoes) {
-            faturamentoBruto += (t.getValor() != null ? t.getValor() : 0.0);
-            totalEstornos += (t.getValorEstorno() != null ? t.getValorEstorno() : 0.0);
-            totalCash += (t.getValorCash() != null ? t.getValorCash() : 0.0);
-            totalPix += (t.getValorPix() != null ? t.getValorPix() : 0.0);
-            totalCredito += (t.getValorCredito() != null ? t.getValorCredito() : 0.0);
-            totalDebito += (t.getValorDebito() != null ? t.getValorDebito() : 0.0);
-            totalPremios += (t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0);
+            faturamentoBruto += t.getValorEfetivo();
+            totalEstornos += t.getValorEstornoEfetivo();
+            totalCash += t.getValorCashEfetivo();
+            totalPix += t.getValorPixEfetivo();
+            totalCredito += t.getValorCreditoEfetivo();
+            totalDebito += t.getValorDebitoEfetivo();
+            totalPremios += t.getQuantidadePremiosEfetiva();
+            totalTestes += t.getValorTesteDesconsiderado();
         }
 
         double faturamentoLiquido = round(faturamentoBruto - totalEstornos);
@@ -233,6 +235,7 @@ public class RelatorioService {
         Map<String, Object> resumoGeral = new LinkedHashMap<>();
         resumoGeral.put("faturamentoBruto", round(faturamentoBruto));
         resumoGeral.put("totalEstornos", round(totalEstornos));
+        resumoGeral.put("totalTestesDesconsiderados", round(totalTestes));
         resumoGeral.put("faturamentoLiquido", faturamentoLiquido);
         resumoGeral.put("quantidadePremios", round(totalPremios));
         resumoGeral.put("receitaPorPremioLiberado", receitaPorPremio);
@@ -258,13 +261,13 @@ public class RelatorioService {
             Transacao first = txList.get(0);
             Estabelecimento est = first.getEstabelecimento();
 
-            double estBruto = txList.stream().mapToDouble(t -> t.getValor() != null ? t.getValor() : 0.0).sum();
-            double estEstornos = txList.stream().mapToDouble(t -> t.getValorEstorno() != null ? t.getValorEstorno() : 0.0).sum();
-            double estPremios = txList.stream().mapToDouble(t -> t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0).sum();
-            double estCash = txList.stream().mapToDouble(t -> t.getValorCash() != null ? t.getValorCash() : 0.0).sum();
-            double estPix = txList.stream().mapToDouble(t -> t.getValorPix() != null ? t.getValorPix() : 0.0).sum();
-            double estCredito = txList.stream().mapToDouble(t -> t.getValorCredito() != null ? t.getValorCredito() : 0.0).sum();
-            double estDebito = txList.stream().mapToDouble(t -> t.getValorDebito() != null ? t.getValorDebito() : 0.0).sum();
+            double estBruto = txList.stream().mapToDouble(Transacao::getValorEfetivo).sum();
+            double estEstornos = txList.stream().mapToDouble(Transacao::getValorEstornoEfetivo).sum();
+            double estPremios = txList.stream().mapToDouble(Transacao::getQuantidadePremiosEfetiva).sum();
+            double estCash = txList.stream().mapToDouble(Transacao::getValorCashEfetivo).sum();
+            double estPix = txList.stream().mapToDouble(Transacao::getValorPixEfetivo).sum();
+            double estCredito = txList.stream().mapToDouble(Transacao::getValorCreditoEfetivo).sum();
+            double estDebito = txList.stream().mapToDouble(Transacao::getValorDebitoEfetivo).sum();
             long maquinasCount = txList.stream().map(t -> t.getMaquina() != null ? t.getMaquina().getId() : null).filter(Objects::nonNull).distinct().count();
             List<String> maquinasInfo = txList.stream()
                     .map(t -> {
@@ -317,13 +320,13 @@ public class RelatorioService {
             Maquina maq = first.getMaquina();
             Estabelecimento est = first.getEstabelecimento() != null ? first.getEstabelecimento() : (maq != null ? maq.getEstabelecimento() : null);
 
-            double maqBruto = txList.stream().mapToDouble(t -> t.getValor() != null ? t.getValor() : 0.0).sum();
-            double maqEstornos = txList.stream().mapToDouble(t -> t.getValorEstorno() != null ? t.getValorEstorno() : 0.0).sum();
-            double maqPremios = txList.stream().mapToDouble(t -> t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0).sum();
-            double maqCash = txList.stream().mapToDouble(t -> t.getValorCash() != null ? t.getValorCash() : 0.0).sum();
-            double maqPix = txList.stream().mapToDouble(t -> t.getValorPix() != null ? t.getValorPix() : 0.0).sum();
-            double maqCredito = txList.stream().mapToDouble(t -> t.getValorCredito() != null ? t.getValorCredito() : 0.0).sum();
-            double maqDebito = txList.stream().mapToDouble(t -> t.getValorDebito() != null ? t.getValorDebito() : 0.0).sum();
+            double maqBruto = txList.stream().mapToDouble(Transacao::getValorEfetivo).sum();
+            double maqEstornos = txList.stream().mapToDouble(Transacao::getValorEstornoEfetivo).sum();
+            double maqPremios = txList.stream().mapToDouble(Transacao::getQuantidadePremiosEfetiva).sum();
+            double maqCash = txList.stream().mapToDouble(Transacao::getValorCashEfetivo).sum();
+            double maqPix = txList.stream().mapToDouble(Transacao::getValorPixEfetivo).sum();
+            double maqCredito = txList.stream().mapToDouble(Transacao::getValorCreditoEfetivo).sum();
+            double maqDebito = txList.stream().mapToDouble(Transacao::getValorDebitoEfetivo).sum();
 
             Map<String, Object> itemMaq = new LinkedHashMap<>();
             itemMaq.put("maquinaId", maq != null ? maq.getId() : null);
@@ -362,13 +365,13 @@ public class RelatorioService {
             LocalDate dia = entry.getKey();
             List<Transacao> txList = entry.getValue();
 
-            double diaBruto = txList.stream().mapToDouble(t -> t.getValor() != null ? t.getValor() : 0.0).sum();
-            double diaEstornos = txList.stream().mapToDouble(t -> t.getValorEstorno() != null ? t.getValorEstorno() : 0.0).sum();
-            double diaPremios = txList.stream().mapToDouble(t -> t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0).sum();
-            double diaCash = txList.stream().mapToDouble(t -> t.getValorCash() != null ? t.getValorCash() : 0.0).sum();
-            double diaPix = txList.stream().mapToDouble(t -> t.getValorPix() != null ? t.getValorPix() : 0.0).sum();
-            double diaCredito = txList.stream().mapToDouble(t -> t.getValorCredito() != null ? t.getValorCredito() : 0.0).sum();
-            double diaDebito = txList.stream().mapToDouble(t -> t.getValorDebito() != null ? t.getValorDebito() : 0.0).sum();
+            double diaBruto = txList.stream().mapToDouble(Transacao::getValorEfetivo).sum();
+            double diaEstornos = txList.stream().mapToDouble(Transacao::getValorEstornoEfetivo).sum();
+            double diaPremios = txList.stream().mapToDouble(Transacao::getQuantidadePremiosEfetiva).sum();
+            double diaCash = txList.stream().mapToDouble(Transacao::getValorCashEfetivo).sum();
+            double diaPix = txList.stream().mapToDouble(Transacao::getValorPixEfetivo).sum();
+            double diaCredito = txList.stream().mapToDouble(Transacao::getValorCreditoEfetivo).sum();
+            double diaDebito = txList.stream().mapToDouble(Transacao::getValorDebitoEfetivo).sum();
 
             Map<String, Object> itemDia = new LinkedHashMap<>();
             itemDia.put("data", dia.toString());

@@ -28,14 +28,34 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     long countByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT COALESCE(SUM(t.valorCash), 0.0) FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp >= :inicio AND t.timestamp <= :fim")
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true AND (t.valorTeste IS NULL OR t.valorTeste <= 0.0) THEN 0.0
+                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (CASE WHEN t.valorCash > t.valorTeste THEN (t.valorCash - t.valorTeste) ELSE 0.0 END)
+                ELSE COALESCE(t.valorCash, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp >= :inicio AND t.timestamp <= :fim
+    """)
     Double sumValorCashByMaquinaAndPeriod(
             @Param("maquinaId") Long maquinaId,
             @Param("inicio") LocalDateTime inicio,
             @Param("fim") LocalDateTime fim
     );
 
-    @Query("SELECT COALESCE(SUM(t.valorCash), 0.0) FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp <= :fim")
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true AND (t.valorTeste IS NULL OR t.valorTeste <= 0.0) THEN 0.0
+                WHEN t.teste = true AND t.valorTeste > 0.0 THEN (CASE WHEN t.valorCash > t.valorTeste THEN (t.valorCash - t.valorTeste) ELSE 0.0 END)
+                ELSE COALESCE(t.valorCash, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp <= :fim
+    """)
     Double sumValorCashByMaquinaUntil(
             @Param("maquinaId") Long maquinaId,
             @Param("fim") LocalDateTime fim
@@ -50,6 +70,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
           AND (:cidade IS NULL OR LOWER(e.cidade) = LOWER(:cidade))
           AND (:maquinaId IS NULL OR m.id = :maquinaId)
           AND (:integracao IS NULL OR UPPER(t.integracao) = UPPER(:integracao))
+          AND (:teste IS NULL OR (:teste = true AND t.teste = true) OR (:teste = false AND (t.teste IS NULL OR t.teste = false)))
         ORDER BY t.timestamp DESC
     """)
     List<Transacao> findFiltered(
@@ -58,6 +79,34 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
             @Param("estabelecimentoId") Long estabelecimentoId,
             @Param("cidade") String cidade,
             @Param("maquinaId") Long maquinaId,
-            @Param("integracao") String integracao
+            @Param("integracao") String integracao,
+            @Param("teste") Boolean teste
+    );
+
+    default List<Transacao> findFiltered(
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            Long estabelecimentoId,
+            String cidade,
+            Long maquinaId,
+            String integracao
+    ) {
+        return findFiltered(inicio, fim, estabelecimentoId, cidade, maquinaId, integracao, null);
+    }
+
+    @Query("""
+        SELECT t FROM Transacao t
+        LEFT JOIN t.maquina m
+        LEFT JOIN t.estabelecimento e
+        WHERE t.timestamp >= :inicio AND t.timestamp <= :fim
+          AND (:maquinaId IS NULL OR m.id = :maquinaId)
+          AND (:estabelecimentoId IS NULL OR e.id = :estabelecimentoId)
+        ORDER BY t.timestamp ASC
+    """)
+    List<Transacao> findByPeriodAndFilters(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim,
+            @Param("maquinaId") Long maquinaId,
+            @Param("estabelecimentoId") Long estabelecimentoId
     );
 }

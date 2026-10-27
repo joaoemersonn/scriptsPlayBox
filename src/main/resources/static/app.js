@@ -21,6 +21,11 @@ const state = {
   stockData: null,
   coletas: [],
   alugueis: { pendentes: [], pagos: [] },
+  transacoes: [],
+  transacoesPeriod: 'mes',
+  transacoesCustomStart: null,
+  transacoesCustomEnd: null,
+  transacoesFilteredList: [],
   charts: {
     timeline: null,
     paymentMethods: null,
@@ -192,6 +197,9 @@ function switchTab(tabId) {
       break;
     case 'alugueis':
       loadAlugueisData();
+      break;
+    case 'transacoes':
+      loadTransacoesData();
       break;
     case 'estabelecimentos':
       loadEstabelecimentosData();
@@ -450,6 +458,18 @@ function renderDashboardKPIs(report, monitor) {
   document.getElementById('kpi-faturamento-bruto').textContent = formatMoney(bruto);
   document.getElementById('kpi-faturamento-liquido').textContent = formatMoney(liquido);
   document.getElementById('kpi-estornos').textContent = `Estornos: ${formatMoney(estornos)}`;
+
+  const testes = resumo.totalTestesDesconsiderados || 0;
+  const elTestes = document.getElementById('kpi-testes-desconsiderados');
+  if (elTestes) {
+    if (testes > 0) {
+      elTestes.textContent = `Testes desc.: -${formatMoney(testes)}`;
+      elTestes.classList.remove('hidden');
+    } else {
+      elTestes.classList.add('hidden');
+    }
+  }
+
   document.getElementById('kpi-premios').textContent = `${Math.round(premios)} un`;
   document.getElementById('kpi-rec-premio').textContent = `${formatMoney(recPremio)}/pelúcia`;
   document.getElementById('kpi-especie').textContent = formatMoney(especie);
@@ -3174,6 +3194,449 @@ async function handleLogout() {
     localStorage.removeItem('playbox_session_token');
     showAuthScreen();
     showToast('Sessão encerrada com sucesso.', 'info');
+  }
+}
+
+// ============================================================================
+// TRANSAÇÕES & TESTES
+// ============================================================================
+
+function setTransacoesPeriod(period) {
+  state.transacoesPeriod = period;
+  document.querySelectorAll('#transacoes-period-buttons-group .filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tx-period') === period);
+  });
+
+  const customBar = document.getElementById('transacoes-custom-dates-bar');
+  if (period === 'custom') {
+    if (customBar) customBar.classList.remove('hidden');
+  } else {
+    if (customBar) customBar.classList.add('hidden');
+    loadTransacoesData();
+  }
+}
+
+function toggleTransacoesCustomDates() {
+  setTransacoesPeriod('custom');
+}
+
+function applyTransacoesCustomDates() {
+  const start = document.getElementById('transacoes-date-start').value;
+  const end = document.getElementById('transacoes-date-end').value;
+  if (!start || !end) {
+    showToast('Informe as datas inicial e final para filtrar.', 'warning');
+    return;
+  }
+  state.transacoesCustomStart = start;
+  state.transacoesCustomEnd = end;
+  loadTransacoesData();
+}
+
+async function loadTransacoesData(forceSync = false) {
+  populateTransacoesMachineFilter();
+
+  const machineId = document.getElementById('transacoes-filter-machine')?.value || '';
+  let url = `/api/transacoes?`;
+
+  if (state.transacoesPeriod === 'custom' && state.transacoesCustomStart && state.transacoesCustomEnd) {
+    url += `dataInicio=${state.transacoesCustomStart}&dataFim=${state.transacoesCustomEnd}`;
+  } else {
+    url += `periodo=${encodeURIComponent(state.transacoesPeriod || 'mes')}`;
+  }
+
+  if (machineId) {
+    url += `&maquinaId=${encodeURIComponent(machineId)}`;
+  }
+
+  if (forceSync) {
+    url += `&sincronizar=true`;
+    showToast('Sincronizando transações das integradoras...', 'info');
+  }
+
+  try {
+    const list = await apiRequest(url);
+    state.transacoes = Array.isArray(list) ? list : [];
+    filterTransacoesTable();
+  } catch (err) {
+    console.error('Erro ao carregar transações:', err);
+    showToast('Erro ao carregar transações: ' + err.message, 'error');
+  }
+}
+
+function populateTransacoesMachineFilter() {
+  const select = document.getElementById('transacoes-filter-machine');
+  if (!select) return;
+  const currentVal = select.value;
+
+  const options = ['<option value="">Todas as Máquinas</option>'];
+  (state.machines || []).forEach(m => {
+    const nome = m.nomeIntegracao || m.descricao || `Máquina #${m.id}`;
+    const est = m.estabelecimentoNome ? ` (${m.estabelecimentoNome})` : '';
+    options.push(`<option value="${m.id}">${escapeHtml(nome + est)}</option>`);
+  });
+
+  select.innerHTML = options.join('');
+  if (currentVal) select.value = currentVal;
+}
+
+function filterTransacoesTable() {
+  const statusFilter = document.getElementById('transacoes-filter-status')?.value || '';
+  const search = (document.getElementById('transacoes-search-input')?.value || '').toLowerCase().trim();
+
+  let filtered = [...state.transacoes];
+
+  if (statusFilter === 'VALIDAS') {
+    filtered = filtered.filter(t => !t.teste);
+  } else if (statusFilter === 'TESTES') {
+    filtered = filtered.filter(t => t.teste);
+  }
+
+  if (search) {
+    filtered = filtered.filter(t => {
+      const maq = (t.maquinaNome || '').toLowerCase();
+      const est = (t.estabelecimentoNome || '').toLowerCase();
+      const id = (t.externalTxId || '').toLowerCase();
+      const int = (t.integracao || '').toLowerCase();
+      return maq.includes(search) || est.includes(search) || id.includes(search) || int.includes(search);
+    });
+  }
+
+  state.transacoesFilteredList = filtered;
+  renderTransacoesKpis(filtered);
+  renderTransacoesTable(filtered);
+}
+
+function renderTransacoesKpis(list) {
+  let bruto = 0;
+  let testes = 0;
+  let efetivo = 0;
+  let countTestes = 0;
+
+  list.forEach(t => {
+    const b = t.valorBruto || 0;
+    const ef = t.valorEfetivo != null ? t.valorEfetivo : b;
+    const est = t.valorEstorno || 0;
+    const desc = Math.max(0, b - ef);
+
+    bruto += b;
+    testes += desc;
+    efetivo += Math.max(0, ef - est);
+    if (t.teste) countTestes++;
+  });
+
+  const elTotal = document.getElementById('tx-kpi-total');
+  const elBruto = document.getElementById('tx-kpi-bruto');
+  const elTestes = document.getElementById('tx-kpi-testes');
+  const elTestesCount = document.getElementById('tx-kpi-testes-count');
+  const elEfetivo = document.getElementById('tx-kpi-efetivo');
+  const elBadge = document.getElementById('transacoes-count-badge');
+
+  if (elTotal) elTotal.textContent = list.length;
+  if (elBruto) elBruto.textContent = formatMoney(bruto);
+  if (elTestes) elTestes.textContent = formatMoney(testes);
+  if (elTestesCount) elTestesCount.textContent = `${countTestes} transação(ões) de teste`;
+  if (elEfetivo) elEfetivo.textContent = formatMoney(efetivo);
+  if (elBadge) elBadge.textContent = `${list.length} listadas`;
+}
+
+function renderTransacoesTable(list) {
+  const tbody = document.getElementById('transacoes-table-body');
+  const emptyState = document.getElementById('transacoes-empty-state');
+  if (!tbody) return;
+
+  if (!list || list.length === 0) {
+    tbody.innerHTML = '';
+    if (emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyState) emptyState.classList.add('hidden');
+
+  const rows = list.map(t => {
+    const isTeste = Boolean(t.teste);
+    const vt = t.valorTeste || 0;
+    const motivo = t.motivoTeste || '';
+    const bruto = t.valorBruto || 0;
+    const cash = t.valorCash || 0;
+    const pix = t.valorPix || 0;
+    const cartao = (t.valorCredito || 0) + (t.valorDebito || 0);
+    const efetivo = t.valorEfetivo != null ? t.valorEfetivo : bruto;
+
+    let badgeStatus;
+    if (isTeste) {
+      if (vt > 0) {
+        badgeStatus = `
+          <div class="flex flex-col items-center">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200">
+              <i data-lucide="flask-conical" class="w-3 h-3"></i> TESTE PARCIAL (-${formatMoney(vt)})
+            </span>
+            ${motivo ? `<span class="text-[10px] text-slate-400 truncate max-w-[130px]" title="${escapeHtml(motivo)}">${escapeHtml(motivo)}</span>` : ''}
+          </div>
+        `;
+      } else {
+        badgeStatus = `
+          <div class="flex flex-col items-center">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
+              <i data-lucide="flask-conical" class="w-3 h-3"></i> TESTE (100% DESC.)
+            </span>
+            ${motivo ? `<span class="text-[10px] text-slate-400 truncate max-w-[130px]" title="${escapeHtml(motivo)}">${escapeHtml(motivo)}</span>` : ''}
+          </div>
+        `;
+      }
+    } else {
+      badgeStatus = `
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <i data-lucide="check" class="w-3 h-3"></i> Válida
+        </span>
+      `;
+    }
+
+    const rowClass = isTeste ? 'bg-purple-50/30 hover:bg-purple-50/60 transition' : 'hover:bg-slate-50/80 transition';
+
+    return `
+      <tr class="${rowClass}">
+        <td class="py-3 px-4 whitespace-nowrap">
+          <div class="font-bold text-slate-900">${formatDateTime(t.dataHora)}</div>
+          <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(t.externalTxId || '')}</div>
+        </td>
+        <td class="py-3 px-4 font-bold text-slate-800">
+          ${escapeHtml(t.maquinaNome || '--')}
+        </td>
+        <td class="py-3 px-4 font-medium text-slate-600">
+          ${escapeHtml(t.estabelecimentoNome || 'Sem Estabelecimento')}
+          ${t.cidade ? `<span class="text-[10px] text-slate-400 block">${escapeHtml(t.cidade)}</span>` : ''}
+        </td>
+        <td class="py-3 px-4 whitespace-nowrap">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+            ${escapeHtml(t.integracao || '')}
+          </span>
+        </td>
+        <td class="py-3 px-4 text-right font-black ${isTeste ? 'text-slate-400 line-through' : 'text-pink-700'}">
+          ${formatMoney(bruto)}
+        </td>
+        <td class="py-3 px-4 text-right font-semibold text-amber-700">
+          ${formatMoney(cash)}
+        </td>
+        <td class="py-3 px-4 text-right font-medium text-slate-600 whitespace-nowrap">
+          Pix: ${formatMoney(pix)}<br>
+          <span class="text-[10px] text-slate-400">Card: ${formatMoney(cartao)}</span>
+        </td>
+        <td class="py-3 px-4 text-center">
+          ${badgeStatus}
+        </td>
+        <td class="py-3 px-4 text-right font-black ${efetivo > 0 ? 'text-emerald-700' : 'text-slate-400'}">
+          ${formatMoney(efetivo)}
+        </td>
+        <td class="py-3 px-4 text-center whitespace-nowrap">
+          <button onclick="openModalTesteTransacao(${t.id})" class="px-2.5 py-1.5 rounded-lg ${isTeste ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 text-slate-700 hover:bg-purple-50 hover:text-purple-700'} text-[11px] font-bold transition flex items-center gap-1 mx-auto" title="Marcar ou editar status de teste desta transação">
+            <i data-lucide="${isTeste ? 'edit' : 'flask-conical'}" class="w-3.5 h-3.5"></i>
+            <span>${isTeste ? 'Editar Teste' : 'Marcar Teste'}</span>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rows;
+  if (window.lucide) lucide.createIcons();
+}
+
+function openModalTesteTransacao(id) {
+  const tx = state.transacoes.find(t => t.id === id);
+  if (!tx) return;
+
+  document.getElementById('teste-tx-id').value = tx.id;
+  document.getElementById('teste-tx-maquina').textContent = tx.maquinaNome || '--';
+  document.getElementById('teste-tx-estabelecimento').textContent = tx.estabelecimentoNome || 'Sem Estabelecimento';
+  document.getElementById('teste-tx-data').textContent = formatDateTime(tx.dataHora);
+  document.getElementById('teste-tx-bruto').textContent = formatMoney(tx.valorBruto || 0);
+  document.getElementById('teste-tx-cash').textContent = formatMoney(tx.valorCash || 0);
+
+  const isTeste = Boolean(tx.teste);
+  const vt = tx.valorTeste || 0;
+  const motivo = tx.motivoTeste || '';
+
+  const chk = document.getElementById('teste-tx-is-teste');
+  chk.checked = isTeste;
+
+  const btnReverter = document.getElementById('btn-reverter-teste-tx');
+  if (btnReverter) {
+    if (isTeste) btnReverter.classList.remove('hidden');
+    else btnReverter.classList.add('hidden');
+  }
+
+  if (isTeste && vt > 0) {
+    document.getElementById('teste-tx-modo-parcial').checked = true;
+    document.getElementById('teste-tx-valor').value = vt;
+  } else {
+    document.getElementById('teste-tx-modo-total').checked = true;
+    document.getElementById('teste-tx-valor').value = '';
+  }
+
+  document.getElementById('teste-tx-motivo').value = motivo;
+
+  toggleTesteTxInputs();
+  openModal('modal-teste-transacao');
+}
+
+function toggleTesteTxInputs() {
+  const isChecked = document.getElementById('teste-tx-is-teste').checked;
+  const detailsWrap = document.getElementById('teste-tx-details-wrap');
+  if (isChecked) {
+    detailsWrap.classList.remove('hidden');
+    toggleTesteTxModo();
+  } else {
+    detailsWrap.classList.add('hidden');
+  }
+}
+
+function toggleTesteTxModo() {
+  const modoParcial = document.getElementById('teste-tx-modo-parcial').checked;
+  const parcialWrap = document.getElementById('teste-tx-valor-parcial-wrap');
+  if (modoParcial) {
+    parcialWrap.classList.remove('hidden');
+  } else {
+    parcialWrap.classList.add('hidden');
+  }
+}
+
+async function salvarTesteTransacao() {
+  const id = document.getElementById('teste-tx-id').value;
+  if (!id) return;
+
+  const isTeste = document.getElementById('teste-tx-is-teste').checked;
+  let valorTeste = 0;
+  let motivo = '';
+
+  if (isTeste) {
+    const modoParcial = document.getElementById('teste-tx-modo-parcial').checked;
+    if (modoParcial) {
+      const valStr = document.getElementById('teste-tx-valor').value;
+      valorTeste = parseFloat(valStr) || 0;
+      if (valorTeste <= 0) {
+        showToast('Informe um valor de teste válido maior que zero.', 'warning');
+        return;
+      }
+    }
+    motivo = document.getElementById('teste-tx-motivo').value.trim();
+  }
+
+  try {
+    const res = await apiRequest(`/api/transacoes/${id}/teste`, {
+      method: 'PUT',
+      body: {
+        teste: isTeste,
+        valorTeste: valorTeste,
+        motivo: motivo
+      }
+    });
+
+    closeModal('modal-teste-transacao');
+    showToast(isTeste ? 'Transação desconsiderada como teste com sucesso!' : 'Transação revalidada como normal com sucesso!', 'success');
+    
+    // Atualiza a transação local e re-renderiza
+    const idx = state.transacoes.findIndex(t => t.id === Number(id));
+    if (idx !== -1 && res) {
+      state.transacoes[idx] = res;
+    }
+    filterTransacoesTable();
+  } catch (err) {
+    console.error('Erro ao salvar ajuste de teste:', err);
+    showToast('Erro ao salvar ajuste de teste: ' + err.message, 'error');
+  }
+}
+
+async function reverterTesteTransacao() {
+  const id = document.getElementById('teste-tx-id').value;
+  if (!id) return;
+
+  try {
+    const res = await apiRequest(`/api/transacoes/${id}/teste`, {
+      method: 'PUT',
+      body: {
+        teste: false,
+        valorTeste: 0,
+        motivo: null
+      }
+    });
+
+    closeModal('modal-teste-transacao');
+    showToast('Transação revalidada com sucesso! Não é mais considerada teste.', 'success');
+
+    const idx = state.transacoes.findIndex(t => t.id === Number(id));
+    if (idx !== -1 && res) {
+      state.transacoes[idx] = res;
+    }
+    filterTransacoesTable();
+  } catch (err) {
+    console.error('Erro ao reverter teste da transação:', err);
+    showToast('Erro ao reverter teste: ' + err.message, 'error');
+  }
+}
+
+function openModalTestePeriodo() {
+  const select = document.getElementById('teste-lote-maquina');
+  if (select) {
+    const options = ['<option value="">Todas as Máquinas</option>'];
+    (state.machines || []).forEach(m => {
+      const nome = m.nomeIntegracao || m.descricao || `Máquina #${m.id}`;
+      const est = m.estabelecimentoNome ? ` (${m.estabelecimentoNome})` : '';
+      options.push(`<option value="${m.id}">${escapeHtml(nome + est)}</option>`);
+    });
+    select.innerHTML = options.join('');
+
+    // Pre-select current filter if any
+    const currentFilter = document.getElementById('transacoes-filter-machine')?.value;
+    if (currentFilter) select.value = currentFilter;
+  }
+
+  // Pre-fill dates
+  const hoje = new Date();
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+  const hojeStr = hoje.toISOString().split('T')[0];
+
+  document.getElementById('teste-lote-inicio').value = state.transacoesCustomStart || inicioMes;
+  document.getElementById('teste-lote-fim').value = state.transacoesCustomEnd || hojeStr;
+  document.getElementById('teste-lote-valor').value = '';
+  document.getElementById('teste-lote-motivo').value = '';
+  document.getElementById('teste-lote-acao-marcar').checked = true;
+
+  openModal('modal-teste-periodo');
+}
+
+async function aplicarTestePeriodoLote() {
+  const maquinaId = document.getElementById('teste-lote-maquina').value;
+  const dataInicio = document.getElementById('teste-lote-inicio').value;
+  const dataFim = document.getElementById('teste-lote-fim').value;
+  const isMarcar = document.getElementById('teste-lote-acao-marcar').checked;
+  const valorStr = document.getElementById('teste-lote-valor').value;
+  const valorTeste = parseFloat(valorStr) || 0;
+  const motivo = document.getElementById('teste-lote-motivo').value.trim();
+
+  if (!dataInicio || !dataFim) {
+    showToast('Informe as datas de início e fim do período.', 'warning');
+    return;
+  }
+
+  try {
+    const res = await apiRequest('/api/transacoes/marcar-teste-periodo', {
+      method: 'POST',
+      body: {
+        maquinaId: maquinaId ? Number(maquinaId) : null,
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        teste: isMarcar,
+        valorTeste: valorTeste,
+        motivo: motivo
+      }
+    });
+
+    closeModal('modal-teste-periodo');
+    showToast(res.mensagem || 'Operação realizada com sucesso!', 'success');
+    await loadTransacoesData();
+  } catch (err) {
+    console.error('Erro ao aplicar teste em lote:', err);
+    showToast('Erro ao aplicar teste no período: ' + err.message, 'error');
   }
 }
 

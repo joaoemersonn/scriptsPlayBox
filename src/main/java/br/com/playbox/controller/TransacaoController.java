@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +60,28 @@ public class TransacaoController {
             Double valorDebito,
             Double valorEstorno,
             Double valorLiquido,
-            Double quantidadePremios
+            Double quantidadePremios,
+            Boolean teste,
+            Double valorTeste,
+            String motivoTeste,
+            Double valorEfetivo,
+            Double valorCashEfetivo
+    ) {}
+
+    public record AlterarTesteDTO(
+            Boolean teste,
+            Double valorTeste,
+            String motivo
+    ) {}
+
+    public record MarcarTestePeriodoDTO(
+            Long maquinaId,
+            Long estabelecimentoId,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            Boolean teste,
+            Double valorTeste,
+            String motivo
     ) {}
 
     @GetMapping
@@ -86,6 +108,9 @@ public class TransacaoController {
             @Parameter(description = "Filtrar por integradora (VENDPROMAX, PAYXYZ, ZAPIZI)")
             @RequestParam(required = false) String integracao,
 
+            @Parameter(description = "Filtrar por status de teste (null: todas, true: apenas testes, false: apenas válidas)")
+            @RequestParam(required = false) Boolean teste,
+
             @Parameter(description = "Sincronizar dados das APIs antes de consultar (default: false)")
             @RequestParam(defaultValue = "false") boolean sincronizar
     ) {
@@ -103,41 +128,119 @@ public class TransacaoController {
                 estabelecimentoId,
                 cidade != null && !cidade.isBlank() ? cidade.trim() : null,
                 maquinaId,
-                integracao != null && !integracao.isBlank() ? integracao.trim() : null
+                integracao != null && !integracao.isBlank() ? integracao.trim() : null,
+                teste
         );
 
-        List<TransacaoDTO> dtos = lista.stream().map(t -> {
-            Maquina m = t.getMaquina();
-            Estabelecimento e = t.getEstabelecimento() != null ? t.getEstabelecimento() : (m != null ? m.getEstabelecimento() : null);
-
-            double bruto = t.getValor() != null ? t.getValor() : 0.0;
-            double estorno = t.getValorEstorno() != null ? t.getValorEstorno() : 0.0;
-            double liquido = Math.round((bruto - estorno) * 100.0) / 100.0;
-
-            return new TransacaoDTO(
-                    t.getId(),
-                    t.getExternalTxId(),
-                    t.getIntegracao(),
-                    m != null ? m.getId() : null,
-                    m != null && m.getNomeIntegracao() != null ? m.getNomeIntegracao() : t.getExternalTxId(),
-                    m != null ? m.getExternalId() : "",
-                    e != null ? e.getId() : null,
-                    e != null ? e.getNome() : "Sem Estabelecimento",
-                    e != null ? e.getCidade() : "",
-                    t.getTimestamp() != null ? t.getTimestamp().toString() : "",
-                    t.getTipoPagamento(),
-                    bruto,
-                    t.getValorCash() != null ? t.getValorCash() : 0.0,
-                    t.getValorPix() != null ? t.getValorPix() : 0.0,
-                    t.getValorCredito() != null ? t.getValorCredito() : 0.0,
-                    t.getValorDebito() != null ? t.getValorDebito() : 0.0,
-                    estorno,
-                    liquido,
-                    t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0
-            );
-        }).toList();
-
+        List<TransacaoDTO> dtos = lista.stream().map(this::toDTO).toList();
         return ResponseEntity.ok(dtos);
+    }
+
+    @PutMapping("/{id}/teste")
+    @Operation(summary = "Marcar ou desmarcar transação individual como teste e definir valor de teste")
+    public ResponseEntity<TransacaoDTO> alterarTeste(
+            @PathVariable Long id,
+            @RequestBody AlterarTesteDTO body
+    ) {
+        Transacao t = transacaoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada para o ID: " + id));
+
+        boolean isTeste = body != null && Boolean.TRUE.equals(body.teste());
+        t.setTeste(isTeste);
+        if (isTeste) {
+            Double vt = body.valorTeste();
+            t.setValorTeste(vt != null && vt > 0 ? vt : 0.0);
+            t.setMotivoTeste(body.motivo() != null && !body.motivo().isBlank() ? body.motivo().trim() : "Teste operacional");
+        } else {
+            t.setValorTeste(0.0);
+            t.setMotivoTeste(null);
+        }
+
+        Transacao salvo = transacaoRepository.save(t);
+        return ResponseEntity.ok(toDTO(salvo));
+    }
+
+    @PostMapping("/marcar-teste-periodo")
+    @Operation(summary = "Marcar ou desmarcar em lote transações de um período/máquina como teste")
+    public ResponseEntity<Map<String, Object>> marcarTestePeriodo(
+            @RequestBody MarcarTestePeriodoDTO body
+    ) {
+        if (body.dataInicio() == null || body.dataFim() == null) {
+            throw new IllegalArgumentException("As datas inicial e final são obrigatórias.");
+        }
+
+        LocalDate start = body.dataInicio();
+        LocalDate end = body.dataFim();
+        if (start.isAfter(end)) {
+            LocalDate temp = start;
+            start = end;
+            end = temp;
+        }
+
+        LocalDateTime inicio = start.atStartOfDay();
+        LocalDateTime fim = end.atTime(java.time.LocalTime.MAX);
+
+        List<Transacao> lista = transacaoRepository.findByPeriodAndFilters(inicio, fim, body.maquinaId(), body.estabelecimentoId());
+        boolean isTeste = body.teste() == null || Boolean.TRUE.equals(body.teste());
+        Double valorTeste = body.valorTeste() != null && body.valorTeste() > 0 ? body.valorTeste() : 0.0;
+        String motivo = body.motivo() != null && !body.motivo().isBlank() ? body.motivo().trim() : (isTeste ? "Período de Testes" : null);
+
+        for (Transacao t : lista) {
+            t.setTeste(isTeste);
+            if (isTeste) {
+                t.setValorTeste(valorTeste);
+                t.setMotivoTeste(motivo);
+            } else {
+                t.setValorTeste(0.0);
+                t.setMotivoTeste(null);
+            }
+        }
+
+        transacaoRepository.saveAll(lista);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "SUCCESS",
+                "transacoesAfetadas", lista.size(),
+                "acao", isTeste ? "MARCADO_TESTE" : "REVERTIDO_VALIDO",
+                "mensagem", String.format("%d transação(ões) %s com sucesso para o período de %s a %s.",
+                        lista.size(), isTeste ? "desconsideradas como teste" : "revalidadas", start, end)
+        ));
+    }
+
+    private TransacaoDTO toDTO(Transacao t) {
+        Maquina m = t.getMaquina();
+        Estabelecimento e = t.getEstabelecimento() != null ? t.getEstabelecimento() : (m != null ? m.getEstabelecimento() : null);
+
+        double bruto = t.getValor() != null ? t.getValor() : 0.0;
+        double estorno = t.getValorEstorno() != null ? t.getValorEstorno() : 0.0;
+        double liquido = Math.round((bruto - estorno) * 100.0) / 100.0;
+
+        return new TransacaoDTO(
+                t.getId(),
+                t.getExternalTxId(),
+                t.getIntegracao(),
+                m != null ? m.getId() : null,
+                m != null && m.getNomeIntegracao() != null ? m.getNomeIntegracao() : t.getExternalTxId(),
+                m != null ? m.getExternalId() : "",
+                e != null ? e.getId() : null,
+                e != null ? e.getNome() : "Sem Estabelecimento",
+                e != null ? e.getCidade() : "",
+                t.getTimestamp() != null ? t.getTimestamp().toString() : "",
+                t.getTipoPagamento(),
+                bruto,
+                t.getValorCash() != null ? t.getValorCash() : 0.0,
+                t.getValorPix() != null ? t.getValorPix() : 0.0,
+                t.getValorCredito() != null ? t.getValorCredito() : 0.0,
+                t.getValorDebito() != null ? t.getValorDebito() : 0.0,
+                estorno,
+                liquido,
+                t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0,
+                t.getTeste(),
+                t.getValorTeste(),
+                t.getMotivoTeste(),
+                Math.round(t.getValorEfetivo() * 100.0) / 100.0,
+                Math.round(t.getValorCashEfetivo() * 100.0) / 100.0
+        );
     }
 
     @PostMapping("/sincronizar")

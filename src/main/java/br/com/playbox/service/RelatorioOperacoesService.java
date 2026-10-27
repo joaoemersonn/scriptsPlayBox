@@ -191,13 +191,11 @@ public class RelatorioOperacoesService {
             double premios = 0.0;
 
             for (Transacao t : transacoes) {
-                cash += (t.getValorCash() != null ? t.getValorCash() : 0.0);
-                double mq = (t.getValorPix() != null ? t.getValorPix() : 0.0)
-                        + (t.getValorCredito() != null ? t.getValorCredito() : 0.0)
-                        + (t.getValorDebito() != null ? t.getValorDebito() : 0.0);
+                cash += t.getValorCashEfetivo();
+                double mq = t.getValorPixEfetivo() + t.getValorCreditoEfetivo() + t.getValorDebitoEfetivo();
                 maquininha += mq;
-                estornos += (t.getValorEstorno() != null ? t.getValorEstorno() : 0.0);
-                premios += (t.getQuantidadePremios() != null ? t.getQuantidadePremios() : 0.0);
+                estornos += t.getValorEstornoEfetivo();
+                premios += t.getQuantidadePremiosEfetiva();
 
                 String maqNome = (t.getEstabelecimento() != null)
                         ? t.getEstabelecimento().getNome() + (t.getEstabelecimento().getCidade() != null ? " - " + t.getEstabelecimento().getCidade() : "")
@@ -206,11 +204,11 @@ public class RelatorioOperacoesService {
                 String dataFormatada = t.getTimestamp().format(DISPLAY_DATE_FORMATTER);
 
                 // Linha de faturamento
-                if (t.getValor() != null && t.getValor() > 0) {
+                if (t.getValorEfetivo() > 0) {
                     dto.getMovimentacoes().add(new MovimentacaoItem(
                             dataFormatada,
                             maqNome,
-                            PdfReportGeneratorService.formatCurrency(t.getValor()),
+                            PdfReportGeneratorService.formatCurrency(t.getValorEfetivo()),
                             t.getTipoPagamento() != null ? t.getTipoPagamento() : "Venda",
                             t.getExternalTxId(),
                             "Recebido",
@@ -222,8 +220,8 @@ public class RelatorioOperacoesService {
                     ));
                 }
                 // Linha de prêmio
-                if (t.getQuantidadePremios() != null && t.getQuantidadePremios() > 0) {
-                    for (int i = 0; i < t.getQuantidadePremios().intValue(); i++) {
+                if (t.getQuantidadePremiosEfetiva() > 0) {
+                    for (int i = 0; i < (int) t.getQuantidadePremiosEfetiva(); i++) {
                         dto.getMovimentacoes().add(new MovimentacaoItem(
                                 dataFormatada,
                                 maqNome,

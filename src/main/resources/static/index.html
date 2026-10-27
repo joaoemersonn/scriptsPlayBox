@@ -167,6 +167,9 @@
         <button onclick="switchTab('alugueis')" data-tab="alugueis" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="building-2" class="w-4 h-4"></i> Aluguéis & Repasses
         </button>
+        <button onclick="switchTab('transacoes')" data-tab="transacoes" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
+          <i data-lucide="receipt" class="w-4 h-4"></i> Transações & Testes
+        </button>
         <button onclick="switchTab('estabelecimentos')" data-tab="estabelecimentos" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-medium text-xs sm:text-sm transition whitespace-nowrap">
           <i data-lucide="store" class="w-4 h-4"></i> Pontos Comerciais
         </button>
@@ -279,6 +282,7 @@
             <div>
               <div id="kpi-faturamento-liquido" class="text-lg sm:text-xl font-black text-emerald-700 tracking-tight">R$ 0,00</div>
               <div id="kpi-estornos" class="text-[11px] text-slate-500 mt-0.5">Estornos: R$ 0,00</div>
+              <div id="kpi-testes-desconsiderados" class="hidden text-[11px] text-purple-700 font-bold mt-0.5">Testes: -R$ 0,00</div>
             </div>
           </div>
 
@@ -921,6 +925,180 @@
 
       </section>
 
+      <!-- ========================================== -->
+      <!-- TAB 5.5: TRANSAÇÕES & TESTES -->
+      <!-- ========================================== -->
+      <section id="tab-transacoes" class="tab-pane hidden space-y-6 animate-fade-in">
+        
+        <!-- Filters Toolbar -->
+        <div class="glass-card p-4 sm:p-5 space-y-4">
+          <!-- Row 1: Periods & Quick Actions -->
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-pink-600"></i> Período
+              </span>
+            </div>
+            
+            <div id="transacoes-period-buttons-group" class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+              <button type="button" class="filter-btn" data-tx-period="hoje" onclick="setTransacoesPeriod('hoje')">Hoje</button>
+              <button type="button" class="filter-btn" data-tx-period="24h-anterior" onclick="setTransacoesPeriod('24h-anterior')">Ontem</button>
+              <button type="button" class="filter-btn" data-tx-period="7d" onclick="setTransacoesPeriod('7d')">Últ. 7 dias</button>
+              <button type="button" class="filter-btn active" data-tx-period="mes" onclick="setTransacoesPeriod('mes')">Mês Atual</button>
+              <button type="button" class="filter-btn" data-tx-period="mes-anterior" onclick="setTransacoesPeriod('mes-anterior')">Mês Anterior</button>
+              <button type="button" class="filter-btn" data-tx-period="custom" onclick="toggleTransacoesCustomDates()">Personalizado...</button>
+            </div>
+          </div>
+
+          <!-- Custom Dates Bar -->
+          <div id="transacoes-custom-dates-bar" class="hidden flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <span class="text-xs font-semibold text-slate-600">De:</span>
+            <input type="date" id="transacoes-date-start" class="bg-white text-xs text-slate-800 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-pink-500 focus:outline-none">
+            <span class="text-xs font-semibold text-slate-600">Até:</span>
+            <input type="date" id="transacoes-date-end" class="bg-white text-xs text-slate-800 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-pink-500 focus:outline-none">
+            <button onclick="applyTransacoesCustomDates()" class="px-3.5 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold shadow-sm transition">
+              Aplicar Filtro
+            </button>
+          </div>
+
+          <!-- Row 2: Machine, Status Filter, Search & Bulk Test Action -->
+          <div class="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500">Máquina:</span>
+                <select id="transacoes-filter-machine" onchange="loadTransacoesData()" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 focus:border-pink-500 focus:outline-none">
+                  <option value="">Todas as Máquinas</option>
+                </select>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500">Exibir:</span>
+                <select id="transacoes-filter-status" onchange="filterTransacoesTable()" class="bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl px-3 py-2 focus:border-pink-500 focus:outline-none">
+                  <option value="">Todas as Transações</option>
+                  <option value="VALIDAS">Apenas Válidas (Sem Testes)</option>
+                  <option value="TESTES">Apenas Testes / Desconsideradas</option>
+                </select>
+              </div>
+
+              <div class="relative">
+                <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400"></i>
+                <input type="text" id="transacoes-search-input" oninput="filterTransacoesTable()" placeholder="Buscar por ponto ou ID..." class="bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-pink-500 w-44 sm:w-56 transition">
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick="openModalTestePeriodo()" class="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition" title="Desconsiderar transações de um período de testes para uma máquina">
+                <i data-lucide="flask-conical" class="w-4 h-4 text-purple-600"></i>
+                <span>Desconsiderar Período de Testes</span>
+              </button>
+
+              <button onclick="loadTransacoesData(true)" class="p-2 rounded-xl bg-slate-100 hover:bg-pink-50 hover:text-pink-600 text-slate-600 border border-slate-200 transition" title="Sincronizar transações das APIs">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Summary Cards for Transactions -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+          <!-- Total Transações -->
+          <div class="glass-card p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Transações</span>
+              <div class="p-2 rounded-xl bg-slate-100 text-slate-600">
+                <i data-lucide="receipt" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="tx-kpi-total" class="text-xl font-black text-slate-800 tracking-tight">0</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Registros apurados</div>
+            </div>
+          </div>
+
+          <!-- Faturamento Bruto -->
+          <div class="glass-card p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Bruto Total</span>
+              <div class="p-2 rounded-xl bg-pink-50 text-pink-600">
+                <i data-lucide="trending-up" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="tx-kpi-bruto" class="text-xl font-black text-pink-700 tracking-tight">R$ 0,00</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Incluindo testes</div>
+            </div>
+          </div>
+
+          <!-- Total Desconsiderado como Teste -->
+          <div class="glass-card p-4 flex flex-col justify-between border-purple-200">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-700">Testes Desconsiderados</span>
+              <div class="p-2 rounded-xl bg-purple-50 text-purple-600">
+                <i data-lucide="flask-conical" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="tx-kpi-testes" class="text-xl font-black text-purple-700 tracking-tight">R$ 0,00</div>
+              <div id="tx-kpi-testes-count" class="text-[11px] text-purple-600 mt-0.5">0 transações de teste</div>
+            </div>
+          </div>
+
+          <!-- Faturamento Efetivo Líquido -->
+          <div class="glass-card p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Faturamento Efetivo</span>
+              <div class="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <div>
+              <div id="tx-kpi-efetivo" class="text-xl font-black text-emerald-700 tracking-tight">R$ 0,00</div>
+              <div class="text-[11px] text-emerald-600 mt-0.5">Considerado nos relatórios</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="glass-card overflow-hidden">
+          <div class="p-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 class="font-bold text-sm text-slate-900">Listagem de Transações & Vendas</h3>
+              <p class="text-xs text-slate-500">Clique em "Marcar Teste" para desconsiderar a transação ou abater valores de teste do faturamento e caixa.</p>
+            </div>
+            <span id="transacoes-count-badge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">0 listadas</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-50/80 text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4">Data / Hora</th>
+                  <th class="py-3 px-4">Máquina</th>
+                  <th class="py-3 px-4">Ponto Comercial</th>
+                  <th class="py-3 px-4">Integração</th>
+                  <th class="py-3 px-4 text-right">Bruto Original</th>
+                  <th class="py-3 px-4 text-right">Espécie (Cash)</th>
+                  <th class="py-3 px-4 text-right">PIX / Cartões</th>
+                  <th class="py-3 px-4 text-center">Status / Teste</th>
+                  <th class="py-3 px-4 text-right">Faturamento Efetivo</th>
+                  <th class="py-3 px-4 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="transacoes-table-body" class="divide-y divide-slate-100">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="transacoes-empty-state" class="hidden p-8 text-center text-slate-400">
+            <i data-lucide="receipt" class="w-10 h-10 mx-auto text-slate-300 mb-2"></i>
+            <p class="text-sm font-semibold">Nenhuma transação encontrada para os filtros selecionados.</p>
+            <p class="text-xs text-slate-400 mt-1">Tente alterar o período ou sincronizar com as integradoras.</p>
+          </div>
+        </div>
+
+      </section>
 
       <!-- ========================================== -->
       <!-- TAB 6: PONTOS COMERCIAIS (ESTABELECIMENTOS) -->
@@ -1729,6 +1907,168 @@
       <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
         <button onclick="closeModal('modal-api-key')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
         <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Salvar Chave</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 13: Ajustar Teste em Transação Individual -->
+  <div id="modal-teste-transacao" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="flask-conical" class="w-4 h-4 text-purple-600"></i>
+          <span>Ajustar Transação de Teste</span>
+        </h3>
+        <button onclick="closeModal('modal-teste-transacao')" class="text-slate-400 hover:text-slate-700 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="teste-tx-id">
+
+      <!-- Details of the transaction -->
+      <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-semibold">Máquina:</span>
+          <span id="teste-tx-maquina" class="font-bold text-slate-800">--</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-semibold">Ponto Comercial:</span>
+          <span id="teste-tx-estabelecimento" class="font-bold text-slate-800">--</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-semibold">Data / Hora:</span>
+          <span id="teste-tx-data" class="font-bold text-slate-800">--</span>
+        </div>
+        <div class="flex items-center justify-between pt-1 border-t border-slate-200">
+          <span class="text-slate-500 font-semibold">Valor Bruto:</span>
+          <span id="teste-tx-bruto" class="font-bold text-pink-700">R$ 0,00</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 font-semibold">Dinheiro em Espécie (Cash):</span>
+          <span id="teste-tx-cash" class="font-bold text-amber-700">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Test options -->
+      <div class="space-y-3 pt-1">
+        <label class="flex items-center gap-2.5 p-3 rounded-xl border border-purple-200 bg-purple-50/60 cursor-pointer">
+          <input type="checkbox" id="teste-tx-is-teste" onchange="toggleTesteTxInputs()" class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500">
+          <div>
+            <span class="text-xs font-bold text-purple-900 block">Desconsiderar esta transação (Marcar como Teste)</span>
+            <span class="text-[11px] text-purple-700 block">Será abatida dos relatórios de faturamento e do caixa da máquina.</span>
+          </div>
+        </label>
+
+        <div id="teste-tx-details-wrap" class="space-y-3 hidden">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Como deseja abater os testes?</label>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+                <input type="radio" name="teste-tx-modo" id="teste-tx-modo-total" value="TOTAL" checked onchange="toggleTesteTxModo()" class="text-purple-600 focus:ring-purple-500">
+                <span class="font-semibold text-slate-700">Desconsiderar 100% da transação</span>
+              </label>
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+                <input type="radio" name="teste-tx-modo" id="teste-tx-modo-parcial" value="PARCIAL" onchange="toggleTesteTxModo()" class="text-purple-600 focus:ring-purple-500">
+                <span class="font-semibold text-slate-700">Informar valor específico de teste</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="teste-tx-valor-parcial-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor do Teste a Abater (R$):</label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-2.5 text-xs font-bold text-slate-400">R$</span>
+              <input type="number" step="0.50" min="0" id="teste-tx-valor" placeholder="0,00" class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-900 shadow-sm focus:outline-none focus:border-purple-500">
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">Este valor será subtraído do faturamento e do dinheiro esperado no caixa.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Motivo / Justificativa:</label>
+            <input type="text" id="teste-tx-motivo" placeholder="Ex: Calibração de garra, testes da equipe, bancada..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+        <button type="button" id="btn-reverter-teste-tx" onclick="reverterTesteTransacao()" class="hidden px-3.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-bold transition">
+          Remover Teste (Revalidar)
+        </button>
+        <div class="flex gap-2 ml-auto">
+          <button type="button" onclick="closeModal('modal-teste-transacao')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">Cancelar</button>
+          <button type="button" onclick="salvarTesteTransacao()" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-600/20 active:scale-95 transition">Salvar Ajuste</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 14: Desconsiderar Período de Testes em Lote -->
+  <div id="modal-teste-periodo" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="flask-conical" class="w-4 h-4 text-purple-600"></i>
+          <span>Desconsiderar Período de Testes em Lote</span>
+        </h3>
+        <button onclick="closeModal('modal-teste-periodo')" class="text-slate-400 hover:text-slate-700 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">
+        Utilize para desconsiderar todas as transações realizadas durante a montagem, testes de bancada ou período pré-inauguração de uma máquina.
+      </p>
+
+      <div class="space-y-3.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Máquina:</label>
+          <select id="teste-lote-maquina" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+            <option value="">Todas as Máquinas</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Data Início:</label>
+            <input type="date" id="teste-lote-inicio" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Data Fim:</label>
+            <input type="date" id="teste-lote-fim" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Ação Desejada:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-purple-200 bg-purple-50 cursor-pointer">
+              <input type="radio" name="teste-lote-acao" id="teste-lote-acao-marcar" value="MARCAR" checked class="text-purple-600 focus:ring-purple-500">
+              <span class="font-bold text-purple-900">Desconsiderar (Marcar Teste)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+              <input type="radio" name="teste-lote-acao" id="teste-lote-acao-reverter" value="REVERTER" class="text-slate-600 focus:ring-purple-500">
+              <span class="font-semibold text-slate-700">Reverter (Tornar Válidas)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Valor de Teste por Transação (Opcional):</label>
+          <input type="number" step="0.50" min="0" id="teste-lote-valor" placeholder="0,00 (Deixe 0 para desconsiderar 100% de cada transação)" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Motivo / Justificativa:</label>
+          <input type="text" id="teste-lote-motivo" placeholder="Ex: Testes iniciais de bancada antes da inauguração" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-slate-800 shadow-sm focus:outline-none focus:border-purple-500">
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal-teste-periodo')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">Cancelar</button>
+        <button type="button" onclick="aplicarTestePeriodoLote()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-600/20 active:scale-95 transition">
+          Aplicar no Período
+        </button>
       </div>
     </div>
   </div>

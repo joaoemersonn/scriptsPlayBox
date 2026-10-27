@@ -58,6 +58,15 @@ public class Transacao {
     @Column(name = "quantidade_premios")
     private Double quantidadePremios = 0.0;
 
+    @Column(name = "teste", nullable = false)
+    private Boolean teste = false;
+
+    @Column(name = "valor_teste")
+    private Double valorTeste = 0.0;
+
+    @Column(name = "motivo_teste")
+    private String motivoTeste;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -199,11 +208,115 @@ public class Transacao {
         this.quantidadePremios = quantidadePremios;
     }
 
+    public Boolean getTeste() {
+        return teste != null ? teste : false;
+    }
+
+    public void setTeste(Boolean teste) {
+        this.teste = teste != null ? teste : false;
+    }
+
+    public Double getValorTeste() {
+        return valorTeste != null ? valorTeste : 0.0;
+    }
+
+    public void setValorTeste(Double valorTeste) {
+        this.valorTeste = valorTeste != null ? valorTeste : 0.0;
+    }
+
+    public String getMotivoTeste() {
+        return motivoTeste;
+    }
+
+    public void setMotivoTeste(String motivoTeste) {
+        this.motivoTeste = motivoTeste;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    /**
+     * Retorna o valor de teste efetivo desconsiderado desta transação.
+     * Se for teste e valorTeste <= 0 (ou nulo), desconsidera 100% do valor bruto.
+     * Se for teste e valorTeste > 0, desconsidera o valorTeste (limitado ao valor bruto).
+     * Se não for teste, retorna 0.0.
+     */
+    public double getValorTesteDesconsiderado() {
+        if (Boolean.TRUE.equals(this.teste)) {
+            double bruto = this.valor != null ? this.valor : 0.0;
+            if (this.valorTeste != null && this.valorTeste > 0.0) {
+                return Math.min(this.valorTeste, bruto);
+            }
+            return bruto;
+        }
+        return 0.0;
+    }
+
+    /**
+     * Retorna o faturamento bruto efetivo apurado (descontando testes).
+     */
+    public double getValorEfetivo() {
+        double bruto = this.valor != null ? this.valor : 0.0;
+        if (Boolean.TRUE.equals(this.teste)) {
+            if (this.valorTeste != null && this.valorTeste > 0.0) {
+                return Math.max(0.0, bruto - this.valorTeste);
+            }
+            return 0.0;
+        }
+        return bruto;
+    }
+
+    /**
+     * Retorna o valor em espécie (cash) efetivo apurado para conferência de caixa (descontando testes).
+     */
+    public double getValorCashEfetivo() {
+        double cash = this.valorCash != null ? this.valorCash : 0.0;
+        if (Boolean.TRUE.equals(this.teste)) {
+            if (this.valorTeste != null && this.valorTeste > 0.0) {
+                return Math.max(0.0, cash - this.valorTeste);
+            }
+            return 0.0;
+        }
+        return cash;
+    }
+
+    public double getValorPixEfetivo() {
+        if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
+            return 0.0;
+        }
+        return this.valorPix != null ? this.valorPix : 0.0;
+    }
+
+    public double getValorCreditoEfetivo() {
+        if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
+            return 0.0;
+        }
+        return this.valorCredito != null ? this.valorCredito : 0.0;
+    }
+
+    public double getValorDebitoEfetivo() {
+        if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
+            return 0.0;
+        }
+        return this.valorDebito != null ? this.valorDebito : 0.0;
+    }
+
+    public double getValorEstornoEfetivo() {
+        if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
+            return 0.0;
+        }
+        return this.valorEstorno != null ? this.valorEstorno : 0.0;
+    }
+
+    public double getQuantidadePremiosEfetiva() {
+        if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
+            return 0.0;
+        }
+        return this.quantidadePremios != null ? this.quantidadePremios : 0.0;
     }
 }
