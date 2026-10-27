@@ -343,3 +343,50 @@ button[class*="bg-gradient"] i, button[class*="bg-gradient"] svg {
 .rank-val-other {
   color: #0f172a !important;
 }
+
+/* ==========================================================================
+   Collapsible Sidebar Navigation & Mobile Drawer
+   ========================================================================== */
+#app-sidebar {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 1023px) {
+  #app-sidebar {
+    transform: translateX(-100%);
+  }
+  #app-sidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  #app-sidebar.sidebar-collapsed {
+    width: 4.75rem !important; /* ~76px */
+  }
+  #app-sidebar.sidebar-collapsed .sidebar-text {
+    display: none !important;
+  }
+  #app-sidebar.sidebar-collapsed .sidebar-badge {
+    display: none !important;
+  }
+  #app-sidebar.sidebar-collapsed .sidebar-item {
+    justify-content: center !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  #app-sidebar.sidebar-collapsed .sidebar-item > div {
+    justify-content: center !important;
+  }
+  #app-sidebar.sidebar-collapsed .sidebar-header {
+    justify-content: center !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  #app-sidebar.sidebar-collapsed .sidebar-footer {
+    justify-content: center !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+

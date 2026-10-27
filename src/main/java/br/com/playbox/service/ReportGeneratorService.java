@@ -94,6 +94,10 @@ public class ReportGeneratorService {
             inicio = hoje.minusHours(12);
             fim = hoje;
             titulo = "Relatório das Últimas 12h (" + hoje.format(dayMonthYear) + ")";
+        } else if ("hoje".equalsIgnoreCase(periodo)) {
+            inicio = hoje.withHour(0).withMinute(0).withSecond(0).withNano(0);
+            fim = hoje;
+            titulo = "Relatório Parcial de Hoje (" + hoje.format(dayMonthYear) + ")";
         } else {
             // "mes" or any other period
             inicio = ontem.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
@@ -471,12 +475,21 @@ public class ReportGeneratorService {
         return String.join("\n", lines).trim();
     }
 
-    public synchronized void generateAndSendReport(String periodo) {
+    public synchronized boolean generateAndSendReport(String periodo) {
+        return generateAndSendReport(periodo, null, null);
+    }
+
+    public synchronized boolean generateAndSendReport(String periodo, String tipoExibicaoCustom, String targetChatIdCustom) {
         ZoneId zoneId = ZoneId.of("America/Sao_Paulo");
         ReportPeriod reportPeriod = buildReportDates(periodo, zoneId);
 
-        String tipoExibicao = configuracaoService != null ? configuracaoService.getTipoExibicaoRelatorio() : "DETALHADO_ESTABELECIMENTO";
-        String targetChatId = configuracaoService != null ? configuracaoService.getReportChatId() : null;
+        String tipoExibicao = (tipoExibicaoCustom != null && !tipoExibicaoCustom.isBlank())
+                ? tipoExibicaoCustom
+                : (configuracaoService != null ? configuracaoService.getTipoExibicaoRelatorio() : "DETALHADO_ESTABELECIMENTO");
+
+        String targetChatId = (targetChatIdCustom != null && !targetChatIdCustom.isBlank())
+                ? targetChatIdCustom
+                : (configuracaoService != null ? configuracaoService.getReportChatId() : null);
 
         log.info("Iniciando geração de relatório. Período: {}, Título: {}, Modo: {}, Destino WhatsApp: {}",
                 periodo, reportPeriod.title(), tipoExibicao, targetChatId != null ? targetChatId : "(default)");
@@ -507,13 +520,15 @@ public class ReportGeneratorService {
             }
 
             log.info("--- Mensagem WhatsApp - {} ---\n{}", reportPeriod.title(), message);
-            sender.sendMessage(targetChatId, message);
+            return sender.sendMessage(targetChatId, message);
         } catch (IntegrationException error) {
             log.error("Erro na integração ao gerar relatório: {}", error.getMessage());
             sender.sendMessage(targetChatId, error.getMessage());
+            return false;
         } catch (Exception error) {
             log.error("Erro inesperado ao gerar relatório: {}", error.getMessage(), error);
             sender.sendMessage(targetChatId, "Erro inesperado ao gerar relatório: " + error.getMessage());
+            return false;
         }
     }
 }

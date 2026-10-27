@@ -7,12 +7,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -29,6 +31,8 @@ public class DynamicSchedulerService {
     private final OfflineMonitorService offlineMonitorService;
     private final EstoqueAlertaService estoqueAlertaService;
     private final TransactionImportService transactionImportService;
+    private final br.com.playbox.repository.RelatorioAgendadoRepository relatorioAgendadoRepository;
+    private final RelatorioAgendadoService relatorioAgendadoService;
 
     private final Map<String, ScheduledFuture<?>> activeTasks = new ConcurrentHashMap<>();
 
@@ -38,7 +42,9 @@ public class DynamicSchedulerService {
             ReportGeneratorService reportGeneratorService,
             OfflineMonitorService offlineMonitorService,
             EstoqueAlertaService estoqueAlertaService,
-            TransactionImportService transactionImportService
+            TransactionImportService transactionImportService,
+            br.com.playbox.repository.RelatorioAgendadoRepository relatorioAgendadoRepository,
+            @Lazy RelatorioAgendadoService relatorioAgendadoService
     ) {
         this.taskScheduler = taskScheduler;
         this.configuracaoService = configuracaoService;
@@ -46,12 +52,44 @@ public class DynamicSchedulerService {
         this.offlineMonitorService = offlineMonitorService;
         this.estoqueAlertaService = estoqueAlertaService;
         this.transactionImportService = transactionImportService;
+        this.relatorioAgendadoRepository = relatorioAgendadoRepository;
+        this.relatorioAgendadoService = relatorioAgendadoService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("[DYNAMIC-SCHEDULER] Inicializando agendamentos dinâmicos a partir das configurações...");
         rescheduleAll();
+    }
+
+    public synchronized void rescheduleRelatoriosAgendados() {
+        // Cancela apenas as tarefas de relatórios agendados personalizados
+        activeTasks.keySet().stream()
+                .filter(k -> k.startsWith("relatorio-agendado-"))
+                .toList()
+                .forEach(this::cancelTask);
+
+        List<br.com.playbox.entity.RelatorioAgendado> ativos = relatorioAgendadoRepository.findByAtivoTrue();
+        log.info("[DYNAMIC-SCHEDULER] Agendando {} relatórios agendados ativos...", ativos.size());
+
+        for (br.com.playbox.entity.RelatorioAgendado rel : ativos) {
+            if (rel.getCronExpression() == null || rel.getCronExpression().isBlank()) {
+                rel.recalcularCron();
+            }
+            String taskKey = "relatorio-agendado-" + rel.getId();
+            Long id = rel.getId();
+            String nome = rel.getNome();
+            String cron = rel.getCronExpression();
+
+            scheduleTask(taskKey, cron, () -> {
+                log.info("[SCHEDULE-DINÂMICO] Executando relatório agendado id={} ('{}')...", id, nome);
+                try {
+                    relatorioAgendadoService.executarDisparo(id);
+                } catch (Exception e) {
+                    log.error("[SCHEDULE-DINÂMICO] Erro ao executar relatório id={}: {}", id, e.getMessage(), e);
+                }
+            });
+        }
     }
 
     public synchronized void rescheduleAll() {
@@ -89,67 +127,18 @@ public class DynamicSchedulerService {
             log.info("[SCHEDULE-DINÂMICO] Monitoramento offline está DESABILITADO.");
         }
 
-        // 3. Relatório 24h
-        if (Boolean.TRUE.equals(cfg.scheduleReport24hEnabled())) {
-            String cron = horaToCron(cfg.scheduleReport24hHora(), "00:00");
-            scheduleTask("report24h", cron, () -> {
-                log.info("[SCHEDULE-DINÂMICO] Executando relatório 24h anterior...");
-                try {
-                    reportGeneratorService.generateAndSendReport("24h-anterior");
-                } catch (Exception e) {
-                    log.error("[SCHEDULE-DINÂMICO] Erro no relatório 24h: {}", e.getMessage(), e);
-                }
-            });
-        } else {
-            log.info("[SCHEDULE-DINÂMICO] Relatório 24h está DESABILITADO.");
-        }
-
-        // 4. Relatório 12h
-        if (Boolean.TRUE.equals(cfg.scheduleReport12hEnabled())) {
-            String cron = horaToCron(cfg.scheduleReport12hHora(), "12:00");
-            scheduleTask("report12h", cron, () -> {
-                log.info("[SCHEDULE-DINÂMICO] Executando relatório 12h...");
-                try {
-                    reportGeneratorService.generateAndSendReport("12h-atual");
-                } catch (Exception e) {
-                    log.error("[SCHEDULE-DINÂMICO] Erro no relatório 12h: {}", e.getMessage(), e);
-                }
-            });
-        } else {
-            log.info("[SCHEDULE-DINÂMICO] Relatório 12h está DESABILITADO.");
-        }
-
-        // 5. Relatório Mês
-        if (Boolean.TRUE.equals(cfg.scheduleReportMesEnabled())) {
-            String cron = horaToCron(cfg.scheduleReportMesHora(), "08:00");
-            scheduleTask("reportMes", cron, () -> {
-                log.info("[SCHEDULE-DINÂMICO] Executando relatório acumulado do mês...");
-                try {
-                    reportGeneratorService.generateAndSendReport("mes");
-                } catch (Exception e) {
-                    log.error("[SCHEDULE-DINÂMICO] Erro no relatório do mês: {}", e.getMessage(), e);
-                }
-            });
-        } else {
-            log.info("[SCHEDULE-DINÂMICO] Relatório do mês está DESABILITADO.");
-        }
-
-        // 6. Alerta de Estoque Baixo
-        if (Boolean.TRUE.equals(cfg.scheduleEstoqueAlertaEnabled())) {
-            String cron = horaToCron(cfg.scheduleEstoqueAlertaHora(), "18:20");
-            scheduleTask("estoqueAlerta", cron, () -> {
-                log.info("[SCHEDULE-DINÂMICO] Executando verificação de alerta de estoque baixo...");
-                try {
-                    estoqueAlertaService.verificarEEnviarAlertas();
-                } catch (Exception e) {
-                    log.error("[SCHEDULE-DINÂMICO] Erro ao verificar alerta de estoque: {}", e.getMessage(), e);
-                }
-            });
-        } else {
-            log.info("[SCHEDULE-DINÂMICO] Alerta de estoque diário está DESABILITADO.");
-        }
+        // 3. Relatórios Agendados Personalizados (gerenciados via relatorios_agendados)
+        rescheduleRelatoriosAgendados();
 
         log.info("[DYNAMIC-SCHEDULER] Todos os agendamentos foram atualizados e estão ativos sem reiniciar o container!");
+    }
+
+    private void cancelTask(String taskKey) {
+        ScheduledFuture<?> future = activeTasks.remove(taskKey);
+        if (future != null && !future.isCancelled()) {
+            future.cancel(false);
+            log.info("[DYNAMIC-SCHEDULER] Agendamento '{}' cancelado.", taskKey);
+        }
     }
 
     private void scheduleTask(String taskKey, String cronExpression, Runnable task) {

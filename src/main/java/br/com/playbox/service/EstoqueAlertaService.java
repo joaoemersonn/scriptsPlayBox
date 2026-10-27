@@ -95,6 +95,12 @@ public class EstoqueAlertaService {
      */
     @Transactional
     public int verificarEEnviarAlertas() {
+        return verificarEEnviarAlertas(null);
+    }
+
+    @Transactional
+    public int verificarEEnviarAlertas(String customChatId) {
+        String chatId = (customChatId != null && !customChatId.isBlank()) ? customChatId : getTargetChatId();
         List<Maquina> baixas = maquinaRepository.findMaquinasComEstoqueBaixo();
         if (baixas.isEmpty()) {
             log.info("[ALERTA ESTOQUE] Nenhuma loja com estoque baixo (< 30) para reabastecimento hoje.");
@@ -103,7 +109,7 @@ public class EstoqueAlertaService {
 
         LocalDateTime agora = LocalDateTime.now();
         String mensagem = formatarMensagemConsolidada(baixas, agora);
-        boolean enviado = whatsAppSender.sendMessage(getTargetChatId(), mensagem);
+        boolean enviado = whatsAppSender.sendMessage(chatId, mensagem);
 
         if (enviado) {
             for (Maquina m : baixas) {
@@ -111,7 +117,7 @@ public class EstoqueAlertaService {
                 maquinaRepository.save(m);
             }
             log.info("[ALERTA ESTOQUE] Relatório diário de reabastecimento enviado com sucesso para {} lojas no grupo {}",
-                    baixas.size(), getTargetChatId());
+                    baixas.size(), chatId);
             return baixas.size();
         } else {
             log.error("[ALERTA ESTOQUE] Falha ao enviar relatório diário de reabastecimento via WhatsApp.");

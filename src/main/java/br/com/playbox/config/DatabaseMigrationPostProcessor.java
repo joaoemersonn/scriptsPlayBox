@@ -115,6 +115,46 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
                 """);
             }
 
+            // 5. Tabela relatorios_agendados (agendamentos personalizados de relatórios e alertas WhatsApp)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS relatorios_agendados (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    tipo TEXT NOT NULL,
+                    frequencia TEXT NOT NULL,
+                    hora TEXT,
+                    intervalo_minutos INTEGER,
+                    dia_do_mes INTEGER DEFAULT 1,
+                    cron_expression TEXT,
+                    tipo_exibicao TEXT DEFAULT 'DETALHADO_ESTABELECIMENTO',
+                    whatsapp_chat_id TEXT,
+                    ativo INTEGER DEFAULT 1,
+                    ultimo_disparo TIMESTAMP,
+                    ultimo_status TEXT,
+                    ultima_mensagem TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+
+            boolean hasRelatorios = false;
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM relatorios_agendados")) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    hasRelatorios = true;
+                }
+            }
+
+            if (!hasRelatorios) {
+                log.info("[DB-MIGRATION] Populando relatórios agendados padrões...");
+                stmt.execute("""
+                    INSERT INTO relatorios_agendados (nome, tipo, frequencia, hora, intervalo_minutos, dia_do_mes, cron_expression, tipo_exibicao, ativo, created_at)
+                    VALUES 
+                    ('Relatório Diário 24h (Fechamento Ontem)', 'FATURAMENTO_24H', 'DIARIO', '00:00', NULL, 1, '0 0 0 * * *', 'DETALHADO_ESTABELECIMENTO', 1, CURRENT_TIMESTAMP),
+                    ('Relatório Parcial 12h (Meio-dia)', 'FATURAMENTO_12H', 'DIARIO', '12:00', NULL, 1, '0 0 12 * * *', 'DETALHADO_ESTABELECIMENTO', 1, CURRENT_TIMESTAMP),
+                    ('Relatório Mensal Consolidado', 'FATURAMENTO_MES', 'MENSAL', '08:00', NULL, 1, '0 0 8 1 * *', 'DETALHADO_ESTABELECIMENTO', 1, CURRENT_TIMESTAMP),
+                    ('Alerta Diário Estoque Baixo (Reabastecimento)', 'ALERTA_ESTOQUE', 'DIARIO', '18:20', NULL, 1, '0 20 18 * * *', 'DETALHADO_ESTABELECIMENTO', 1, CURRENT_TIMESTAMP)
+                """);
+            }
+
             log.info("[DB-MIGRATION] Migração de esquema verificada com sucesso.");
         } catch (Exception e) {
             log.warn("[DB-MIGRATION] Aviso durante migração de esquema: {}", e.getMessage());

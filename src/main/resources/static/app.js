@@ -26,6 +26,7 @@ const state = {
   transacoesCustomStart: null,
   transacoesCustomEnd: null,
   transacoesFilteredList: [],
+  relatoriosAgendados: [],
   charts: {
     timeline: null,
     paymentMethods: null,
@@ -156,18 +157,106 @@ function saveApiKey() {
 }
 
 // ============================================================================
-// NAVIGATION & TABS
+// NAVIGATION & TABS (RESPONSIVE COLLAPSIBLE SIDEBAR)
 // ============================================================================
+
+const TAB_METADATA = {
+  dashboard: { title: 'Visão Geral', subtitle: 'Gestão consolidada e métricas em tempo real' },
+  maquinas: { title: 'Máquinas & Status', subtitle: 'Telemetria e monitoramento de conectividade' },
+  estoque: { title: 'Estoque Pelúcias', subtitle: 'Controle de níveis e reposição física' },
+  coletas: { title: 'Coleta Espécie', subtitle: 'Auditoria de notas e moedas físicas' },
+  alugueis: { title: 'Aluguéis & Repasses', subtitle: 'Contratos fixos e dinâmicos com pontos comerciais' },
+  transacoes: { title: 'Transações & Testes', subtitle: 'Auditoria financeira e desconsideração de testes' },
+  estabelecimentos: { title: 'Pontos Comerciais', subtitle: 'Lojas parceiras e histórico de máquinas' },
+  relatorios: { title: 'Relatório PDF', subtitle: 'Fechamentos mensais e extratos executivos' },
+  configuracoes: { title: 'Agendamentos & WhatsApp', subtitle: 'Personalização de disparos e relatórios dinâmicos' }
+};
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('app-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) return;
+
+  if (window.innerWidth < 1024) {
+    // Mobile Drawer
+    const isOpen = sidebar.classList.contains('mobile-open');
+    if (isOpen) {
+      closeSidebarMobile();
+    } else {
+      sidebar.classList.add('mobile-open');
+      sidebar.classList.remove('-translate-x-full');
+      if (backdrop) backdrop.classList.remove('hidden');
+    }
+  } else {
+    // Desktop Collapse (rail icon mode)
+    sidebar.classList.toggle('sidebar-collapsed');
+    const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+    localStorage.setItem('playbox_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+
+    const iconOpen = document.querySelector('.sidebar-icon-open');
+    const iconClosed = document.querySelector('.sidebar-icon-closed');
+    if (iconOpen && iconClosed) {
+      if (isCollapsed) {
+        iconOpen.classList.add('hidden');
+        iconClosed.classList.remove('hidden');
+      } else {
+        iconOpen.classList.remove('hidden');
+        iconClosed.classList.add('hidden');
+      }
+    }
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeSidebarMobile() {
+  const sidebar = document.getElementById('app-sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) {
+    sidebar.classList.remove('mobile-open');
+    if (window.innerWidth < 1024) {
+      sidebar.classList.add('-translate-x-full');
+    }
+  }
+  if (backdrop) backdrop.classList.add('hidden');
+}
+
+function initSidebar() {
+  const sidebar = document.getElementById('app-sidebar');
+  if (!sidebar) return;
+
+  if (window.innerWidth >= 1024 && localStorage.getItem('playbox_sidebar_collapsed') === 'true') {
+    sidebar.classList.add('sidebar-collapsed');
+    const iconOpen = document.querySelector('.sidebar-icon-open');
+    const iconClosed = document.querySelector('.sidebar-icon-closed');
+    if (iconOpen && iconClosed) {
+      iconOpen.classList.add('hidden');
+      iconClosed.classList.remove('hidden');
+    }
+  }
+}
 
 function switchTab(tabId) {
   state.activeTab = tabId;
 
+  // Fechar sidebar mobile ao clicar em um item
+  closeSidebarMobile();
+
+  // Atualizar título e subtítulo no topo da página
+  const meta = TAB_METADATA[tabId] || { title: 'PlayBox', subtitle: 'Gestão de Operações' };
+  const titleEl = document.getElementById('page-current-title');
+  const subtitleEl = document.getElementById('page-current-subtitle');
+  if (titleEl) titleEl.innerHTML = `<span>${meta.title}</span>`;
+  if (subtitleEl) subtitleEl.textContent = meta.subtitle;
+
   // Update tabs buttons styling
   document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.getAttribute('data-tab') === tabId) {
-      btn.className = 'tab-btn active-tab flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-pink-50 text-pink-700 border border-pink-200 shadow-sm';
+      btn.classList.add('active-tab');
+      btn.classList.remove('text-slate-600');
     } else {
-      btn.className = 'tab-btn flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition whitespace-nowrap text-slate-600 hover:text-pink-600 hover:bg-pink-50/50';
+      btn.classList.remove('active-tab');
+      btn.classList.add('text-slate-600');
     }
   });
 
@@ -3165,8 +3254,12 @@ function showAuthScreen() {
 function showAppScreen(username) {
   document.getElementById('auth-screen')?.classList.add('hidden');
   document.getElementById('app-container')?.classList.remove('hidden');
+  const user = username || state.currentUser || 'admin';
   const userBadge = document.getElementById('header-user-badge');
-  if (userBadge) userBadge.textContent = username || state.currentUser || 'admin';
+  if (userBadge) userBadge.textContent = user;
+  const sidebarUser = document.getElementById('sidebar-username');
+  if (sidebarUser) sidebarUser.textContent = user;
+  initSidebar();
   if (window.lucide) lucide.createIcons();
 }
 
@@ -3900,59 +3993,35 @@ async function openHistoricoMaquinaModal(maquinaId) {
 }
 
 // ============================================================================
-// CONFIGURAÇÕES DE RELATÓRIO & WHATSAPP
+// CONFIGURAÇÕES DE RELATÓRIO, AGENDAMENTOS PERSONALIZADOS & WHATSAPP
 // ============================================================================
 
 async function loadConfiguracoesRelatorio() {
   try {
+    // 1. Carregar configurações gerais e grupos de WhatsApp
     const config = await apiRequest('/api/configuracoes/relatorio');
-    if (!config) return;
+    if (config) {
+      const reportChat = document.getElementById('config-wa-report-chat');
+      if (reportChat) reportChat.value = config.whatsappReportChatId || '';
 
-    // Modos de exibição
-    const isGeral = config.tipoExibicao === 'GERAL';
-    const radioGeral = document.getElementById('config-tipo-geral');
-    const radioDetalhado = document.getElementById('config-tipo-detalhado');
-    if (radioGeral) radioGeral.checked = isGeral;
-    if (radioDetalhado) radioDetalhado.checked = !isGeral;
+      const monitorChat = document.getElementById('config-wa-monitor-chat');
+      if (monitorChat) monitorChat.value = config.whatsappMonitorChatId || '';
 
-    // Chat IDs do WhatsApp
-    const reportChat = document.getElementById('config-wa-report-chat');
-    if (reportChat) reportChat.value = config.whatsappReportChatId || '';
+      const estoqueChat = document.getElementById('config-wa-estoque-chat');
+      if (estoqueChat) estoqueChat.value = config.whatsappEstoqueChatId || '';
 
-    const monitorChat = document.getElementById('config-wa-monitor-chat');
-    if (monitorChat) monitorChat.value = config.whatsappMonitorChatId || '';
+      const coletaChat = document.getElementById('config-wa-coleta-chat');
+      if (coletaChat) coletaChat.value = config.whatsappColetaChatId || '';
 
-    const estoqueChat = document.getElementById('config-wa-estoque-chat');
-    if (estoqueChat) estoqueChat.value = config.whatsappEstoqueChatId || '';
+      const schedMonitorEnabled = document.getElementById('config-sched-monitor-enabled');
+      if (schedMonitorEnabled) schedMonitorEnabled.checked = config.scheduleMonitorEnabled ?? true;
 
-    const coletaChat = document.getElementById('config-wa-coleta-chat');
-    if (coletaChat) coletaChat.value = config.whatsappColetaChatId || '';
+      const schedMonitorInterval = document.getElementById('config-sched-monitor-interval');
+      if (schedMonitorInterval) schedMonitorInterval.value = String(config.scheduleMonitorIntervalMinutes || 5);
+    }
 
-    // Agendamentos e Horários
-    const sched24hEnabled = document.getElementById('config-sched-24h-enabled');
-    if (sched24hEnabled) sched24hEnabled.checked = config.scheduleReport24hEnabled ?? true;
-    const sched24hHora = document.getElementById('config-sched-24h-hora');
-    if (sched24hHora) sched24hHora.value = config.scheduleReport24hHora || '00:00';
-
-    const sched12hEnabled = document.getElementById('config-sched-12h-enabled');
-    if (sched12hEnabled) sched12hEnabled.checked = config.scheduleReport12hEnabled ?? false;
-    const sched12hHora = document.getElementById('config-sched-12h-hora');
-    if (sched12hHora) sched12hHora.value = config.scheduleReport12hHora || '12:00';
-
-    const schedMesEnabled = document.getElementById('config-sched-mes-enabled');
-    if (schedMesEnabled) schedMesEnabled.checked = config.scheduleReportMesEnabled ?? true;
-    const schedMesHora = document.getElementById('config-sched-mes-hora');
-    if (schedMesHora) schedMesHora.value = config.scheduleReportMesHora || '08:00';
-
-    const schedEstoqueEnabled = document.getElementById('config-sched-estoque-enabled');
-    if (schedEstoqueEnabled) schedEstoqueEnabled.checked = config.scheduleEstoqueAlertaEnabled ?? true;
-    const schedEstoqueHora = document.getElementById('config-sched-estoque-hora');
-    if (schedEstoqueHora) schedEstoqueHora.value = config.scheduleEstoqueAlertaHora || '18:20';
-
-    const schedMonitorEnabled = document.getElementById('config-sched-monitor-enabled');
-    if (schedMonitorEnabled) schedMonitorEnabled.checked = config.scheduleMonitorEnabled ?? true;
-    const schedMonitorInterval = document.getElementById('config-sched-monitor-interval');
-    if (schedMonitorInterval) schedMonitorInterval.value = String(config.scheduleMonitorIntervalMinutes || 5);
+    // 2. Carregar relatórios agendados personalizados
+    await loadRelatoriosAgendados();
 
     if (window.lucide) lucide.createIcons();
   } catch (err) {
@@ -3961,25 +4030,380 @@ async function loadConfiguracoesRelatorio() {
   }
 }
 
+async function loadRelatoriosAgendados() {
+  const tbody = document.getElementById('relatorios-agendados-tbody');
+  const badgeTotal = document.getElementById('badge-total-agendamentos');
+  if (!tbody) return;
+
+  try {
+    const lista = await apiRequest('/api/relatorios-agendados');
+    state.relatoriosAgendados = Array.isArray(lista) ? lista : [];
+
+    if (badgeTotal) {
+      badgeTotal.textContent = `${state.relatoriosAgendados.length} agendamento${state.relatoriosAgendados.length === 1 ? '' : 's'}`;
+    }
+
+    if (state.relatoriosAgendados.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="py-12 text-center text-slate-400">
+            <div class="flex flex-col items-center gap-2">
+              <i data-lucide="calendar-x" class="w-8 h-8 text-slate-300"></i>
+              <span class="font-semibold text-slate-500">Nenhum relatório agendado cadastrado</span>
+              <p class="text-xs text-slate-400 max-w-sm">Clique no botão "+ Novo Relatório Agendado" acima para criar um envio automático personalizado.</p>
+            </div>
+          </td>
+        </tr>
+      `;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    tbody.innerHTML = state.relatoriosAgendados.map(item => {
+      // Tipo Badge
+      let tipoBadge = '';
+      switch (item.tipo) {
+        case 'FATURAMENTO_24H':
+          tipoBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-pink-100 text-pink-700 border border-pink-200">24h Anterior</span>';
+          break;
+        case 'FATURAMENTO_12H':
+          tipoBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-700 border border-blue-200">12h Parcial</span>';
+          break;
+        case 'FATURAMENTO_HOJE':
+          tipoBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">Hoje Parcial</span>';
+          break;
+        case 'FATURAMENTO_MES':
+          tipoBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-700 border border-purple-200">Mês Acumulado</span>';
+          break;
+        case 'ALERTA_ESTOQUE':
+          tipoBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">Alerta Estoque</span>';
+          break;
+        default:
+          tipoBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(item.tipo || 'Relatório')}</span>`;
+      }
+
+      // Periodicidade
+      let freqDesc = '';
+      if (item.frequencia === 'DIARIO') {
+        freqDesc = `<span class="font-semibold text-slate-800">Diário</span> às <span class="font-bold text-pink-700">${escapeHtml(item.hora || '00:00')}</span>`;
+      } else if (item.frequencia === 'INTERVALO') {
+        const mins = item.intervaloMinutos || 60;
+        const texto = mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}min`;
+        freqDesc = `A cada <span class="font-bold text-blue-700">${texto}</span>`;
+      } else if (item.frequencia === 'MENSAL') {
+        freqDesc = `Todo dia <span class="font-bold text-purple-700">${item.diaDoMes || 1}</span> às <span class="font-bold text-purple-700">${escapeHtml(item.hora || '08:00')}</span>`;
+      } else {
+        freqDesc = `<span class="font-mono text-[10px] text-slate-600">${escapeHtml(item.cronExpression || 'Cron')}</span>`;
+      }
+
+      // Detalhamento
+      let detalheDesc = '';
+      if (item.tipo === 'ALERTA_ESTOQUE') {
+        detalheDesc = '<span class="text-slate-400 text-[11px]">—</span>';
+      } else if (item.tipoExibicao === 'GERAL') {
+        detalheDesc = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">Resumo Geral</span>';
+      } else {
+        detalheDesc = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-pink-50 text-pink-700 border border-pink-200" title="Oculta máquina se única, detalha se 2+">Por Ponto Comercial</span>';
+      }
+
+      // Destino WhatsApp
+      let destinoWa = '';
+      if (item.whatsappChatId && item.whatsappChatId.trim()) {
+        const full = escapeHtml(item.whatsappChatId.trim());
+        const short = full.length > 20 ? full.substring(0, 18) + '...' : full;
+        destinoWa = `<span class="font-mono text-[11px] text-emerald-800 font-semibold" title="${full}">${short}</span>`;
+      } else {
+        destinoWa = '<span class="text-slate-400 text-[11px] italic">Grupo Padrão</span>';
+      }
+
+      // Último Disparo
+      let disparoStatus = '';
+      if (!item.ultimoDisparo) {
+        disparoStatus = '<span class="text-slate-400 text-[11px]">Aguardando primeiro envio</span>';
+      } else {
+        const dt = formatDateTime(item.ultimoDisparo);
+        const isSuccess = item.ultimoStatus === 'SUCCESS';
+        disparoStatus = `
+          <div class="space-y-0.5">
+            <div class="text-[11px] font-medium text-slate-700">${dt}</div>
+            <div class="flex items-center gap-1">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold ${isSuccess ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                <span class="w-1.5 h-1.5 rounded-full ${isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+                ${isSuccess ? 'Sucesso' : 'Falha'}
+              </span>
+              ${item.ultimaMensagem ? `<button type="button" onclick="alert('${escapeHtml(item.ultimaMensagem)}')" class="text-slate-400 hover:text-slate-600 text-[10px]" title="Ver detalhes"><i data-lucide="info" class="w-3 h-3"></i></button>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // Ativo Toggle
+      const isAtivo = Boolean(item.ativo);
+      const switchHtml = `
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" ${isAtivo ? 'checked' : ''} onchange="toggleAtivoRelatorioAgendado(${item.id})" class="sr-only peer">
+          <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[0px] after:left-[0px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-pink-600"></div>
+        </label>
+      `;
+
+      return `
+        <tr class="hover:bg-slate-50/80 transition ${isAtivo ? '' : 'opacity-60 bg-slate-50/30'}">
+          <td class="py-3 px-3.5">
+            <div class="font-bold text-slate-900 text-xs">${escapeHtml(item.nome || 'Sem Nome')}</div>
+            <div class="text-[10px] text-slate-400 font-mono mt-0.5">ID #${item.id} • cron: ${escapeHtml(item.cronExpression || '')}</div>
+          </td>
+          <td class="py-3 px-3">${tipoBadge}</td>
+          <td class="py-3 px-3">${freqDesc}</td>
+          <td class="py-3 px-3">${detalheDesc}</td>
+          <td class="py-3 px-3">${destinoWa}</td>
+          <td class="py-3 px-3">${disparoStatus}</td>
+          <td class="py-3 px-3 text-center">${switchHtml}</td>
+          <td class="py-3 px-3.5 text-right whitespace-nowrap">
+            <div class="flex items-center justify-end gap-1">
+              <button onclick="dispararRelatorioAgendadoAgora(${item.id})" class="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition" title="Disparar no WhatsApp Agora">
+                <i data-lucide="send" class="w-4 h-4"></i>
+              </button>
+              <button onclick="abrirModalEditarRelatorioAgendado(${item.id})" class="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition" title="Editar Agendamento">
+                <i data-lucide="pencil" class="w-4 h-4"></i>
+              </button>
+              <button onclick="excluirRelatorioAgendado(${item.id})" class="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition" title="Excluir Agendamento">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    console.error('Erro ao listar relatórios agendados:', err);
+    tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-rose-500">Erro ao carregar lista de agendamentos: ${err.message}</td></tr>`;
+  }
+}
+
+function onRelatorioTipoOrFreqChanged() {
+  const tipo = document.getElementById('relatorio-tipo')?.value || 'FATURAMENTO_24H';
+  const freq = document.getElementById('relatorio-frequencia')?.value || 'DIARIO';
+
+  // Detalhamento só faz sentido para faturamentos
+  const exibicaoContainer = document.getElementById('relatorio-tipo-exibicao-container');
+  const dicaDetalhe = document.getElementById('relatorio-dica-detalhe');
+  const isEstoque = (tipo === 'ALERTA_ESTOQUE');
+
+  if (exibicaoContainer) exibicaoContainer.style.display = isEstoque ? 'none' : 'block';
+  if (dicaDetalhe) dicaDetalhe.style.display = isEstoque ? 'none' : 'block';
+
+  // Alterna contêineres de frequência
+  const divDiario = document.getElementById('relatorio-freq-diario');
+  const divIntervalo = document.getElementById('relatorio-freq-intervalo');
+  const divMensal = document.getElementById('relatorio-freq-mensal');
+  const divCron = document.getElementById('relatorio-freq-cron');
+
+  if (divDiario) divDiario.classList.add('hidden');
+  if (divIntervalo) divIntervalo.classList.add('hidden');
+  if (divMensal) divMensal.classList.add('hidden');
+  if (divCron) divCron.classList.add('hidden');
+
+  switch (freq) {
+    case 'INTERVALO':
+      if (divIntervalo) divIntervalo.classList.remove('hidden');
+      break;
+    case 'MENSAL':
+      if (divMensal) divMensal.classList.remove('hidden');
+      break;
+    case 'CRON':
+      if (divCron) divCron.classList.remove('hidden');
+      break;
+    case 'DIARIO':
+    default:
+      if (divDiario) divDiario.classList.remove('hidden');
+      break;
+  }
+}
+
+function abrirModalNovoRelatorioAgendado() {
+  const title = document.getElementById('modal-relatorio-agendado-title');
+  if (title) title.innerHTML = '<i data-lucide="calendar-plus" class="w-4 h-4 text-pink-600"></i><span>Novo Relatório Agendado</span>';
+
+  document.getElementById('relatorio-agendado-id').value = '';
+  document.getElementById('relatorio-nome').value = '';
+  document.getElementById('relatorio-tipo').value = 'FATURAMENTO_24H';
+  document.getElementById('relatorio-tipo-exibicao').value = 'DETALHADO_ESTABELECIMENTO';
+  document.getElementById('relatorio-frequencia').value = 'DIARIO';
+  document.getElementById('relatorio-hora-diario').value = '08:00';
+  document.getElementById('relatorio-intervalo-minutos').value = '60';
+  document.getElementById('relatorio-dia-do-mes').value = '1';
+  document.getElementById('relatorio-hora-mensal').value = '08:00';
+  document.getElementById('relatorio-cron-expression').value = '';
+  document.getElementById('relatorio-whatsapp-chat').value = '';
+  document.getElementById('relatorio-ativo').checked = true;
+
+  onRelatorioTipoOrFreqChanged();
+  openModal('modal-relatorio-agendado');
+  if (window.lucide) lucide.createIcons();
+}
+
+function abrirModalEditarRelatorioAgendado(id) {
+  const item = (state.relatoriosAgendados || []).find(r => r.id === id);
+  if (!item) {
+    showToast('Agendamento não encontrado na lista local.', 'error');
+    return;
+  }
+
+  const title = document.getElementById('modal-relatorio-agendado-title');
+  if (title) title.innerHTML = '<i data-lucide="pencil" class="w-4 h-4 text-pink-600"></i><span>Editar Relatório Agendado</span>';
+
+  document.getElementById('relatorio-agendado-id').value = item.id;
+  document.getElementById('relatorio-nome').value = item.nome || '';
+  document.getElementById('relatorio-tipo').value = item.tipo || 'FATURAMENTO_24H';
+  document.getElementById('relatorio-tipo-exibicao').value = item.tipoExibicao || 'DETALHADO_ESTABELECIMENTO';
+  document.getElementById('relatorio-frequencia').value = item.frequencia || 'DIARIO';
+  document.getElementById('relatorio-hora-diario').value = item.hora || '00:00';
+  document.getElementById('relatorio-intervalo-minutos').value = String(item.intervaloMinutos || 60);
+  document.getElementById('relatorio-dia-do-mes').value = String(item.diaDoMes || 1);
+  document.getElementById('relatorio-hora-mensal').value = item.hora || '08:00';
+  document.getElementById('relatorio-cron-expression').value = item.cronExpression || '';
+  document.getElementById('relatorio-whatsapp-chat').value = item.whatsappChatId || '';
+  document.getElementById('relatorio-ativo').checked = Boolean(item.ativo);
+
+  onRelatorioTipoOrFreqChanged();
+  openModal('modal-relatorio-agendado');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function salvarRelatorioAgendado() {
+  const id = document.getElementById('relatorio-agendado-id').value.trim();
+  const nome = document.getElementById('relatorio-nome').value.trim();
+  const tipo = document.getElementById('relatorio-tipo').value;
+  const frequencia = document.getElementById('relatorio-frequencia').value;
+  const tipoExibicao = document.getElementById('relatorio-tipo-exibicao').value;
+  const whatsappChatId = document.getElementById('relatorio-whatsapp-chat').value.trim();
+  const ativo = document.getElementById('relatorio-ativo').checked;
+
+  if (!nome) {
+    showToast('Por favor, informe um nome de identificação para o relatório.', 'warning');
+    document.getElementById('relatorio-nome').focus();
+    return;
+  }
+
+  let hora = null;
+  let intervaloMinutos = null;
+  let diaDoMes = null;
+  let cronExpression = null;
+
+  if (frequencia === 'DIARIO') {
+    hora = document.getElementById('relatorio-hora-diario').value || '00:00';
+  } else if (frequencia === 'INTERVALO') {
+    intervaloMinutos = parseInt(document.getElementById('relatorio-intervalo-minutos').value || '60', 10);
+  } else if (frequencia === 'MENSAL') {
+    diaDoMes = parseInt(document.getElementById('relatorio-dia-do-mes').value || '1', 10);
+    hora = document.getElementById('relatorio-hora-mensal').value || '08:00';
+  } else if (frequencia === 'CRON') {
+    cronExpression = document.getElementById('relatorio-cron-expression').value.trim();
+    if (!cronExpression) {
+      showToast('Informe a expressão cron desejada.', 'warning');
+      return;
+    }
+  }
+
+  const payload = {
+    nome,
+    tipo,
+    frequencia,
+    hora,
+    intervaloMinutos,
+    diaDoMes,
+    cronExpression,
+    tipoExibicao,
+    whatsappChatId: whatsappChatId || null,
+    ativo
+  };
+
+  try {
+    if (id) {
+      await apiRequest(`/api/relatorios-agendados/${id}`, {
+        method: 'PUT',
+        body: payload
+      });
+      showToast('Relatório agendado atualizado com sucesso!', 'success');
+    } else {
+      await apiRequest('/api/relatorios-agendados', {
+        method: 'POST',
+        body: payload
+      });
+      showToast('Novo relatório agendado criado com sucesso!', 'success');
+    }
+
+    closeModal('modal-relatorio-agendado');
+    await loadRelatoriosAgendados();
+  } catch (err) {
+    console.error('Erro ao salvar relatório agendado:', err);
+    showToast('Erro ao salvar agendamento: ' + err.message, 'error');
+  }
+}
+
+async function toggleAtivoRelatorioAgendado(id) {
+  try {
+    const atualizado = await apiRequest(`/api/relatorios-agendados/${id}/toggle-ativo`, {
+      method: 'PUT'
+    });
+    const statusMsg = atualizado.ativo ? 'Agendamento ativado!' : 'Agendamento pausado/desativado!';
+    showToast(statusMsg, 'info');
+    await loadRelatoriosAgendados();
+  } catch (err) {
+    console.error('Erro ao alterar status do agendamento:', err);
+    showToast('Falha ao alterar status: ' + err.message, 'error');
+    await loadRelatoriosAgendados();
+  }
+}
+
+async function dispararRelatorioAgendadoAgora(id) {
+  try {
+    showToast('Disparando relatório no WhatsApp em tempo real...', 'info');
+    const res = await apiRequest(`/api/relatorios-agendados/${id}/disparar-agora`, {
+      method: 'POST'
+    });
+    if (res && res.success) {
+      showToast(res.message || 'Relatório enviado com sucesso no WhatsApp!', 'success');
+    } else {
+      showToast(res.message || 'Falha ao disparar relatório.', 'warning');
+    }
+    await loadRelatoriosAgendados();
+  } catch (err) {
+    console.error('Erro ao disparar relatório agendado:', err);
+    showToast('Erro ao disparar: ' + err.message, 'error');
+    await loadRelatoriosAgendados();
+  }
+}
+
+async function excluirRelatorioAgendado(id) {
+  const item = (state.relatoriosAgendados || []).find(r => r.id === id);
+  const nome = item ? `"${item.nome}"` : `ID #${id}`;
+
+  if (!confirm(`Deseja realmente excluir o agendamento ${nome}?\nEssa ação cancelará seus disparos automáticos no servidor.`)) {
+    return;
+  }
+
+  try {
+    await apiRequest(`/api/relatorios-agendados/${id}`, {
+      method: 'DELETE'
+    });
+    showToast('Agendamento excluído com sucesso!', 'success');
+    await loadRelatoriosAgendados();
+  } catch (err) {
+    console.error('Erro ao excluir agendamento:', err);
+    showToast('Erro ao excluir agendamento: ' + err.message, 'error');
+  }
+}
+
 async function salvarConfiguracoesRelatorio() {
   try {
-    const radioGeral = document.getElementById('config-tipo-geral');
-    const tipoExibicao = (radioGeral && radioGeral.checked) ? 'GERAL' : 'DETALHADO_ESTABELECIMENTO';
-
     const payload = {
       whatsappReportChatId: document.getElementById('config-wa-report-chat')?.value.trim() || '',
       whatsappMonitorChatId: document.getElementById('config-wa-monitor-chat')?.value.trim() || '',
       whatsappEstoqueChatId: document.getElementById('config-wa-estoque-chat')?.value.trim() || '',
       whatsappColetaChatId: document.getElementById('config-wa-coleta-chat')?.value.trim() || '',
-      tipoExibicao: tipoExibicao,
-      scheduleReport24hEnabled: document.getElementById('config-sched-24h-enabled')?.checked ?? true,
-      scheduleReport24hHora: document.getElementById('config-sched-24h-hora')?.value || '00:00',
-      scheduleReport12hEnabled: document.getElementById('config-sched-12h-enabled')?.checked ?? false,
-      scheduleReport12hHora: document.getElementById('config-sched-12h-hora')?.value || '12:00',
-      scheduleReportMesEnabled: document.getElementById('config-sched-mes-enabled')?.checked ?? true,
-      scheduleReportMesHora: document.getElementById('config-sched-mes-hora')?.value || '08:00',
-      scheduleEstoqueAlertaEnabled: document.getElementById('config-sched-estoque-enabled')?.checked ?? true,
-      scheduleEstoqueAlertaHora: document.getElementById('config-sched-estoque-hora')?.value || '18:20',
       scheduleMonitorEnabled: document.getElementById('config-sched-monitor-enabled')?.checked ?? true,
       scheduleMonitorIntervalMinutes: parseInt(document.getElementById('config-sched-monitor-interval')?.value || '5', 10)
     };
@@ -3989,7 +4413,7 @@ async function salvarConfiguracoesRelatorio() {
       body: payload
     });
 
-    showToast('Configurações salvas e agendamentos atualizados com sucesso!', 'success');
+    showToast('Configurações de grupos WhatsApp salvas com sucesso!', 'success');
     await loadConfiguracoesRelatorio();
   } catch (err) {
     console.error('Erro ao salvar configurações:', err);
