@@ -181,6 +181,16 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
                 """);
             }
 
+            // 6. Purga de transações consolidadas legadas (CONSOLIDADO) para garantir que apenas transações atômicas detalhadas existam
+            try {
+                int purged = stmt.executeUpdate("DELETE FROM transacoes WHERE UPPER(COALESCE(tipo_pagamento, '')) = 'CONSOLIDADO'");
+                if (purged > 0) {
+                    log.info("[DB-MIGRATION] {} transações consolidadas legadas removidas com sucesso para dar lugar às transações atômicas detalhadas.", purged);
+                }
+            } catch (Exception e) {
+                log.warn("[DB-MIGRATION] Erro ao purgar consolidados legados: {}", e.getMessage());
+            }
+
             log.info("[DB-MIGRATION] Migração de esquema verificada com sucesso.");
         } catch (Exception e) {
             log.warn("[DB-MIGRATION] Aviso durante migração de esquema: {}", e.getMessage());

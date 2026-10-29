@@ -32,6 +32,14 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
             @Param("fim") LocalDateTime fim
     );
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Transacao t WHERE UPPER(COALESCE(t.tipoPagamento, '')) = 'CONSOLIDADO'")
+    int deleteAllLegacyConsolidados();
+
+    @Query("SELECT COUNT(t) FROM Transacao t WHERE t.timestamp >= :start AND t.timestamp <= :end AND UPPER(COALESCE(t.tipoPagamento, '')) = 'CONSOLIDADO'")
+    long countConsolidadosBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
     List<Transacao> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT t FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp >= :dataHora")
@@ -180,6 +188,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
           AND (:maquinaId IS NULL OR m.id = :maquinaId)
           AND (:integracao IS NULL OR UPPER(t.integracao) = UPPER(:integracao))
           AND (:teste IS NULL OR (:teste = true AND t.teste = true) OR (:teste = false AND (t.teste IS NULL OR t.teste = false)))
+          AND UPPER(COALESCE(t.tipoPagamento, '')) != 'CONSOLIDADO'
         ORDER BY t.timestamp DESC
     """)
     List<Transacao> findFiltered(
@@ -210,6 +219,7 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
         WHERE t.timestamp >= :inicio AND t.timestamp <= :fim
           AND (:maquinaId IS NULL OR m.id = :maquinaId)
           AND (:estabelecimentoId IS NULL OR e.id = :estabelecimentoId)
+          AND UPPER(COALESCE(t.tipoPagamento, '')) != 'CONSOLIDADO'
         ORDER BY t.timestamp ASC
     """)
     List<Transacao> findByPeriodAndFilters(

@@ -352,6 +352,15 @@ public class TransactionImportService {
 
     public int importTransactionsRange(LocalDate start, LocalDate end) {
         log.info("Iniciando importação de transações no intervalo de {} a {}...", start, end);
+        try {
+            int purged = transacaoRepository.deleteAllLegacyConsolidados();
+            if (purged > 0) {
+                log.info("Purgadas {} transações consolidadas legadas antes de reimportar transações atômicas.", purged);
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao limpar consolidados legados: {}", e.getMessage());
+        }
+
         int total = 0;
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
             total += importDailyTransactions(date);
@@ -363,6 +372,14 @@ public class TransactionImportService {
     public void ensureTransactionsImported(LocalDate start, LocalDate end) {
         LocalDateTime startDt = start.atStartOfDay();
         LocalDateTime endDt = end.atTime(LocalTime.MAX);
+
+        long countConsolidados = transacaoRepository.countConsolidadosBetween(startDt, endDt);
+        if (countConsolidados > 0) {
+            log.info("Detectadas {} transações consolidadas legadas entre {} e {}. Disparando reimportação detalhada atômica...", countConsolidados, start, end);
+            importTransactionsRange(start, end);
+            return;
+        }
+
         long count = transacaoRepository.countByTimestampBetween(startDt, endDt);
         if (count == 0) {
             log.info("Nenhuma transação encontrada no banco entre {} e {}. Disparando importação automática...", start, end);
