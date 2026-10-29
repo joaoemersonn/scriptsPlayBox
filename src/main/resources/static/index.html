@@ -1167,6 +1167,11 @@
                 <span>Testes em Lote</span>
               </button>
 
+              <button onclick="toggleSecaoConciliacao()" id="btn-toggle-conciliacao" class="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition" title="Verificar conciliação entre o banco local e as APIs das integradoras">
+                <i data-lucide="scale" class="w-4 h-4 text-indigo-600"></i>
+                <span>Conciliação</span>
+              </button>
+
               <button onclick="loadTransacoesData(true)" class="p-2 rounded-xl bg-slate-100 hover:bg-pink-50 hover:text-pink-600 text-slate-600 border border-slate-200 transition" title="Sincronizar transações das APIs">
                 <i data-lucide="refresh-cw" class="w-4 h-4"></i>
               </button>
@@ -1230,6 +1235,70 @@
               <div id="tx-kpi-efetivo" class="text-xl font-black text-emerald-700 tracking-tight">R$ 0,00</div>
               <div class="text-[11px] text-emerald-600 mt-0.5">Considerado nos relatórios</div>
             </div>
+          </div>
+        </div>
+
+        <!-- Painel de Conciliação Automática de Valores -->
+        <div id="secao-conciliacao" class="glass-card p-4 sm:p-5 space-y-4 border-indigo-200 hidden bg-gradient-to-br from-indigo-50/20 via-white to-indigo-50/10">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100">
+            <div class="flex items-center gap-2.5">
+              <div class="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 shadow-sm">
+                <i data-lucide="scale" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-black text-slate-800">Conciliação Automática de Valores</h3>
+                <p class="text-[11px] text-slate-500">Conferência dos valores registrados no banco de dados contra as APIs das integradoras</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span id="badge-conciliacao-status" class="px-3 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-200">
+                Aguardando Consulta
+              </span>
+              <button onclick="executarConciliacao(true)" class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition active:scale-95" title="Sincronizar dados das integradoras e conciliar">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                <span>Sincronizar & Conciliar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cards de Resumo da Conciliação -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
+              <div class="text-[10px] font-black uppercase text-slate-400">Total Banco Local</div>
+              <div id="concil-total-banco" class="text-lg font-black text-slate-800">R$ 0,00</div>
+              <div id="concil-transacoes-banco" class="text-[10px] text-slate-500">0 transações apuradas</div>
+            </div>
+            <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
+              <div class="text-[10px] font-black uppercase text-slate-400">Total APIs (Integradoras)</div>
+              <div id="concil-total-api" class="text-lg font-black text-slate-800">R$ 0,00</div>
+              <div class="text-[10px] text-slate-500">Valor reportado pelas plataformas</div>
+            </div>
+            <div id="concil-card-diferenca" class="bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
+              <div class="text-[10px] font-black uppercase text-slate-400">Diferença / Divergência</div>
+              <div id="concil-total-diferenca" class="text-lg font-black text-slate-800">R$ 0,00</div>
+              <div id="concil-status-msg" class="text-[10px] text-slate-500">Clique para conciliar</div>
+            </div>
+          </div>
+
+          <!-- Tabela detalhada de conciliação por máquina -->
+          <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                <tr>
+                  <th class="py-2.5 px-3">Máquina / Ponto</th>
+                  <th class="py-2.5 px-3">Integradora</th>
+                  <th class="py-2.5 px-3 text-right">Banco Local</th>
+                  <th class="py-2.5 px-3 text-right">API Integrador</th>
+                  <th class="py-2.5 px-3 text-right">Diferença</th>
+                  <th class="py-2.5 px-3 text-center">Status Conciliação</th>
+                </tr>
+              </thead>
+              <tbody id="conciliacao-table-body" class="divide-y divide-slate-100 font-medium">
+                <tr>
+                  <td colspan="6" class="py-4 text-center text-slate-400">Clique em "Sincronizar & Conciliar" para iniciar a verificação.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 

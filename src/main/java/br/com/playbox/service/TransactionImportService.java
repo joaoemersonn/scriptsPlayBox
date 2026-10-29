@@ -95,6 +95,36 @@ public class TransactionImportService {
         return count;
     }
 
+    private LocalDateTime parseTimestamp(String isoString, LocalDateTime defaultVal) {
+        if (isoString == null || isoString.isBlank()) {
+            return defaultVal;
+        }
+        try {
+            return ZonedDateTime.parse(isoString.trim()).withZoneSameInstant(BRASILIA_ZONE).toLocalDateTime();
+        } catch (Exception e1) {
+            try {
+                return LocalDateTime.parse(isoString.trim(), DateTimeFormatter.ISO_DATE_TIME);
+            } catch (Exception e2) {
+                return defaultVal;
+            }
+        }
+    }
+
+    private void cleanupLegacyConsolidado(String integracao, String legacyExternalTxId) {
+        try {
+            Optional<Transacao> optOld = transacaoRepository.findByIntegracaoAndExternalTxId(integracao, legacyExternalTxId);
+            if (optOld.isPresent()) {
+                Transacao old = optOld.get();
+                if ("CONSOLIDADO".equalsIgnoreCase(old.getTipoPagamento())) {
+                    log.info("Removendo transação consolidada legada substituída por detalhada: {} ({})", legacyExternalTxId, integracao);
+                    transacaoRepository.delete(old);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao limpar transação consolidada legada {}: {}", legacyExternalTxId, e.getMessage());
+        }
+    }
+
     private int importVendProMax(String dayId, String inicio, String fim, LocalDateTime timestamp) {
         int count = 0;
         try {
@@ -105,33 +135,49 @@ public class TransactionImportService {
                 if (!m.hasNonNull("id")) continue;
                 String extId = m.get("id").asText();
 
-                JsonNode cash = vendClient.getReport(token, "relatorio-01-cash", extId, inicio, fim, false);
-                JsonNode estornos = vendClient.getReport(token, "relatorio-04-estornos", extId, inicio, fim, false);
-                JsonNode pagamentos = vendClient.getReport(token, "relatorio-03-pagamentos", extId, inicio, fim, false);
+                // 1. Obter pagamentos detalhados individuais
+                JsonNode pagamentosPeriodo = vendClient.getPagamentosPeriodo(token, extId, inicio, fim);
+
+                if (pagamentosPeriodo != null && pagamentosPeriodo.hasNonNull("pagamentos") && pagamentosPeriodo.get("pagamentos").isArray()) {
+                    for (JsonNode p : pagamentosPeriodo.get("pagamentos")) {
+                        String pId = p.hasNonNull("id") ? p.get("id").asText() : null;
+                        if (pId == null || pId.isBlank()) continue;
+
+                        double valor = p.hasNonNull("valor") ? p.get("valor").asDouble() : 0.0;
+                        String tipo = p.hasNonNull("tipo") ? p.get("tipo").asText().toUpperCase() : "PIX";
+                        boolean estornado = p.hasNonNull("estornado") && p.get("estornado").asBoolean();
+                        double valorEstorno = estornado ? valor : 0.0;
+
+                        LocalDateTime txTime = timestamp;
+                        if (p.hasNonNull("data")) {
+                            txTime = parseTimestamp(p.get("data").asText(), timestamp);
+                        }
+
+                        double valorCash = "CASH".equalsIgnoreCase(tipo) ? valor : 0.0;
+                        double valorPix = "PIX".equalsIgnoreCase(tipo) ? valor : 0.0;
+                        double valorCredito = "CREDITO".equalsIgnoreCase(tipo) ? valor : 0.0;
+                        double valorDebito = "DEBITO".equalsIgnoreCase(tipo) ? valor : 0.0;
+
+                        String externalTxId = "VENDPROMAX_TX_" + pId;
+                        saveOrUpdateTransaction("VENDPROMAX", externalTxId, extId, txTime, tipo,
+                                valor, valorCash, valorPix, valorCredito, valorDebito, valorEstorno, 0.0);
+                        count++;
+                    }
+                }
+
+                // 2. Obter contagem de prêmios liberados
                 JsonNode premios = vendClient.getReport(token, "relatorio-premios", extId, inicio, fim, false);
-
-                double valorCash = 0.0;
-                if (cash != null) {
-                    if (cash.hasNonNull("valor")) valorCash = cash.get("valor").asDouble();
-                    else if (cash.hasNonNull("total")) valorCash = cash.get("total").asDouble();
-                    else if (cash.hasNonNull("cash")) valorCash = cash.get("cash").asDouble();
-                    else if (cash.hasNonNull("valorTotal")) valorCash = cash.get("valorTotal").asDouble();
-                }
-                double valorEstornos = (estornos != null && estornos.hasNonNull("valor")) ? estornos.get("valor").asDouble() : 0.0;
-                double valorPix = (pagamentos != null && pagamentos.hasNonNull("pix")) ? pagamentos.get("pix").asDouble() : 0.0;
-                double valorCredito = (pagamentos != null && pagamentos.hasNonNull("credito")) ? pagamentos.get("credito").asDouble() : 0.0;
-                double valorDebito = (pagamentos != null && pagamentos.hasNonNull("debito")) ? pagamentos.get("debito").asDouble() : 0.0;
                 double quantPremios = (premios != null && premios.hasNonNull("quantidade")) ? premios.get("quantidade").asDouble() : 0.0;
-
-                double totalValor = valorCash + valorPix + valorCredito + valorDebito;
-                if (totalValor == 0.0 && valorEstornos == 0.0 && quantPremios == 0.0) {
-                    continue; // Sem movimentação
+                if (quantPremios > 0.0) {
+                    String prizeTxId = "VENDPROMAX_PREMIOS_" + extId + "_" + dayId;
+                    saveOrUpdateTransaction("VENDPROMAX", prizeTxId, extId, timestamp, "PREMIOS",
+                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, quantPremios);
+                    count++;
                 }
 
-                String externalTxId = "VENDPROMAX_" + extId + "_" + dayId;
-                saveOrUpdateTransaction("VENDPROMAX", externalTxId, extId, timestamp, "CONSOLIDADO",
-                        totalValor, valorCash, valorPix, valorCredito, valorDebito, valorEstornos, quantPremios);
-                count++;
+                // 3. Limpeza do consolidado antigo para evitar duplicidade de valores
+                String legacyExternalTxId = "VENDPROMAX_" + extId + "_" + dayId;
+                cleanupLegacyConsolidado("VENDPROMAX", legacyExternalTxId);
             }
         } catch (Exception e) {
             log.error("Erro na importação de VendProMax para o dia {}: {}", dayId, e.getMessage());
@@ -159,32 +205,30 @@ public class TransactionImportService {
 
                 String extId = maquinaNode.get("id").asText();
 
-                double valorTotal = 0.0;
-                double valorEstornos = 0.0;
-                double valorEspecie = 0.0;
-                double valorPix = 0.0;
-                double valorCredito = 0.0;
-                double valorDebito = 0.0;
-                double quantPremios = 0.0;
-
                 if (item.hasNonNull("vendasByPaymentType") && item.get("vendasByPaymentType").isArray()) {
                     for (JsonNode p : item.get("vendasByPaymentType")) {
-                        String forma = p.hasNonNull("formaDePagamento") ? p.get("formaDePagamento").asText() : "";
+                        String forma = p.hasNonNull("formaDePagamento") ? p.get("formaDePagamento").asText().toUpperCase() : "PIX";
                         JsonNode dados = p.hasNonNull("dados") ? p.get("dados") : null;
                         if (dados != null) {
                             double vt = dados.hasNonNull("valorTotal") ? dados.get("valorTotal").asDouble() : 0.0;
                             double ve = dados.hasNonNull("valorTotalEstorno") ? dados.get("valorTotalEstorno").asDouble() : 0.0;
-                            valorTotal += vt;
-                            valorEstornos += ve;
 
-                            if ("especie".equalsIgnoreCase(forma) || "dinheiro".equalsIgnoreCase(forma) || "cash".equalsIgnoreCase(forma)) valorEspecie += vt;
-                            else if ("pix".equalsIgnoreCase(forma)) valorPix += vt;
-                            else if ("credito".equalsIgnoreCase(forma)) valorCredito += vt;
-                            else if ("debito".equalsIgnoreCase(forma)) valorDebito += vt;
+                            if (vt > 0.0 || ve > 0.0) {
+                                double valorCash = ("ESPECIE".equalsIgnoreCase(forma) || "DINHEIRO".equalsIgnoreCase(forma) || "CASH".equalsIgnoreCase(forma)) ? vt : 0.0;
+                                double valorPix = "PIX".equalsIgnoreCase(forma) ? vt : 0.0;
+                                double valorCredito = "CREDITO".equalsIgnoreCase(forma) ? vt : 0.0;
+                                double valorDebito = "DEBITO".equalsIgnoreCase(forma) ? vt : 0.0;
+
+                                String externalTxId = "PAYXYZ_" + forma + "_" + extId + "_" + dayId;
+                                saveOrUpdateTransaction("PAYXYZ", externalTxId, extId, timestamp, forma,
+                                        vt, valorCash, valorPix, valorCredito, valorDebito, ve, 0.0);
+                                count++;
+                            }
                         }
                     }
                 }
 
+                double quantPremios = 0.0;
                 if (item.hasNonNull("faturamentoPorEstoque") && item.get("faturamentoPorEstoque").isArray()) {
                     for (JsonNode est : item.get("faturamentoPorEstoque")) {
                         if (est.hasNonNull("totalEstoque")) {
@@ -193,14 +237,16 @@ public class TransactionImportService {
                     }
                 }
 
-                if (valorTotal == 0.0 && valorEstornos == 0.0 && quantPremios == 0.0) {
-                    continue;
+                if (quantPremios > 0.0) {
+                    String prizeTxId = "PAYXYZ_PREMIOS_" + extId + "_" + dayId;
+                    saveOrUpdateTransaction("PAYXYZ", prizeTxId, extId, timestamp, "PREMIOS",
+                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, quantPremios);
+                    count++;
                 }
 
-                String externalTxId = "PAYXYZ_" + extId + "_" + dayId;
-                saveOrUpdateTransaction("PAYXYZ", externalTxId, extId, timestamp, "CONSOLIDADO",
-                        valorTotal, valorEspecie, valorPix, valorCredito, valorDebito, valorEstornos, quantPremios);
-                count++;
+                // Limpeza do consolidado antigo para evitar duplicidade
+                String legacyExternalTxId = "PAYXYZ_" + extId + "_" + dayId;
+                cleanupLegacyConsolidado("PAYXYZ", legacyExternalTxId);
             }
         } catch (Exception e) {
             log.error("Erro na importação de PayXYZ para o dia {}: {}", dayId, e.getMessage());
@@ -216,6 +262,53 @@ public class TransactionImportService {
             String refreshToken = (loginData != null && loginData.hasNonNull("refreshToken")) ? loginData.get("refreshToken").asText() : null;
             Integer zapOrgId = properties.getZapizi().getOrganizationId();
 
+            // 1. Obter vendas detalhadas individuais via core/sales
+            int page = 0;
+            int limit = 100;
+            boolean hasMore = true;
+
+            while (hasMore) {
+                JsonNode salesResponse = zapiziClient.getSales(token, inicio, fim, page, limit, zapOrgId, refreshToken);
+                if (salesResponse != null && salesResponse.hasNonNull("data") && salesResponse.get("data").isArray()) {
+                    JsonNode dataArray = salesResponse.get("data");
+                    for (JsonNode item : dataArray) {
+                        String saleId = item.hasNonNull("id") ? item.get("id").asText() : null;
+                        String extId = item.hasNonNull("machineUniqueCode") ? item.get("machineUniqueCode").asText().trim() : null;
+                        if (saleId == null || extId == null || extId.isBlank()) continue;
+
+                        String provider = item.hasNonNull("paymentProvider") ? item.get("paymentProvider").asText().toUpperCase() : "PIX";
+                        double total = item.hasNonNull("total") ? item.get("total").asDouble() : 0.0;
+                        String status = item.hasNonNull("status") ? item.get("status").asText() : "PAID";
+                        boolean isRefund = "REFUNDED".equalsIgnoreCase(status);
+                        double estorno = isRefund ? total : 0.0;
+
+                        LocalDateTime txTime = timestamp;
+                        if (item.hasNonNull("created")) {
+                            txTime = parseTimestamp(item.get("created").asText(), timestamp);
+                        }
+
+                        double cash = ("DINHEIRO".equalsIgnoreCase(provider) || "ESPECIE".equalsIgnoreCase(provider) || "CASH".equalsIgnoreCase(provider)) ? total : 0.0;
+                        double pix = "PIX".equalsIgnoreCase(provider) ? total : 0.0;
+                        double credito = "CREDITO".equalsIgnoreCase(provider) ? total : 0.0;
+                        double debito = "DEBITO".equalsIgnoreCase(provider) ? total : 0.0;
+
+                        String externalTxId = "ZAPIZI_TX_" + saleId;
+                        saveOrUpdateTransaction("ZAPIZI", externalTxId, extId, txTime, provider,
+                                total, cash, pix, credito, debito, estorno, 0.0);
+                        count++;
+                    }
+
+                    if (dataArray.size() < limit) {
+                        hasMore = false;
+                    } else {
+                        page++;
+                    }
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            // 2. Obter dinheiro em espécie (noteiros) e prêmios entregues via telemetria
             JsonNode telemetryData = zapiziClient.getTelemetry(
                     token, inicio, fim, zapOrgId, refreshToken
             );
@@ -237,19 +330,18 @@ public class TransactionImportService {
                     }
 
                     double cash = item.hasNonNull("cash") ? item.get("cash").asDouble() : (item.hasNonNull("especie") ? item.get("especie").asDouble() : (item.hasNonNull("dinheiro") ? item.get("dinheiro").asDouble() : 0.0));
-                    double pix = item.hasNonNull("pix") ? item.get("pix").asDouble() : 0.0;
-                    double card = item.hasNonNull("card") ? item.get("card").asDouble() : 0.0;
-                    double total = item.hasNonNull("total") ? item.get("total").asDouble() : (cash + pix + card);
                     double delivered = item.hasNonNull("products") ? item.get("products").asDouble() : 0.0;
 
-                    if (total == 0.0 && delivered == 0.0) {
-                        continue;
+                    if (cash > 0.0 || delivered > 0.0) {
+                        String cashTxId = "ZAPIZI_CASH_" + extId + "_" + dayId;
+                        saveOrUpdateTransaction("ZAPIZI", cashTxId, extId, timestamp, "DINHEIRO",
+                                cash, cash, 0.0, 0.0, 0.0, 0.0, delivered);
+                        count++;
                     }
 
-                    String externalTxId = "ZAPIZI_" + extId + "_" + dayId;
-                    saveOrUpdateTransaction("ZAPIZI", externalTxId, extId, timestamp, "CONSOLIDADO",
-                            total, cash, pix, card, 0.0, 0.0, delivered);
-                    count++;
+                    // Limpeza do consolidado antigo da máquina para este dia
+                    String legacyExternalTxId = "ZAPIZI_" + extId + "_" + dayId;
+                    cleanupLegacyConsolidado("ZAPIZI", legacyExternalTxId);
                 }
             }
         } catch (Exception e) {

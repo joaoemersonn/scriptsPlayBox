@@ -261,6 +261,46 @@ public class ZapiziClient extends ApiClient {
         );
     }
 
+    public JsonNode getSales(
+            String token,
+            String startDate,
+            String endDate,
+            int page,
+            int limit,
+            Integer organizationId,
+            String refreshToken
+    ) {
+        String effectiveToken = (token != null && !token.isBlank()) ? token : this.lastToken;
+        String effectiveRefresh = (refreshToken != null && !refreshToken.isBlank()) ? refreshToken : this.lastRefreshToken;
+        if (effectiveToken == null || effectiveToken.isBlank()) {
+            return null;
+        }
+
+        Map<String, Object> advancedSearch = new LinkedHashMap<>();
+        advancedSearch.put("startDate", startDate);
+        advancedSearch.put("endDate", endDate);
+
+        String advancedSearchJson;
+        try {
+            advancedSearchJson = objectMapper.writeValueAsString(advancedSearch);
+        } catch (JsonProcessingException e) {
+            throw new IntegrationException("Zapizi", "Erro ao serializar advancedSearch para getSales: " + e.getMessage());
+        }
+
+        Map<String, String> params = Map.of(
+                "page", String.valueOf(page),
+                "limit", String.valueOf(limit),
+                "advancedSearch", advancedSearchJson
+        );
+
+        return get(
+                "core/sales",
+                defaultHeaders(effectiveToken, effectiveRefresh, organizationId, "organization"),
+                params,
+                "Zapizi"
+        );
+    }
+
     public String getLastToken() {
         return lastToken;
     }

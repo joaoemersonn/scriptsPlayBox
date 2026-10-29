@@ -33,19 +33,22 @@ public class TransacaoController {
     private final RelatorioService relatorioService;
     private final br.com.playbox.repository.EstabelecimentoRepository estabelecimentoRepository;
     private final br.com.playbox.service.HistoricoVinculoService historicoVinculoService;
+    private final br.com.playbox.service.ConciliacaoService conciliacaoService;
 
     public TransacaoController(
             TransacaoRepository transacaoRepository,
             TransactionImportService transactionImportService,
             RelatorioService relatorioService,
             br.com.playbox.repository.EstabelecimentoRepository estabelecimentoRepository,
-            br.com.playbox.service.HistoricoVinculoService historicoVinculoService
+            br.com.playbox.service.HistoricoVinculoService historicoVinculoService,
+            br.com.playbox.service.ConciliacaoService conciliacaoService
     ) {
         this.transacaoRepository = transacaoRepository;
         this.transactionImportService = transactionImportService;
         this.relatorioService = relatorioService;
         this.estabelecimentoRepository = estabelecimentoRepository;
         this.historicoVinculoService = historicoVinculoService;
+        this.conciliacaoService = conciliacaoService;
     }
 
     public record TransacaoDTO(
@@ -369,5 +372,41 @@ public class TransacaoController {
                 "dataFim", end.toString(),
                 "registrosSincronizados", count
         ));
+    }
+
+    @GetMapping("/conciliacao")
+    @Operation(summary = "Executar conciliação entre as transações salvas no banco e os valores reportados pelas APIs")
+    public ResponseEntity<br.com.playbox.dto.ConciliacaoDTO> conciliar(
+            @Parameter(description = "Período: '24h-anterior', '12h-atual', 'mes', 'hoje'. Ignorado se dataInicio/dataFim forem passados.", example = "mes")
+            @RequestParam(required = false) String periodo,
+
+            @Parameter(description = "Data inicial no formato YYYY-MM-DD", example = "2026-10-01")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+
+            @Parameter(description = "Data final no formato YYYY-MM-DD", example = "2026-10-29")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+
+            @Parameter(description = "Filtrar por ID do estabelecimento")
+            @RequestParam(required = false) Long estabelecimentoId,
+
+            @Parameter(description = "Filtrar por ID da máquina")
+            @RequestParam(required = false) Long maquinaId,
+
+            @Parameter(description = "Filtrar por integradora (VENDPROMAX, PAYXYZ, ZAPIZI)")
+            @RequestParam(required = false) String integracao,
+
+            @Parameter(description = "Sincronizar transações das APIs antes de conciliar (default: false)")
+            @RequestParam(defaultValue = "false") boolean sincronizar
+    ) {
+        RelatorioService.PeriodoCalculado p = relatorioService.calcularPeriodo(periodo, dataInicio, dataFim);
+        LocalDate start = p.inicio().toLocalDate();
+        LocalDate end = p.fim().toLocalDate();
+
+        if (sincronizar) {
+            transactionImportService.importTransactionsRange(start, end);
+        }
+
+        br.com.playbox.dto.ConciliacaoDTO resultado = conciliacaoService.conciliar(start, end, estabelecimentoId, maquinaId, integracao);
+        return ResponseEntity.ok(resultado);
     }
 }

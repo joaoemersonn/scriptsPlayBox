@@ -3676,9 +3676,12 @@ function renderTransacoesTable(list) {
           `}
         </td>
         <td class="py-3 px-4 whitespace-nowrap">
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-            ${escapeHtml(t.integracao || '')}
-          </span>
+          <div class="flex flex-col gap-1">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 inline-block w-fit">
+              ${escapeHtml(t.integracao || '')}
+            </span>
+            ${renderPaymentMethodPill(t.tipoPagamento)}
+          </div>
         </td>
         <td class="py-3 px-4 text-right font-black ${isTeste ? 'text-slate-400 line-through' : 'text-pink-700'}">
           ${formatMoney(bruto)}
@@ -4044,6 +4047,219 @@ async function executarReassociacaoAutomatica() {
     console.error('Erro na reassociação automática:', err);
     showToast('Falha ao reassociar: ' + err.message, 'error');
   }
+}
+
+// ============================================================================
+// CONCILIAÇÃO AUTOMÁTICA DE VALORES (BANCO LOCAL VS APIS INTEGRADORAS)
+// ============================================================================
+
+function toggleSecaoConciliacao() {
+  const panel = document.getElementById('secao-conciliacao');
+  const btn = document.getElementById('btn-toggle-conciliacao');
+  if (!panel) return;
+
+  const isHidden = panel.classList.contains('hidden');
+  if (isHidden) {
+    panel.classList.remove('hidden');
+    if (btn) {
+      btn.classList.remove('bg-indigo-50', 'text-indigo-700');
+      btn.classList.add('bg-indigo-600', 'text-white');
+    }
+    executarConciliacao(false);
+  } else {
+    panel.classList.add('hidden');
+    if (btn) {
+      btn.classList.add('bg-indigo-50', 'text-indigo-700');
+      btn.classList.remove('bg-indigo-600', 'text-white');
+    }
+  }
+}
+
+async function executarConciliacao(forceSync = false) {
+  const badgeStatus = document.getElementById('badge-conciliacao-status');
+  const tbody = document.getElementById('conciliacao-table-body');
+  const machineId = document.getElementById('transacoes-filter-machine')?.value || '';
+
+  if (badgeStatus) {
+    badgeStatus.className = 'px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-700 border border-indigo-200 animate-pulse';
+    badgeStatus.textContent = forceSync ? 'Sincronizando & Conciliando...' : 'Consultando APIs & Conciliando...';
+  }
+
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-6 text-center text-slate-400">
+          <div class="flex items-center justify-center gap-2">
+            <i data-lucide="loader" class="w-4 h-4 animate-spin text-indigo-600"></i>
+            <span>Verificando valores no banco de dados e consultando as integradoras...</span>
+          </div>
+        </td>
+      </tr>
+    `;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  let url = `/api/transacoes/conciliacao?`;
+  if (state.transacoesPeriod === 'custom' && state.transacoesCustomStart && state.transacoesCustomEnd) {
+    url += `dataInicio=${state.transacoesCustomStart}&dataFim=${state.transacoesCustomEnd}`;
+  } else {
+    url += `periodo=${encodeURIComponent(state.transacoesPeriod || 'mes')}`;
+  }
+  if (machineId) {
+    url += `&maquinaId=${encodeURIComponent(machineId)}`;
+  }
+  if (forceSync) {
+    url += `&sincronizar=true`;
+  }
+
+  try {
+    const data = await apiRequest(url);
+    renderResultadoConciliacao(data);
+
+    if (forceSync) {
+      showToast('Sincronização e conciliação concluídas com sucesso!', 'success');
+      await loadTransacoesData(false);
+    }
+  } catch (err) {
+    console.error('Erro ao executar conciliação:', err);
+    if (badgeStatus) {
+      badgeStatus.className = 'px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-700 border border-rose-200';
+      badgeStatus.textContent = 'Erro na Verificação';
+    }
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-4 text-center text-rose-600 font-bold">
+            Erro ao conciliar valores: ${escapeHtml(err.message)}
+          </td>
+        </tr>
+      `;
+    }
+    showToast('Falha na conciliação: ' + err.message, 'error');
+  }
+}
+
+function renderResultadoConciliacao(data) {
+  if (!data) return;
+
+  const badgeStatus = document.getElementById('badge-conciliacao-status');
+  const elTotalBanco = document.getElementById('concil-total-banco');
+  const elTxBanco = document.getElementById('concil-transacoes-banco');
+  const elTotalApi = document.getElementById('concil-total-api');
+  const elDiferenca = document.getElementById('concil-total-diferenca');
+  const elStatusMsg = document.getElementById('concil-status-msg');
+  const cardDif = document.getElementById('concil-card-diferenca');
+  const tbody = document.getElementById('conciliacao-table-body');
+
+  const totalBanco = data.totalBancoGeral || 0;
+  const totalApi = data.totalApiGeral || 0;
+  const diferenca = data.diferencaGeral || 0;
+  const isOk = Math.abs(diferenca) < 0.05 && (data.totalDivergentes || 0) === 0;
+
+  if (elTotalBanco) elTotalBanco.textContent = formatMoney(totalBanco);
+  if (elTxBanco) {
+    const totalTxs = (data.itens || []).reduce((acc, it) => acc + (it.qtdTransacoesBanco || 0), 0);
+    elTxBanco.textContent = `${totalTxs} transações registradas`;
+  }
+  if (elTotalApi) elTotalApi.textContent = formatMoney(totalApi);
+  if (elDiferenca) elDiferenca.textContent = formatMoney(diferenca);
+
+  if (badgeStatus) {
+    if (isOk) {
+      badgeStatus.className = 'px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300';
+      badgeStatus.textContent = '100% Conciliado';
+    } else {
+      badgeStatus.className = 'px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800 border border-rose-300';
+      badgeStatus.textContent = `${data.totalDivergentes || 1} Divergência(s)`;
+    }
+  }
+
+  if (cardDif) {
+    if (isOk) {
+      cardDif.className = 'bg-emerald-50/50 rounded-xl p-3 border border-emerald-200 shadow-xs';
+    } else {
+      cardDif.className = 'bg-rose-50/50 rounded-xl p-3 border border-rose-200 shadow-xs';
+    }
+  }
+
+  if (elStatusMsg) {
+    if (isOk) {
+      elStatusMsg.className = 'text-[10px] text-emerald-700 font-bold';
+      elStatusMsg.textContent = 'Valores batem perfeitamente com as APIs!';
+    } else {
+      elStatusMsg.className = 'text-[10px] text-rose-700 font-bold';
+      elStatusMsg.textContent = `Divergência de ${formatMoney(Math.abs(diferenca))}`;
+    }
+  }
+
+  if (tbody) {
+    const itens = data.itens || [];
+    if (itens.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="py-4 text-center text-slate-400">Nenhuma máquina encontrada para os filtros selecionados.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = itens.map(it => {
+      const itemOk = Math.abs(it.diferenca || 0) < 0.05 && it.status === 'CONCILIADO';
+      const statusBadge = itemOk
+        ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+             <i data-lucide="check" class="w-3 h-3 text-emerald-600"></i> CONCILIADO
+           </span>`
+        : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+             <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i> DIVERGENTE
+           </span>`;
+
+      return `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-2.5 px-3 whitespace-nowrap">
+            <div class="font-bold text-slate-900">${escapeHtml(it.maquinaNome || '--')}</div>
+            <div class="text-[10px] text-slate-500">${escapeHtml(it.estabelecimentoNome || 'Sem Estabelecimento')}</div>
+          </td>
+          <td class="py-2.5 px-3 whitespace-nowrap">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+              ${escapeHtml(it.integracao || '')}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-right font-black text-slate-800">
+            ${formatMoney(it.totalBanco || 0)}
+            <div class="text-[10px] font-normal text-slate-400">${it.qtdTransacoesBanco || 0} txs</div>
+          </td>
+          <td class="py-2.5 px-3 text-right font-black text-indigo-700">
+            ${formatMoney(it.totalApi || 0)}
+            <div class="text-[10px] font-normal text-slate-400">API Oficial</div>
+          </td>
+          <td class="py-2.5 px-3 text-right font-black ${itemOk ? 'text-emerald-700' : 'text-rose-700'}">
+            ${(it.diferenca != null && it.diferenca !== 0) ? (it.diferenca > 0 ? '+' : '') + formatMoney(it.diferenca) : 'R$ 0,00'}
+          </td>
+          <td class="py-2.5 px-3 text-center whitespace-nowrap">
+            ${statusBadge}
+            ${(!itemOk && it.mensagem) ? `<div class="text-[9px] text-rose-500 max-w-[150px] truncate mx-auto" title="${escapeHtml(it.mensagem)}">${escapeHtml(it.mensagem)}</div>` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function renderPaymentMethodPill(tipo) {
+  if (!tipo) return '';
+  const up = String(tipo).toUpperCase();
+  if (up === 'PIX') {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">PIX</span>`;
+  } else if (up === 'DINHEIRO' || up === 'CASH' || up === 'ESPECIE') {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 w-fit">DINHEIRO</span>`;
+  } else if (up === 'CREDITO' || up === 'DEBITO' || up === 'CARTAO') {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 w-fit">${escapeHtml(up)}</span>`;
+  } else if (up === 'PREMIOS') {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 w-fit">PRÊMIOS</span>`;
+  }
+  return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 w-fit">${escapeHtml(up)}</span>`;
 }
 
 async function openHistoricoMaquinaModal(maquinaId) {

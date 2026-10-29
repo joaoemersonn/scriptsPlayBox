@@ -17,6 +17,21 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
 
     boolean existsByIntegracaoAndExternalTxId(String integracao, String externalTxId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Transacao t WHERE t.integracao = :integracao AND t.externalTxId = :externalTxId")
+    void deleteByIntegracaoAndExternalTxId(@Param("integracao") String integracao, @Param("externalTxId") String externalTxId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM Transacao t WHERE t.integracao = :integracao AND t.maquina.id = :maquinaId AND t.timestamp >= :inicio AND t.timestamp <= :fim AND UPPER(t.tipoPagamento) = 'CONSOLIDADO'")
+    void deleteLegacyConsolidadoByPeriod(
+            @Param("integracao") String integracao,
+            @Param("maquinaId") Long maquinaId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
     List<Transacao> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT t FROM Transacao t WHERE t.maquina.id = :maquinaId AND t.timestamp >= :dataHora")
