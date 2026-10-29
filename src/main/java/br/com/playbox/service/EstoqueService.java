@@ -1,11 +1,13 @@
 package br.com.playbox.service;
 
 import br.com.playbox.client.VendProMaxClient;
+import br.com.playbox.client.ZapiziClient;
 import br.com.playbox.config.AppProperties;
 import br.com.playbox.entity.Maquina;
 import br.com.playbox.entity.MovimentacaoEstoque;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.repository.MovimentacaoEstoqueRepository;
+import br.com.playbox.repository.TransacaoRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +33,19 @@ public class EstoqueService {
     private final VendProMaxClient vendClient;
     private final AppProperties properties;
     private final EstoqueAlertaService estoqueAlertaService;
+    private final TransacaoRepository transacaoRepository;
+    private final ZapiziClient zapiziClient;
+
+    public record ResultadoAjusteEstoque(
+            MovimentacaoEstoque movimentacao,
+            int contagemInformada,
+            int saidasPosteriores,
+            int entradasPosteriores,
+            int estoqueAtualResultante,
+            int estoqueAnterior,
+            boolean retroativo,
+            String mensagem
+    ) {}
 
     @org.springframework.beans.factory.annotation.Autowired
     public EstoqueService(
@@ -36,13 +53,27 @@ public class EstoqueService {
             MovimentacaoEstoqueRepository movimentacaoRepository,
             VendProMaxClient vendClient,
             AppProperties properties,
-            EstoqueAlertaService estoqueAlertaService
+            EstoqueAlertaService estoqueAlertaService,
+            TransacaoRepository transacaoRepository,
+            ZapiziClient zapiziClient
     ) {
         this.maquinaRepository = maquinaRepository;
         this.movimentacaoRepository = movimentacaoRepository;
         this.vendClient = vendClient;
         this.properties = properties;
         this.estoqueAlertaService = estoqueAlertaService;
+        this.transacaoRepository = transacaoRepository;
+        this.zapiziClient = zapiziClient;
+    }
+
+    public EstoqueService(
+            MaquinaRepository maquinaRepository,
+            MovimentacaoEstoqueRepository movimentacaoRepository,
+            VendProMaxClient vendClient,
+            AppProperties properties,
+            EstoqueAlertaService estoqueAlertaService
+    ) {
+        this(maquinaRepository, movimentacaoRepository, vendClient, properties, estoqueAlertaService, null, null);
     }
 
     public EstoqueService(
@@ -51,7 +82,7 @@ public class EstoqueService {
             VendProMaxClient vendClient,
             AppProperties properties
     ) {
-        this(maquinaRepository, movimentacaoRepository, vendClient, properties, null);
+        this(maquinaRepository, movimentacaoRepository, vendClient, properties, null, null, null);
     }
 
     /**
@@ -106,10 +137,25 @@ public class EstoqueService {
     }
 
     /**
-     * Define/ajusta o estoque atual diretamente (balanço/contagem física).
+     * Define/ajusta o estoque atual diretamente (tempo real).
      */
     @Transactional
     public MovimentacaoEstoque definirEstoque(Long maquinaId, int novoEstoque, String observacao, String responsavel) {
+        return definirEstoqueComResultado(maquinaId, novoEstoque, observacao, responsavel, null).movimentacao();
+    }
+
+    /**
+     * Define/ajusta o estoque atual com suporte opcional a data/hora retroativa de contagem física.
+     * Caso informado no passado, deduz automaticamente as saídas de prêmios ocorridas de lá pra cá.
+     */
+    @Transactional
+    public ResultadoAjusteEstoque definirEstoqueComResultado(
+            Long maquinaId,
+            int novoEstoque,
+            String observacao,
+            String responsavel,
+            LocalDateTime dataHoraContagem
+    ) {
         if (novoEstoque < 0) {
             throw new IllegalArgumentException("O estoque não pode ser negativo");
         }
@@ -118,28 +164,204 @@ public class EstoqueService {
                 .orElseThrow(() -> new IllegalArgumentException("Máquina com ID " + maquinaId + " não encontrada"));
 
         int estoqueAnterior = maquina.getEstoqueAtual();
-        int delta = novoEstoque - estoqueAnterior;
+        LocalDateTime agora = LocalDateTime.now();
+        boolean isRetroativo = dataHoraContagem != null && dataHoraContagem.isBefore(agora.minusMinutes(2));
 
-        maquina.setEstoqueAtual(novoEstoque);
+        int saidasPosteriores = 0;
+        int entradasPosteriores = 0;
+        int estoqueAtualResultante = novoEstoque;
+
+        if (isRetroativo) {
+            saidasPosteriores = calcularSaidasApos(maquina, dataHoraContagem);
+            entradasPosteriores = movimentacaoRepository.sumQuantidadeByMaquinaIdAndTipoAndDataAfter(maquinaId, "ABASTECIMENTO", dataHoraContagem);
+            estoqueAtualResultante = Math.max(0, novoEstoque - saidasPosteriores + entradasPosteriores);
+        }
+
+        int delta = estoqueAtualResultante - estoqueAnterior;
+        maquina.setEstoqueAtual(estoqueAtualResultante);
         maquinaRepository.save(maquina);
 
-        String obs = (observacao != null && !observacao.isBlank()) ? observacao : "Ajuste manual de estoque / inventário";
+        String tipo = isRetroativo ? "CONTAGEM_FISICA" : "AJUSTE_MANUAL";
+        String obsPadrao = isRetroativo ? "Contagem física retroativa" : "Ajuste manual de estoque / inventário";
+        String obsTexto = (observacao != null && !observacao.isBlank()) ? observacao : obsPadrao;
+
+        if (isRetroativo) {
+            obsTexto += String.format(" [Contagem em %s: %d un | Saídas: -%d | Estoque final: %d]",
+                    dataHoraContagem.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                    novoEstoque, saidasPosteriores, estoqueAtualResultante);
+        }
+
         String resp = (responsavel != null && !responsavel.isBlank()) ? responsavel : "Usuário";
+        LocalDateTime dataMov = (isRetroativo && dataHoraContagem != null) ? dataHoraContagem : agora;
 
         MovimentacaoEstoque mov = new MovimentacaoEstoque(
                 maquina,
-                "AJUSTE_MANUAL",
+                tipo,
                 delta,
                 estoqueAnterior,
-                novoEstoque,
+                estoqueAtualResultante,
                 "API_MANUAL",
-                obs,
+                obsTexto,
                 resp,
-                LocalDateTime.now(),
+                dataMov,
                 null
         );
 
-        return movimentacaoRepository.save(mov);
+        MovimentacaoEstoque salvo = movimentacaoRepository.save(mov);
+
+        String msg;
+        if (isRetroativo) {
+            msg = String.format("Contagem física de %d un em %s processada. Com %d saídas detectadas desde a contagem, o estoque atual foi recalculado para %d pelúcias.",
+                    novoEstoque, dataHoraContagem.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), saidasPosteriores, estoqueAtualResultante);
+        } else {
+            msg = String.format("Estoque ajustado para %d pelúcias com sucesso!", estoqueAtualResultante);
+        }
+
+        return new ResultadoAjusteEstoque(
+                salvo,
+                novoEstoque,
+                saidasPosteriores,
+                entradasPosteriores,
+                estoqueAtualResultante,
+                estoqueAnterior,
+                isRetroativo,
+                msg
+        );
+    }
+
+    /**
+     * Calcula a prévia do recálculo retroativo de estoque sem salvar no banco de dados.
+     */
+    public ResultadoAjusteEstoque calcularPreviaRetroativa(Long maquinaId, int contagem, LocalDateTime dataHoraContagem) {
+        Maquina maquina = maquinaRepository.findById(maquinaId)
+                .orElseThrow(() -> new IllegalArgumentException("Máquina com ID " + maquinaId + " não encontrada"));
+
+        int estoqueAnterior = maquina.getEstoqueAtual();
+        LocalDateTime agora = LocalDateTime.now();
+        boolean isRetroativo = dataHoraContagem != null && dataHoraContagem.isBefore(agora.minusMinutes(2));
+
+        int saidasPosteriores = 0;
+        int entradasPosteriores = 0;
+        int estoqueAtualResultante = contagem;
+
+        if (isRetroativo) {
+            saidasPosteriores = calcularSaidasApos(maquina, dataHoraContagem);
+            entradasPosteriores = movimentacaoRepository.sumQuantidadeByMaquinaIdAndTipoAndDataAfter(maquinaId, "ABASTECIMENTO", dataHoraContagem);
+            estoqueAtualResultante = Math.max(0, contagem - saidasPosteriores + entradasPosteriores);
+        }
+
+        String msg = isRetroativo
+                ? String.format("Contagem informada de %d em %s. Saídas posteriores detectadas: %d. Estoque resultante projetado: %d pelúcias.",
+                contagem, dataHoraContagem.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), saidasPosteriores, estoqueAtualResultante)
+                : "Ajuste em tempo real sem recálculo retroativo.";
+
+        return new ResultadoAjusteEstoque(
+                null,
+                contagem,
+                saidasPosteriores,
+                entradasPosteriores,
+                estoqueAtualResultante,
+                estoqueAnterior,
+                isRetroativo,
+                msg
+        );
+    }
+
+    /**
+     * Calcula saídas de prêmios ocorridas após uma data/hora consultando integração e base local.
+     */
+    public int calcularSaidasApos(Maquina maquina, LocalDateTime dataHora) {
+        if (maquina == null || dataHora == null) {
+            return 0;
+        }
+
+        int saidasApi = 0;
+        String integracao = maquina.getIntegracao() != null ? maquina.getIntegracao().toUpperCase() : "";
+
+        if ("ZAPIZI".equals(integracao) && zapiziClient != null) {
+            saidasApi = obterSaidasPremiosZapizi(maquina.getExternalId(), dataHora, LocalDateTime.now());
+        } else if ("VENDPROMAX".equals(integracao) && vendClient != null) {
+            saidasApi = obterSaidasPremiosVendProMax(maquina.getExternalId(), dataHora, LocalDateTime.now());
+        }
+
+        int saidasDbMov = movimentacaoRepository.sumQuantidadeByMaquinaIdAndTipoAndDataAfter(
+                maquina.getId(), "SAIDA_PREMIO", dataHora
+        );
+
+        int saidasDbTx = 0;
+        if (transacaoRepository != null) {
+            Double sumTx = transacaoRepository.sumQuantidadePremiosByMaquinaAfter(maquina.getId(), dataHora);
+            if (sumTx != null) {
+                saidasDbTx = sumTx.intValue();
+            }
+        }
+
+        return Math.max(saidasApi, Math.max(saidasDbMov, saidasDbTx));
+    }
+
+    public int obterSaidasPremiosZapizi(String machineUniqueCode, LocalDateTime inicio, LocalDateTime fim) {
+        if (zapiziClient == null || machineUniqueCode == null || machineUniqueCode.isBlank()) {
+            return 0;
+        }
+        try {
+            ZoneId zoneSp = ZoneId.of("America/Sao_Paulo");
+            String startIso = inicio.atZone(zoneSp).toInstant().toString();
+            String endIso = fim.atZone(zoneSp).toInstant().toString();
+            Integer orgId = (properties != null && properties.getZapizi() != null) ? properties.getZapizi().getOrganizationId() : 3852;
+
+            JsonNode loginData = null;
+            if (properties != null && properties.getZapizi() != null && properties.getZapizi().getEmail() != null) {
+                loginData = zapiziClient.login(properties.getZapizi().getEmail(), properties.getZapizi().getPassword(), null);
+            }
+            String token = (loginData != null && loginData.hasNonNull("token")) ? loginData.get("token").asText() : zapiziClient.getLastToken();
+
+            if (token != null && !token.isBlank()) {
+                JsonNode reports = zapiziClient.getReports(token, startIso, endIso, null, null, null, null, 0, 100, orgId, null);
+                if (reports != null && reports.hasNonNull("data") && reports.get("data").isArray()) {
+                    for (JsonNode item : reports.get("data")) {
+                        if (item.hasNonNull("machineUniqueCode") && machineUniqueCode.equalsIgnoreCase(item.get("machineUniqueCode").asText().trim())) {
+                            if (item.hasNonNull("productsDelivered")) {
+                                return item.get("productsDelivered").asInt();
+                            }
+                        }
+                    }
+                }
+
+                JsonNode telemetry = zapiziClient.getTelemetry(token, startIso, endIso, orgId, null);
+                if (telemetry != null && telemetry.hasNonNull("telemetryList") && telemetry.get("telemetryList").isArray()) {
+                    for (JsonNode item : telemetry.get("telemetryList")) {
+                        if (item.hasNonNull("machineUniqueCode") && machineUniqueCode.equalsIgnoreCase(item.get("machineUniqueCode").asText().trim())) {
+                            if (item.hasNonNull("products")) {
+                                return item.get("products").asInt();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao consultar saídas de prêmios Zapizi para máquina {}: {}", machineUniqueCode, e.getMessage());
+        }
+        return 0;
+    }
+
+    public int obterSaidasPremiosVendProMax(String externalId, LocalDateTime inicio, LocalDateTime fim) {
+        if (vendClient == null || externalId == null || properties == null || properties.getVendpromax() == null) {
+            return 0;
+        }
+        try {
+            String token = vendClient.login(properties.getVendpromax().getEmail(), properties.getVendpromax().getPassword());
+            if (token != null) {
+                String dtInicio = inicio.toLocalDate().toString();
+                String dtFim = fim.toLocalDate().toString();
+                JsonNode rep = vendClient.getReport(token, "relatorio-premios", externalId, dtInicio, dtFim, false);
+                if (rep != null && rep.hasNonNull("quantidade")) {
+                    return rep.get("quantidade").asInt();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Aviso ao consultar prêmios VendProMax para máquina {}: {}", externalId, e.getMessage());
+        }
+        return 0;
     }
 
     /**

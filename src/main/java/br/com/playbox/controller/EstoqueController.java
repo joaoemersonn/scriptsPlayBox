@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -115,7 +116,22 @@ public class EstoqueController {
     public record DefinirEstoqueRequest(
             int novoEstoque,
             String observacao,
-            String responsavel
+            String responsavel,
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            LocalDateTime dataHoraContagem
+    ) {}
+
+    public record PreviaRetroativaDTO(
+            Long maquinaId,
+            String maquinaNome,
+            int contagemInformada,
+            String dataHoraContagem,
+            int saidasPosteriores,
+            int entradasPosteriores,
+            int estoqueAtualResultante,
+            int estoqueAnterior,
+            boolean retroativo,
+            String mensagem
     ) {}
 
     public record LimiteAlertaRequest(
@@ -198,24 +214,61 @@ public class EstoqueController {
     }
 
     @PutMapping("/{maquinaId}/definir")
-    @Operation(summary = "Definir estoque exato (Inventário/Balanço)", description = "Define diretamente a quantidade de pelúcias na máquina e calcula o delta de ajuste.")
+    @Operation(summary = "Definir estoque exato (Inventário/Balanço)", description = "Define a quantidade de pelúcias contadas na máquina, com suporte a data/hora retroativa e recálculo automático de saídas posteriores.")
     public ResponseEntity<?> definirEstoque(
             @PathVariable Long maquinaId,
             @RequestBody DefinirEstoqueRequest request
     ) {
         try {
-            MovimentacaoEstoque mov = estoqueService.definirEstoque(
+            EstoqueService.ResultadoAjusteEstoque resultado = estoqueService.definirEstoqueComResultado(
                     maquinaId,
                     request.novoEstoque(),
                     request.observacao(),
-                    request.responsavel()
+                    request.responsavel(),
+                    request.dataHoraContagem()
             );
             Map<String, Object> response = new LinkedHashMap<>();
-            response.put("mensagem", "Estoque ajustado com sucesso!");
-            response.put("movimentacao", MovimentacaoEstoqueDTO.from(mov));
-            response.put("estoqueAtual", mov.getMaquina().getEstoqueAtual());
-            response.put("estoqueBaixo", mov.getMaquina().isEstoqueBaixo());
+            response.put("mensagem", resultado.mensagem());
+            response.put("movimentacao", MovimentacaoEstoqueDTO.from(resultado.movimentacao()));
+            response.put("estoqueAtual", resultado.estoqueAtualResultante());
+            response.put("estoqueAnterior", resultado.estoqueAnterior());
+            response.put("contagemInformada", resultado.contagemInformada());
+            response.put("saidasPosteriores", resultado.saidasPosteriores());
+            response.put("entradasPosteriores", resultado.entradasPosteriores());
+            response.put("retroativo", resultado.retroativo());
+            response.put("estoqueBaixo", resultado.movimentacao().getMaquina().isEstoqueBaixo());
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{maquinaId}/previa-retroativa")
+    @Operation(summary = "Calcular prévia de recálculo retroativo de estoque", description = "Simula o recálculo do estoque atual a partir de uma contagem física informada em data/hora retroativa.")
+    public ResponseEntity<?> previaRetroativa(
+            @PathVariable Long maquinaId,
+            @RequestParam int contagem,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dataHora
+    ) {
+        try {
+            EstoqueService.ResultadoAjusteEstoque prev = estoqueService.calcularPreviaRetroativa(maquinaId, contagem, dataHora);
+            String maquinaNome = estoqueService.buscarMaquinaPorId(maquinaId)
+                    .map(m -> m.getNomeIntegracao() != null ? m.getNomeIntegracao() : m.getDescricao())
+                    .orElse("Máquina " + maquinaId);
+
+            PreviaRetroativaDTO dto = new PreviaRetroativaDTO(
+                    maquinaId,
+                    maquinaNome,
+                    prev.contagemInformada(),
+                    dataHora.toString(),
+                    prev.saidasPosteriores(),
+                    prev.entradasPosteriores(),
+                    prev.estoqueAtualResultante(),
+                    prev.estoqueAnterior(),
+                    prev.retroativo(),
+                    prev.mensagem()
+            );
+            return ResponseEntity.ok(dto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
         }

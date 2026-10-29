@@ -179,6 +179,21 @@ public interface TransacaoRepository extends JpaRepository<Transacao, Long> {
     );
 
     @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.teste = true THEN 0.0
+                ELSE COALESCE(t.quantidadePremios, 0.0)
+            END
+        ), 0.0)
+        FROM Transacao t
+        WHERE t.maquina.id = :maquinaId AND t.timestamp >= :inicio
+    """)
+    Double sumQuantidadePremiosByMaquinaAfter(
+            @Param("maquinaId") Long maquinaId,
+            @Param("inicio") LocalDateTime inicio
+    );
+
+    @Query("""
         SELECT t FROM Transacao t
         LEFT JOIN t.maquina m
         LEFT JOIN t.estabelecimento e

@@ -23,4 +23,11 @@ public interface MovimentacaoEstoqueRepository extends JpaRepository<Movimentaca
     );
 
     List<MovimentacaoEstoque> findTop100ByOrderByDataMovimentacaoDesc();
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(ABS(m.quantidade)), 0) FROM MovimentacaoEstoque m WHERE m.maquina.id = :maquinaId AND m.tipo = :tipo AND m.dataMovimentacao >= :dataHora")
+    int sumQuantidadeByMaquinaIdAndTipoAndDataAfter(
+            @org.springframework.data.repository.query.Param("maquinaId") Long maquinaId,
+            @org.springframework.data.repository.query.Param("tipo") String tipo,
+            @org.springframework.data.repository.query.Param("dataHora") LocalDateTime dataHora
+    );
 }

@@ -105,4 +105,61 @@ class EstoqueServiceTest {
         // Estoque não deve ter decrementado novamente! Permanece 20.
         assertEquals(20, m.getEstoqueAtual());
     }
+
+    @Test
+    @DisplayName("Deve recalcular estoque retroativo deduzindo saídas de prêmios posteriores")
+    void testDefinirEstoqueRetroativoComDeducaoDeSaidas() {
+        Maquina m = new Maquina();
+        m.setId(11L);
+        m.setEstoqueAtual(0);
+        m.setIntegracao("LOCAL");
+
+        when(maquinaRepository.findById(11L)).thenReturn(Optional.of(m));
+        when(maquinaRepository.save(any(Maquina.class))).thenAnswer(i -> i.getArgument(0));
+        when(movimentacaoRepository.save(any(MovimentacaoEstoque.class))).thenAnswer(i -> i.getArgument(0));
+
+        java.time.LocalDateTime dataContagem = java.time.LocalDateTime.now().minusDays(1).withHour(16).withMinute(30);
+
+        // Mock 13 saídas ocorridas após a data da contagem
+        when(movimentacaoRepository.sumQuantidadeByMaquinaIdAndTipoAndDataAfter(11L, "SAIDA_PREMIO", dataContagem))
+                .thenReturn(13);
+        when(movimentacaoRepository.sumQuantidadeByMaquinaIdAndTipoAndDataAfter(11L, "ABASTECIMENTO", dataContagem))
+                .thenReturn(0);
+
+        EstoqueService.ResultadoAjusteEstoque res = estoqueService.definirEstoqueComResultado(
+                11L, 70, "Contagem física em Sumé", "João", dataContagem
+        );
+
+        assertTrue(res.retroativo());
+        assertEquals(70, res.contagemInformada());
+        assertEquals(13, res.saidasPosteriores());
+        assertEquals(57, res.estoqueAtualResultante());
+        assertEquals(57, m.getEstoqueAtual());
+        assertEquals("CONTAGEM_FISICA", res.movimentacao().getTipo());
+        assertEquals(dataContagem, res.movimentacao().getDataMovimentacao());
+    }
+
+    @Test
+    @DisplayName("Deve simular prévia de recálculo retroativo sem alterar banco")
+    void testCalcularPreviaRetroativa() {
+        Maquina m = new Maquina();
+        m.setId(11L);
+        m.setEstoqueAtual(10);
+        m.setIntegracao("LOCAL");
+
+        when(maquinaRepository.findById(11L)).thenReturn(Optional.of(m));
+
+        java.time.LocalDateTime dataContagem = java.time.LocalDateTime.now().minusDays(1).withHour(16).withMinute(30);
+        when(movimentacaoRepository.sumQuantidadeByMaquinaIdAndTipoAndDataAfter(11L, "SAIDA_PREMIO", dataContagem))
+                .thenReturn(13);
+
+        EstoqueService.ResultadoAjusteEstoque previa = estoqueService.calcularPreviaRetroativa(11L, 70, dataContagem);
+
+        assertTrue(previa.retroativo());
+        assertEquals(70, previa.contagemInformada());
+        assertEquals(13, previa.saidasPosteriores());
+        assertEquals(57, previa.estoqueAtualResultante());
+        // Máquina em memória não deve ter seu estoque alterado pela prévia
+        assertEquals(10, m.getEstoqueAtual());
+    }
 }

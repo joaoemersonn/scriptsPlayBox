@@ -1637,13 +1637,87 @@ async function confirmarAbastecimento() {
   }
 }
 
+function setInventarioDataHoraAgora() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const nowStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const dtInput = document.getElementById('inventario-data-hora');
+  if (dtInput) {
+    dtInput.value = nowStr;
+    checkInventarioPreview();
+  }
+}
+
 function openInventarioModal(id, nome, atual) {
   document.getElementById('inventario-maquina-id').value = id;
   document.getElementById('inventario-maquina-nome').textContent = nome;
   document.getElementById('inventario-novo-estoque').value = atual;
   document.getElementById('inventario-responsavel').value = '';
   document.getElementById('inventario-observacao').value = 'Contagem física / Balanço';
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const nowStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const dtInput = document.getElementById('inventario-data-hora');
+  if (dtInput) {
+    dtInput.value = nowStr;
+    dtInput.max = nowStr;
+  }
+  const prev = document.getElementById('inventario-preview-retroativo');
+  if (prev) {
+    prev.classList.add('hidden');
+    prev.innerHTML = '';
+  }
+
   openModal('modal-inventario');
+}
+
+let inventarioPreviewTimeout = null;
+function checkInventarioPreview() {
+  if (inventarioPreviewTimeout) clearTimeout(inventarioPreviewTimeout);
+  inventarioPreviewTimeout = setTimeout(async () => {
+    const id = document.getElementById('inventario-maquina-id')?.value;
+    const novo = parseInt(document.getElementById('inventario-novo-estoque')?.value);
+    const dataHora = document.getElementById('inventario-data-hora')?.value;
+    const prev = document.getElementById('inventario-preview-retroativo');
+    if (!prev || !id || isNaN(novo)) return;
+
+    if (!dataHora) {
+      prev.classList.add('hidden');
+      return;
+    }
+
+    const dt = new Date(dataHora);
+    const now = new Date();
+    // Se for pelo menos 3 minutos no passado, calcula preview retroativo
+    if (now.getTime() - dt.getTime() > 3 * 60 * 1000) {
+      try {
+        prev.classList.remove('hidden');
+        prev.innerHTML = '<div class="text-slate-500 py-1 flex items-center gap-1.5"><i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Verificando saídas posteriores...</div>';
+        if (window.lucide) lucide.createIcons();
+
+        const res = await apiRequest(`/api/estoque/${id}/previa-retroativa?contagem=${novo}&dataHora=${encodeURIComponent(dataHora)}`);
+        prev.innerHTML = `
+          <div class="flex items-center justify-between font-bold text-purple-900 border-b border-purple-200 pb-1">
+            <span class="flex items-center gap-1.5"><i data-lucide="history" class="w-3.5 h-3.5 text-purple-600"></i> Recálculo Retroativo Detectado</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-200 text-purple-800 font-extrabold">Retroativo</span>
+          </div>
+          <div class="text-slate-600 flex justify-between"><span>Contagem informada na data:</span> <b class="text-slate-900">${res.contagemInformada} un</b></div>
+          <div class="text-slate-600 flex justify-between"><span>Saídas de prêmios após a contagem:</span> <b class="text-rose-600">-${res.saidasPosteriores} un</b></div>
+          ${res.entradasPosteriores > 0 ? `<div class="text-slate-600 flex justify-between"><span>Abastecimentos posteriores:</span> <b class="text-emerald-600">+${res.entradasPosteriores} un</b></div>` : ''}
+          <div class="text-slate-800 flex justify-between pt-1 border-t border-purple-200 font-bold">
+            <span>Estoque Atual resultante:</span> 
+            <b class="text-purple-700 text-sm font-extrabold">${res.estoqueAtualResultante} pelúcias</b>
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+      } catch (e) {
+        prev.classList.add('hidden');
+      }
+    } else {
+      prev.classList.add('hidden');
+    }
+  }, 350);
 }
 
 async function confirmarInventario() {
@@ -1651,6 +1725,7 @@ async function confirmarInventario() {
   const novo = parseInt(document.getElementById('inventario-novo-estoque').value);
   const resp = document.getElementById('inventario-responsavel').value.trim();
   const obs = document.getElementById('inventario-observacao').value.trim();
+  const dataHora = document.getElementById('inventario-data-hora')?.value || null;
 
   if (isNaN(novo) || novo < 0) {
     showToast('Informe uma quantidade válida.', 'warning');
@@ -1658,11 +1733,11 @@ async function confirmarInventario() {
   }
 
   try {
-    await apiRequest(`/api/estoque/${id}/definir`, {
+    const res = await apiRequest(`/api/estoque/${id}/definir`, {
       method: 'PUT',
-      body: { novoEstoque: novo, responsavel: resp, observacao: obs }
+      body: { novoEstoque: novo, responsavel: resp, observacao: obs, dataHoraContagem: dataHora }
     });
-    showToast(`Estoque ajustado para ${novo} pelúcias com sucesso!`, 'success');
+    showToast(res.mensagem || `Estoque ajustado para ${res.estoqueAtual} pelúcias com sucesso!`, 'success');
     closeModal('modal-inventario');
     loadEstoqueData();
     if (state.activeTab === 'maquinas') loadMaquinasData();
@@ -1718,9 +1793,10 @@ async function openHistoricoModal(id, nome) {
 
     list.innerHTML = historico.map(h => {
       let badge = '';
-      if (h.tipo === 'ENTRADA') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Entrada +' + h.quantidade + '</span>';
-      else if (h.tipo === 'SAIDA_PREMIO') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Prêmio -' + h.quantidade + '</span>';
-      else badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Balanço (' + h.quantidade + ')</span>';
+      if (h.tipo === 'ENTRADA' || h.tipo === 'ABASTECIMENTO') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Entrada +' + h.quantidade + '</span>';
+      else if (h.tipo === 'SAIDA_PREMIO') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Prêmio ' + (h.quantidade > 0 ? '-' + h.quantidade : h.quantidade) + '</span>';
+      else if (h.tipo === 'CONTAGEM_FISICA') badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Contagem Física</span>';
+      else badge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Balanço (' + (h.quantidade > 0 ? '+' + h.quantidade : h.quantidade) + ')</span>';
 
       return `
         <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
