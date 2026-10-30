@@ -1,6 +1,7 @@
 package br.com.playbox.service;
 
 import br.com.playbox.config.AppProperties;
+import br.com.playbox.entity.Estabelecimento;
 import br.com.playbox.entity.Maquina;
 import br.com.playbox.entity.Transacao;
 import br.com.playbox.repository.MaquinaRepository;
@@ -31,11 +32,29 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
     private final MaquinaRepository maquinaRepository;
     private final TransacaoRepository transacaoRepository;
     private final EstoqueService estoqueService;
+    private final HistoricoVinculoService historicoVinculoService;
     private final ObjectMapper objectMapper;
 
     private MqttAsyncClient mqttClient;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private volatile boolean connecting = false;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PlayBoxMqttService(
+            AppProperties properties,
+            MaquinaRepository maquinaRepository,
+            TransacaoRepository transacaoRepository,
+            EstoqueService estoqueService,
+            HistoricoVinculoService historicoVinculoService,
+            ObjectMapper objectMapper
+    ) {
+        this.properties = properties;
+        this.maquinaRepository = maquinaRepository;
+        this.transacaoRepository = transacaoRepository;
+        this.estoqueService = estoqueService;
+        this.historicoVinculoService = historicoVinculoService;
+        this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
+    }
 
     public PlayBoxMqttService(
             AppProperties properties,
@@ -44,11 +63,7 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
             EstoqueService estoqueService,
             ObjectMapper objectMapper
     ) {
-        this.properties = properties;
-        this.maquinaRepository = maquinaRepository;
-        this.transacaoRepository = transacaoRepository;
-        this.estoqueService = estoqueService;
-        this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
+        this(properties, maquinaRepository, transacaoRepository, estoqueService, null, objectMapper);
     }
 
     @PostConstruct
@@ -135,9 +150,10 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
         try {
             if (mqttClient != null && mqttClient.isConnected()) {
                 String baseTopic = properties.getMqtt().getBaseTopic();
-                String topicFilter = baseTopic + "/+/status";
+                // Subscreve em wildcard para receber status, eventos e telemetrias de todos os módulos
+                String topicFilter = baseTopic + "/#";
                 mqttClient.subscribe(topicFilter, 1);
-                log.info("[PLAYBOX-MQTT] Inscrito no tópico de telemetria das máquinas: {}", topicFilter);
+                log.info("[PLAYBOX-MQTT] Inscrito no tópico de telemetria e eventos dos módulos: {}", topicFilter);
             }
         } catch (Exception e) {
             log.error("[PLAYBOX-MQTT] Erro ao subscrever nos tópicos de telemetria: {}", e.getMessage());
@@ -152,8 +168,12 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) {
+        if (topic == null || topic.endsWith("/comando")) {
+            return; // Ignora comandos enviados pelo próprio backend
+        }
+
         String payloadStr = new String(message.getPayload(), StandardCharsets.UTF_8);
-        log.debug("[PLAYBOX-MQTT] Mensagem recebida no tópico {}: {}", topic, payloadStr);
+        log.info("[PLAYBOX-MQTT] Mensagem recebida no tópico {}: {}", topic, payloadStr);
 
         try {
             processarMensagemStatus(topic, payloadStr);
@@ -168,7 +188,7 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
     }
 
     /**
-     * Processa mensagem recebida de uma máquina e sincroniza dados no banco.
+     * Processa mensagem recebida de um módulo e sincroniza dados no banco.
      */
     @Transactional
     public void processarMensagemStatus(String topic, String payload) {
@@ -180,10 +200,10 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
             return;
         }
 
-        // Extrai deviceId do tópico (ex: playbox/maquinas/PB-00001/status -> PB-00001)
+        // Extrai deviceId do tópico ou do JSON
         String deviceId = extrairDeviceIdDoTopico(topic);
-        if (deviceId == null && json.hasNonNull("maquina_id")) {
-            deviceId = json.get("maquina_id").asText().trim();
+        if (deviceId == null) {
+            deviceId = extrairTexto(json, "maquina_id", "deviceId", "device_id", "id");
         }
 
         if (deviceId == null || deviceId.isBlank()) {
@@ -192,8 +212,7 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
         }
 
         final String finalDeviceId = deviceId;
-        Maquina maquina = maquinaRepository.findByIntegracaoAndExternalId("PLAYBOX", finalDeviceId)
-                .orElseGet(() -> autoCadastrarMaquinaPlayBox(finalDeviceId));
+        Maquina maquina = obterOuCadastrarMaquina(finalDeviceId);
 
         maquina.setOnline(true);
         maquina.setLastHeartbeat(LocalDateTime.now());
@@ -208,54 +227,80 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
             maquina.setUptimeSeconds(json.get("uptime").asLong());
         }
 
-        String evento = json.hasNonNull("evento") ? json.get("evento").asText() : "";
-
         // 1. ODOMETRO: Créditos Digitais
-        long digitais = extrairLong(json, "total_digitais", "total_pix_acumulado", "total_pix", "total_pulsos", "total_acumulado");
+        long digitais = extrairLong(json, "total_digitais", "total_digitais_acumulado", "total_pix_acumulado", "total_pix", "total_pulsos", "total_acumulado");
         if (digitais > 0) {
             maquina.setTotalDigitais(digitais);
         }
 
         // 2. ODOMETRO: Relógio de Entrada (Dinheiro Físico / Fichas - 12V)
-        if (json.hasNonNull("relogio_entrada")) {
-            long entradaAtual = json.get("relogio_entrada").asLong();
+        long entradaAtual = extrairLong(json, "total_relogio_entrada", "relogio_entrada", "entrada");
+        if (entradaAtual > 0) {
             Long entradaAnterior = maquina.getTotalRelogioEntrada();
-
             if (entradaAnterior != null && entradaAnterior > 0 && entradaAtual > entradaAnterior) {
                 long delta = entradaAtual - entradaAnterior;
-                log.info("[PLAYBOX-MQTT] 💵 ENTRADA EM ESPÉCIE: Máquina {} registrou +{} entrada(s) mecânica(s) (12V)!", finalDeviceId, delta);
-                registrarTransacaoEspecie(maquina, delta, entradaAtual);
+                log.info("[PLAYBOX-MQTT] 💵 ENTRADA EM ESPÉCIE DETECTADA PELO ODÔMETRO: Módulo {} registrou +{} entrada(s) mecânica(s) (12V)! Odômetro: {}", finalDeviceId, delta, entradaAtual);
+                registrarTransacaoEspecie(maquina, delta, null, entradaAtual, null);
             }
             maquina.setTotalRelogioEntrada(entradaAtual);
         }
 
         // 3. ODOMETRO: Relógio de Saída (Pelúcias Ganhas / Prêmios - 12V)
-        if (json.hasNonNull("relogio_saida")) {
-            long saidaAtual = json.get("relogio_saida").asLong();
+        long saidaAtual = extrairLong(json, "total_relogio_saida", "relogio_saida", "saida");
+        if (saidaAtual > 0) {
             Long saidaAnterior = maquina.getTotalRelogioSaida();
-
             if (saidaAnterior != null && saidaAnterior > 0 && saidaAtual > saidaAnterior) {
                 int delta = (int) (saidaAtual - saidaAnterior);
-                log.info("[PLAYBOX-MQTT] 🧸 PREMIAÇÃO DETECTADA: Máquina {} liberou +{} pelúcia(s)! Odômetro: {}", finalDeviceId, delta, saidaAtual);
-                try {
-                    String ref = "SAIDA_ODOMETRO_" + finalDeviceId + "_" + saidaAtual;
-                    estoqueService.processarSaidaAutomatica(maquina, LocalDate.now(), delta, "PLAYBOX", ref);
-                } catch (Exception e) {
-                    log.warn("[PLAYBOX-MQTT] Aviso ao abater estoque automático da máquina {}: {}", finalDeviceId, e.getMessage());
-                }
+                log.info("[PLAYBOX-MQTT] 🧸 PREMIAÇÃO DETECTADA PELO ODÔMETRO: Módulo {} liberou +{} pelúcia(s)! Odômetro: {}", finalDeviceId, delta, saidaAtual);
+                registrarSaidaPelucia(maquina, delta, saidaAtual, null);
             }
             maquina.setTotalRelogioSaida(saidaAtual);
         }
 
-        // 4. EVENTO: Confirmação de pulso digital injetado com sucesso
-        if ("ok".equalsIgnoreCase(evento)) {
-            String txId = json.hasNonNull("tx_id") ? json.get("tx_id").asText() : ("TX-MQTT-" + System.currentTimeMillis());
-            int liberados = json.hasNonNull("pulsos_liberados") ? json.get("pulsos_liberados").asInt() : 1;
-            log.info("[PLAYBOX-MQTT] ⚡ Pulso de crédito digital confirmado na máquina {}! TxId: {}, Liberados: {}", finalDeviceId, txId, liberados);
-            registrarTransacaoCreditoDigital(maquina, txId, liberados);
+        // 4. EVENTOS EXPLÍCITOS (Confirmação de Crédito OK, Entrada em Espécie, Saída de Pelúcia)
+        String evento = extrairTexto(json, "evento", "status", "tipo", "action");
+        String tipo = extrairTexto(json, "tipo");
+
+        // Evento: Confirmação de pulso digital injetado com sucesso (ACK do firmware)
+        if ("ok".equalsIgnoreCase(evento) || "sucesso".equalsIgnoreCase(evento) || "success".equalsIgnoreCase(evento)) {
+            String txId = extrairTexto(json, "tx_id", "txId");
+            if (txId == null || txId.isBlank()) {
+                txId = "TX-MQTT-" + System.currentTimeMillis();
+            }
+            int liberados = (int) extrairLong(json, "pulsos_liberados", "qty", "quantidade");
+            if (liberados <= 0) liberados = 1;
+            log.info("[PLAYBOX-MQTT] ⚡ Pulso de crédito digital confirmado no módulo {}! TxId: {}, Liberados: {}", finalDeviceId, txId, liberados);
+            registrarTransacaoCreditoDigital(maquina, txId, liberados, null);
+        }
+        // Evento: Entrada em espécie (dinheiro físico / moedeiro 12V)
+        else if ("relogio_entrada".equalsIgnoreCase(evento) || "especie".equalsIgnoreCase(evento) || "dinheiro".equalsIgnoreCase(evento)
+                || "cash".equalsIgnoreCase(evento) || "coin".equalsIgnoreCase(evento) || "especie".equalsIgnoreCase(tipo) || "dinheiro".equalsIgnoreCase(tipo)) {
+            int pulsos = (int) extrairLong(json, "pulsos", "qtd", "quantidade");
+            if (pulsos <= 0) pulsos = 1;
+            Double valor = json.hasNonNull("valor") ? json.get("valor").asDouble() : null;
+            String txId = extrairTexto(json, "tx_id", "txId");
+            Long odo = (entradaAtual > 0) ? entradaAtual : null;
+            log.info("[PLAYBOX-MQTT] 💵 Evento de entrada em espécie recebido para módulo {}: pulsos={}, valor={}", finalDeviceId, pulsos, valor);
+            registrarTransacaoEspecie(maquina, pulsos, valor, odo, txId);
+        }
+        // Evento: Saída de pelúcia ganha (sensor óptico 12V)
+        else if ("relogio_saida".equalsIgnoreCase(evento) || "premio".equalsIgnoreCase(evento) || "pelucia".equalsIgnoreCase(evento)
+                || "pelucia_ganha".equalsIgnoreCase(evento) || "prize".equalsIgnoreCase(evento) || "saida".equalsIgnoreCase(evento)
+                || "pelucia_ganha".equalsIgnoreCase(tipo) || "premio".equalsIgnoreCase(tipo)) {
+            int qtd = (int) extrairLong(json, "pulsos", "qtd", "quantidade");
+            if (qtd <= 0) qtd = 1;
+            String txId = extrairTexto(json, "tx_id", "txId");
+            Long odo = (saidaAtual > 0) ? saidaAtual : null;
+            log.info("[PLAYBOX-MQTT] 🧸 Evento de saída de pelúcia recebido para módulo {}: qtd={}", finalDeviceId, qtd);
+            registrarSaidaPelucia(maquina, qtd, odo, txId);
         }
 
         maquinaRepository.save(maquina);
+    }
+
+    public Maquina obterOuCadastrarMaquina(String deviceId) {
+        return maquinaRepository.findByIntegracaoAndExternalId("PLAYBOX", deviceId.trim())
+                .orElseGet(() -> autoCadastrarMaquinaPlayBox(deviceId.trim()));
     }
 
     private Maquina autoCadastrarMaquinaPlayBox(String deviceId) {
@@ -274,65 +319,177 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
         return maquinaRepository.save(nova);
     }
 
-    private void registrarTransacaoCreditoDigital(Maquina maquina, String txId, int pulsos) {
-        try {
-            Optional<Transacao> existing = transacaoRepository.findByIntegracaoAndExternalTxId("PLAYBOX", txId);
-            if (existing.isEmpty()) {
-                double valorUnitario = 5.0; // Padrão de jogada
-                double valorTotal = pulsos * valorUnitario;
-
-                Transacao tx = new Transacao(
-                        txId,
-                        "PLAYBOX",
-                        maquina,
-                        maquina.getEstabelecimento(),
-                        LocalDateTime.now(),
-                        "CREDITO_DIGITAL",
-                        valorTotal,
-                        0.0,
-                        valorTotal, // registrado em valor_pix / digital
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0
-                );
-                transacaoRepository.save(tx);
-                log.info("[PLAYBOX-MQTT] Transação digital gravada: {} (R$ {})", txId, valorTotal);
-            }
-        } catch (Exception e) {
-            log.warn("[PLAYBOX-MQTT] Aviso ao salvar transação de crédito digital {}: {}", txId, e.getMessage());
-        }
+    /**
+     * Registra ou confirma uma transação de crédito digital (Pix, Cartão, API) para o módulo.
+     */
+    @Transactional
+    public Transacao registrarTransacaoCreditoDigital(String deviceId, String txId, int pulsos, Double valorInformado) {
+        Maquina maquina = obterOuCadastrarMaquina(deviceId);
+        return registrarTransacaoCreditoDigital(maquina, txId, pulsos, valorInformado);
     }
 
-    private void registrarTransacaoEspecie(Maquina maquina, long pulsos, long odometroTotal) {
-        try {
-            String txId = "CASH_" + maquina.getExternalId() + "_" + odometroTotal;
-            Optional<Transacao> existing = transacaoRepository.findByIntegracaoAndExternalTxId("PLAYBOX", txId);
-            if (existing.isEmpty()) {
-                double valorUnitario = 5.0;
-                double valorTotal = pulsos * valorUnitario;
-
-                Transacao tx = new Transacao(
-                        txId,
-                        "PLAYBOX",
-                        maquina,
-                        maquina.getEstabelecimento(),
-                        LocalDateTime.now(),
-                        "DINHEIRO",
-                        valorTotal,
-                        valorTotal, // valor_cash
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0,
-                        0.0
-                );
-                transacaoRepository.save(tx);
-                log.info("[PLAYBOX-MQTT] Transação de dinheiro físico (12V) registrada: {} (R$ {})", txId, valorTotal);
-            }
-        } catch (Exception e) {
-            log.warn("[PLAYBOX-MQTT] Aviso ao salvar transação em espécie da máquina {}: {}", maquina.getExternalId(), e.getMessage());
+    /**
+     * Registra ou confirma uma transação de crédito digital vinculada a uma Máquina.
+     */
+    @Transactional
+    public Transacao registrarTransacaoCreditoDigital(Maquina maquina, String txId, int pulsos, Double valorInformado) {
+        if (txId == null || txId.isBlank()) {
+            txId = "TX-PLAYBOX-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
+        String finalTxId = txId.trim();
+        Optional<Transacao> existing = transacaoRepository.findByIntegracaoAndExternalTxId("PLAYBOX", finalTxId);
+        if (existing.isPresent()) {
+            log.info("[PLAYBOX-MQTT] Transação digital já existente confirmada: {}", finalTxId);
+            return existing.get();
+        }
+
+        double valorUnitario = 5.0; // Padrão R$ 5,00 por jogada
+        double valorTotal = (valorInformado != null && valorInformado > 0) ? valorInformado : (pulsos * valorUnitario);
+
+        Estabelecimento est = maquina.getEstabelecimento();
+        if (est == null && historicoVinculoService != null) {
+            est = historicoVinculoService.findEstabelecimentoVigente(maquina.getId(), LocalDateTime.now());
+        }
+
+        Transacao tx = new Transacao(
+                finalTxId,
+                "PLAYBOX",
+                maquina,
+                est,
+                LocalDateTime.now(),
+                "CREDITO_DIGITAL",
+                valorTotal,
+                0.0,
+                valorTotal, // registrado em valor_pix / digital
+                0.0,
+                0.0,
+                0.0,
+                0.0
+        );
+
+        Transacao salvo = transacaoRepository.save(tx);
+        log.info("[PLAYBOX-MQTT] ⚡ Transação de crédito digital gravada: {} (R$ {}, {} pulsos) para módulo {}",
+                finalTxId, valorTotal, pulsos, maquina.getExternalId());
+        return salvo;
+    }
+
+    /**
+     * Registra transação em dinheiro físico (12V) oriunda de evento ou odômetro.
+     */
+    @Transactional
+    public Transacao registrarTransacaoEspecie(Maquina maquina, long pulsos, Double valorInformado, Long odometroTotal, String customTxId) {
+        String txId = (customTxId != null && !customTxId.isBlank())
+                ? customTxId.trim()
+                : ((odometroTotal != null && odometroTotal > 0)
+                    ? ("CASH_" + maquina.getExternalId() + "_" + odometroTotal)
+                    : ("CASH_" + maquina.getExternalId() + "_" + System.currentTimeMillis()));
+
+        Optional<Transacao> existing = transacaoRepository.findByIntegracaoAndExternalTxId("PLAYBOX", txId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        double valorUnitario = 5.0; // Padrão R$ 5,00 por moeda/ficha mecânica
+        double valorTotal = (valorInformado != null && valorInformado > 0) ? valorInformado : (pulsos * valorUnitario);
+
+        Estabelecimento est = maquina.getEstabelecimento();
+        if (est == null && historicoVinculoService != null) {
+            est = historicoVinculoService.findEstabelecimentoVigente(maquina.getId(), LocalDateTime.now());
+        }
+
+        Transacao tx = new Transacao(
+                txId,
+                "PLAYBOX",
+                maquina,
+                est,
+                LocalDateTime.now(),
+                "DINHEIRO",
+                valorTotal,
+                valorTotal, // valor_cash
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+        );
+
+        Transacao salvo = transacaoRepository.save(tx);
+        log.info("[PLAYBOX-MQTT] 💵 Transação em dinheiro físico (12V) gravada: {} (R$ {}) para módulo {}",
+                txId, valorTotal, maquina.getExternalId());
+        return salvo;
+    }
+
+    /**
+     * Registra saída de pelúcia ganha (sensor óptico 12V), abata estoque e gera registro de transação.
+     */
+    @Transactional
+    public Transacao registrarSaidaPelucia(Maquina maquina, int quantidade, Long odometroTotal, String customTxId) {
+        if (quantidade <= 0) {
+            quantidade = 1;
+        }
+
+        String txId = (customTxId != null && !customTxId.isBlank())
+                ? customTxId.trim()
+                : ((odometroTotal != null && odometroTotal > 0)
+                    ? ("SAIDA_ODOMETRO_" + maquina.getExternalId() + "_" + odometroTotal)
+                    : ("PREMIO_" + maquina.getExternalId() + "_" + System.currentTimeMillis()));
+
+        Optional<Transacao> existing = transacaoRepository.findByIntegracaoAndExternalTxId("PLAYBOX", txId);
+        Transacao tx;
+        if (existing.isPresent()) {
+            tx = existing.get();
+        } else {
+            Estabelecimento est = maquina.getEstabelecimento();
+            if (est == null && historicoVinculoService != null) {
+                est = historicoVinculoService.findEstabelecimentoVigente(maquina.getId(), LocalDateTime.now());
+            }
+
+            tx = new Transacao(
+                    txId,
+                    "PLAYBOX",
+                    maquina,
+                    est,
+                    LocalDateTime.now(),
+                    "PREMIOS",
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    (double) quantidade
+            );
+            tx = transacaoRepository.save(tx);
+            log.info("[PLAYBOX-MQTT] 🧸 Transação de saída de pelúcia gravada no banco: {} ({} pelúcia(s)) para módulo {}",
+                    txId, quantidade, maquina.getExternalId());
+        }
+
+        // Abate o estoque automaticamente
+        try {
+            estoqueService.processarSaidaAutomatica(maquina, LocalDate.now(), quantidade, "PLAYBOX", txId);
+        } catch (Exception e) {
+            log.warn("[PLAYBOX-MQTT] Aviso ao abater estoque automático do módulo {}: {}", maquina.getExternalId(), e.getMessage());
+        }
+
+        return tx;
+    }
+
+    /**
+     * Helper manual para registrar entrada em espécie via REST API.
+     */
+    @Transactional
+    public Transacao registrarTransacaoEspecieManual(String deviceId, int pulsos, Double valor, String txId) {
+        Maquina maquina = obterOuCadastrarMaquina(deviceId);
+        return registrarTransacaoEspecie(maquina, pulsos, valor, null, txId);
+    }
+
+    /**
+     * Helper manual para registrar saída de pelúcia via REST API.
+     */
+    @Transactional
+    public Transacao registrarSaidaPeluciaManual(String deviceId, int quantidade, String txId) {
+        Maquina maquina = obterOuCadastrarMaquina(deviceId);
+        return registrarSaidaPelucia(maquina, quantidade, null, txId);
     }
 
     /**
@@ -414,12 +571,34 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
         return info;
     }
 
-    private String extrairDeviceIdDoTopico(String topic) {
-        if (topic == null) return null;
+    public String extrairDeviceIdDoTopico(String topic) {
+        if (topic == null || topic.isBlank()) return null;
+        String baseTopic = properties.getMqtt().getBaseTopic();
+        if (topic.startsWith(baseTopic + "/")) {
+            String remainder = topic.substring(baseTopic.length() + 1);
+            String[] parts = remainder.split("/");
+            if (parts.length > 0 && !parts[0].isBlank()) {
+                return parts[0].trim();
+            }
+        }
+        // Fallback para tópicos de 4 partes ex: playbox/maquinas/PB-00001/status
         String[] parts = topic.split("/");
-        // Exemplo: playbox / maquinas / PB-00001 / status
-        if (parts.length >= 4 && "status".equalsIgnoreCase(parts[parts.length - 1])) {
-            return parts[parts.length - 2];
+        if (parts.length >= 4 && ("status".equalsIgnoreCase(parts[parts.length - 1])
+                || "evento".equalsIgnoreCase(parts[parts.length - 1])
+                || "telemetria".equalsIgnoreCase(parts[parts.length - 1]))) {
+            return parts[parts.length - 2].trim();
+        }
+        return null;
+    }
+
+    private String extrairTexto(JsonNode json, String... keys) {
+        for (String k : keys) {
+            if (json.hasNonNull(k)) {
+                String val = json.get(k).asText();
+                if (val != null && !val.isBlank()) {
+                    return val.trim();
+                }
+            }
         }
         return null;
     }

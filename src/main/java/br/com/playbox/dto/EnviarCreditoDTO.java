@@ -13,6 +13,12 @@ public class EnviarCreditoDTO {
     private Integer quantidade = 1;
 
     @Schema(
+            description = "Valor total da transação em Reais (opcional). Se omitido, assume quantidade * 5,00.",
+            example = "10.00"
+    )
+    private Double valor;
+
+    @Schema(
             description = "Identificador único da transação (Pix, Cartão de Crédito, POS ou Gateway de Pagamento). Se omitido, será gerado automaticamente.",
             example = "PAY-20261030-98421"
     )
@@ -26,12 +32,26 @@ public class EnviarCreditoDTO {
         this.txId = txId;
     }
 
+    public EnviarCreditoDTO(Integer quantidade, Double valor, String txId) {
+        this.quantidade = quantidade;
+        this.valor = valor;
+        this.txId = txId;
+    }
+
     public Integer getQuantidade() {
         return (quantidade != null && quantidade > 0) ? quantidade : 1;
     }
 
     public void setQuantidade(Integer quantidade) {
         this.quantidade = quantidade;
+    }
+
+    public Double getValor() {
+        return valor;
+    }
+
+    public void setValor(Double valor) {
+        this.valor = valor;
     }
 
     public String getTxId() {

@@ -5,6 +5,7 @@ import br.com.playbox.dto.AtualizarFirmwareDTO;
 import br.com.playbox.dto.ComandoRespostaDTO;
 import br.com.playbox.dto.EnviarCreditoDTO;
 import br.com.playbox.entity.Maquina;
+import br.com.playbox.entity.Transacao;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.service.PlayBoxMqttService;
 import org.junit.jupiter.api.BeforeEach;
@@ -114,5 +115,45 @@ class PlayBoxModulosControllerTest {
         assertEquals(HttpStatus.OK, res.getStatusCode());
         assertNotNull(res.getBody());
         assertEquals("SUCCESS", res.getBody().getStatus());
+    }
+
+    @Test
+    @DisplayName("Deve registrar entrada em espécie com sucesso via REST")
+    void testRegistrarEspecieSucesso() {
+        Transacao txMock = new Transacao();
+        txMock.setExternalTxId("CASH-PB-00001-001");
+        txMock.setValor(5.0);
+
+        when(mqttService.registrarTransacaoEspecieManual(eq("PB-00001"), eq(1), eq(5.0), eq("CASH-PB-00001-001"))).thenReturn(txMock);
+
+        br.com.playbox.dto.EnviarEspecieDTO dto = new br.com.playbox.dto.EnviarEspecieDTO(1, 5.0, "CASH-PB-00001-001");
+        ResponseEntity<ComandoRespostaDTO> res = controller.registrarEspecie("PB-00001", dto);
+
+        assertEquals(HttpStatus.OK, res.getStatusCode());
+        assertNotNull(res.getBody());
+        assertEquals("SUCCESS", res.getBody().getStatus());
+        assertEquals("PB-00001", res.getBody().getDeviceId());
+        assertEquals(1, res.getBody().getQuantidade());
+        assertEquals("CASH-PB-00001-001", res.getBody().getTxId());
+    }
+
+    @Test
+    @DisplayName("Deve registrar saída de pelúcia com sucesso via REST")
+    void testRegistrarPremioSucesso() {
+        Transacao txMock = new Transacao();
+        txMock.setExternalTxId("PREMIO-PB-00001-001");
+        txMock.setQuantidadePremios(1.0);
+
+        when(mqttService.registrarSaidaPeluciaManual(eq("PB-00001"), eq(1), eq("PREMIO-PB-00001-001"))).thenReturn(txMock);
+
+        br.com.playbox.dto.EnviarPremioDTO dto = new br.com.playbox.dto.EnviarPremioDTO(1, "PREMIO-PB-00001-001");
+        ResponseEntity<ComandoRespostaDTO> res = controller.registrarPremio("PB-00001", dto);
+
+        assertEquals(HttpStatus.OK, res.getStatusCode());
+        assertNotNull(res.getBody());
+        assertEquals("SUCCESS", res.getBody().getStatus());
+        assertEquals("PB-00001", res.getBody().getDeviceId());
+        assertEquals(1, res.getBody().getQuantidade());
+        assertEquals("PREMIO-PB-00001-001", res.getBody().getTxId());
     }
 }

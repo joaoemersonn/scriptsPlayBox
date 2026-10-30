@@ -1,10 +1,9 @@
 package br.com.playbox.controller;
 
 import br.com.playbox.config.OpenApiConfig;
-import br.com.playbox.dto.AtualizarFirmwareDTO;
-import br.com.playbox.dto.ComandoRespostaDTO;
-import br.com.playbox.dto.EnviarCreditoDTO;
+import br.com.playbox.dto.*;
 import br.com.playbox.entity.Maquina;
+import br.com.playbox.entity.Transacao;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.service.PlayBoxMqttService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,7 +23,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/playbox-modulos")
-@Tag(name = "PlayBox Módulos", description = "Gerenciamento de módulos PlayBox, controle de pulsos MQTT e telemetria em tempo real")
+@Tag(name = "PlayBox Módulos", description = "Gerenciamento de módulos PlayBox, injeção de créditos, registro de notas/fichas (espécie), saída de pelúcias e telemetria em tempo real")
 public class PlayBoxModulosController {
 
     private final PlayBoxMqttService mqttService;
@@ -70,35 +69,40 @@ public class PlayBoxModulosController {
 
     @PostMapping("/modulos/{deviceId}/credito")
     @Operation(
-            summary = "Liberar Crédito Remoto no Módulo (Pix/Cartão/Manual)",
-            description = "Envia via MQTT um comando de injeção de pulsos de crédito no moedeiro do módulo selecionado.",
+            summary = "Liberar Crédito Remoto no Módulo (Crédito Digital / Pix / Cartão)",
+            description = "Registra a transação digital no sistema e envia via MQTT um comando de injeção de pulsos de crédito no moedeiro do módulo selecionado.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Comando de crédito enviado ao broker com sucesso",
+            @ApiResponse(responseCode = "200", description = "Crédito registrado e comando enviado ao broker com sucesso",
                     content = @Content(schema = @Schema(implementation = ComandoRespostaDTO.class),
                             examples = @ExampleObject(value = "{\"status\":\"SUCCESS\",\"mensagem\":\"Comando de 2 crédito(s) enviado com sucesso ao broker para o módulo PB-00001\",\"deviceId\":\"PB-00001\",\"quantidade\":2,\"txId\":\"PAY-20261030-98421\"}"))),
-            @ApiResponse(responseCode = "503", description = "Broker MQTT desconectado ou indisponível")
+            @ApiResponse(responseCode = "503", description = "Transação gravada, porém broker MQTT desconectado ou indisponível")
     })
     public ResponseEntity<ComandoRespostaDTO> enviarCredito(
             @PathVariable @Parameter(description = "Identificador do módulo na máquina", example = "PB-00001") String deviceId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Dados para injeção de créditos (quantidade e ID do pagamento)",
+                    description = "Dados para injeção de créditos (quantidade, valor opcional e ID do pagamento)",
                     content = @Content(
                             schema = @Schema(implementation = EnviarCreditoDTO.class),
                             examples = @ExampleObject(
                                     name = "Exemplo Real",
-                                    value = "{\"quantidade\": 2, \"txId\": \"PAY-20261030-98421\"}"
+                                    value = "{\"quantidade\": 2, \"valor\": 10.00, \"txId\": \"PAY-20261030-98421\"}"
                             )
                     )
             )
             @RequestBody(required = false) EnviarCreditoDTO payload
     ) {
         int quantidade = (payload != null && payload.getQuantidade() != null) ? payload.getQuantidade() : 1;
+        Double valor = (payload != null) ? payload.getValor() : null;
         String txId = (payload != null && payload.getTxId() != null && !payload.getTxId().isBlank())
                 ? payload.getTxId().trim()
-                : ("TX-API-" + UUID.randomUUID().toString().substring(0, 8));
+                : ("TX-PLAYBOX-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
+        // 1. Grava imediatamente a transação para o módulo PlayBox no banco de dados
+        mqttService.registrarTransacaoCreditoDigital(deviceId, txId, quantidade, valor);
+
+        // 2. Envia o pulso elétrico via broker MQTT
         boolean publicado = mqttService.enviarPulsoCredito(deviceId, quantidade, txId);
         if (publicado) {
             return ResponseEntity.ok(ComandoRespostaDTO.sucesso(
@@ -109,10 +113,89 @@ public class PlayBoxModulosController {
             ));
         } else {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ComandoRespostaDTO.erro(
-                    "Não foi possível enviar comando: cliente MQTT desconectado do broker.",
+                    "Transação " + txId + " gravada no banco de dados, mas cliente MQTT está desconectado do broker.",
                     deviceId
             ));
         }
+    }
+
+    @PostMapping("/modulos/{deviceId}/especie")
+    @Operation(
+            summary = "Registrar Entrada em Espécie (Dinheiro Físico / Noteiro / Moedeiro 12V)",
+            description = "Registra entrada em dinheiro ou ficha mecânica no módulo PlayBox, gravando a transação financeira em espécie.",
+            security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Entrada em espécie gravada com sucesso",
+                    content = @Content(schema = @Schema(implementation = ComandoRespostaDTO.class),
+                            examples = @ExampleObject(value = "{\"status\":\"SUCCESS\",\"mensagem\":\"Entrada em espécie de 1 pulso(s) (R$ 5.0) registrada com sucesso!\",\"deviceId\":\"PB-00001\",\"quantidade\":1,\"txId\":\"CASH-PB-00001-001\"}")))
+    })
+    public ResponseEntity<ComandoRespostaDTO> registrarEspecie(
+            @PathVariable @Parameter(description = "Identificador do módulo na máquina", example = "PB-00001") String deviceId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Dados da entrada mecânica em dinheiro (pulsos e valor)",
+                    content = @Content(
+                            schema = @Schema(implementation = EnviarEspecieDTO.class),
+                            examples = @ExampleObject(
+                                    name = "Exemplo Real",
+                                    value = "{\"pulsos\": 1, \"valor\": 5.00, \"txId\": \"CASH-PB-00001-001\"}"
+                            )
+                    )
+            )
+            @RequestBody(required = false) EnviarEspecieDTO payload
+    ) {
+        int pulsos = (payload != null && payload.getPulsos() != null) ? payload.getPulsos() : 1;
+        Double valor = (payload != null) ? payload.getValor() : null;
+        String txId = (payload != null && payload.getTxId() != null && !payload.getTxId().isBlank())
+                ? payload.getTxId().trim()
+                : ("CASH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+        Transacao tx = mqttService.registrarTransacaoEspecieManual(deviceId, pulsos, valor, txId);
+        return ResponseEntity.ok(ComandoRespostaDTO.sucesso(
+                "Entrada em espécie de " + pulsos + " pulso(s) (R$ " + tx.getValor() + ") registrada com sucesso!",
+                deviceId,
+                pulsos,
+                tx.getExternalTxId()
+        ));
+    }
+
+    @PostMapping("/modulos/{deviceId}/premio")
+    @Operation(
+            summary = "Registrar Saída de Pelúcia / Prêmio Ganho (Sensor Óptico 12V)",
+            description = "Registra a saída de uma ou mais pelúcias ganhas, gerando a transação de premiação e abatendo automaticamente o estoque da máquina.",
+            security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Saída de pelúcia e estoque atualizados com sucesso",
+                    content = @Content(schema = @Schema(implementation = ComandoRespostaDTO.class),
+                            examples = @ExampleObject(value = "{\"status\":\"SUCCESS\",\"mensagem\":\"Saída de 1 pelúcia(s) registrada e estoque atualizado com sucesso!\",\"deviceId\":\"PB-00001\",\"quantidade\":1,\"txId\":\"PREMIO-PB-00001-001\"}")))
+    })
+    public ResponseEntity<ComandoRespostaDTO> registrarPremio(
+            @PathVariable @Parameter(description = "Identificador do módulo na máquina", example = "PB-00001") String deviceId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Dados da saída de pelúcia (quantidade liberada)",
+                    content = @Content(
+                            schema = @Schema(implementation = EnviarPremioDTO.class),
+                            examples = @ExampleObject(
+                                    name = "Exemplo Real",
+                                    value = "{\"quantidade\": 1, \"txId\": \"PREMIO-PB-00001-001\"}"
+                            )
+                    )
+            )
+            @RequestBody(required = false) EnviarPremioDTO payload
+    ) {
+        int quantidade = (payload != null && payload.getQuantidade() != null) ? payload.getQuantidade() : 1;
+        String txId = (payload != null && payload.getTxId() != null && !payload.getTxId().isBlank())
+                ? payload.getTxId().trim()
+                : ("PREMIO-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+        Transacao tx = mqttService.registrarSaidaPeluciaManual(deviceId, quantidade, txId);
+        return ResponseEntity.ok(ComandoRespostaDTO.sucesso(
+                "Saída de " + quantidade + " pelúcia(s) registrada e estoque atualizado com sucesso!",
+                deviceId,
+                quantidade,
+                tx.getExternalTxId()
+        ));
     }
 
     @PostMapping("/modulos/{deviceId}/reset")
