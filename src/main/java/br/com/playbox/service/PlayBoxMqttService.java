@@ -259,12 +259,12 @@ public class PlayBoxMqttService implements MqttCallbackExtended {
     }
 
     private Maquina autoCadastrarMaquinaPlayBox(String deviceId) {
-        log.info("[PLAYBOX-MQTT] Novo módulo PlayBox IoT detectado na rede: {}. Criando cadastro automático...", deviceId);
+        log.info("[PLAYBOX-MQTT] Novo módulo PlayBox detectado na rede: {}. Criando cadastro automático...", deviceId);
         Maquina nova = new Maquina();
         nova.setIntegracao("PLAYBOX");
         nova.setExternalId(deviceId);
-        nova.setNomeIntegracao("PlayBox IoT - " + deviceId);
-        nova.setDescricao("Módulo Telemetria e Crédito Nativo PlayBox");
+        nova.setNomeIntegracao("PlayBox Módulo - " + deviceId);
+        nova.setDescricao("Módulo de Telemetria e Crédito Nativo PlayBox");
         nova.setAtivo(true);
         nova.setOnline(true);
         nova.setLastHeartbeat(LocalDateTime.now());

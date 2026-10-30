@@ -15,14 +15,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/v1/playbox-iot")
-@Tag(name = "PlayBox IoT (Nativo)", description = "Gerenciamento de módulos de telemetria PlayBox, controle de pulsos MQTT e status em tempo real")
-public class PlayBoxIoTController {
+@RequestMapping({"/api/v1/playbox-modulos", "/api/v1/playbox-iot"})
+@Tag(name = "PlayBox Módulos", description = "Gerenciamento de módulos PlayBox, controle de pulsos MQTT e telemetria em tempo real")
+public class PlayBoxModulosController {
 
     private final PlayBoxMqttService mqttService;
     private final MaquinaRepository maquinaRepository;
 
-    public PlayBoxIoTController(PlayBoxMqttService mqttService, MaquinaRepository maquinaRepository) {
+    public PlayBoxModulosController(PlayBoxMqttService mqttService, MaquinaRepository maquinaRepository) {
         this.mqttService = mqttService;
         this.maquinaRepository = maquinaRepository;
     }
@@ -34,28 +34,28 @@ public class PlayBoxIoTController {
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
     public ResponseEntity<Map<String, Object>> getMqttStatus() {
-        Map<String, Object> status = mqttService.getStatusInfo();
-        List<Maquina> maquinasPlayBox = maquinaRepository.findByIntegracao("PLAYBOX");
-        status.put("totalMaquinasPlayBox", maquinasPlayBox.size());
-        status.put("maquinasOnline", maquinasPlayBox.stream().filter(m -> Boolean.TRUE.equals(m.getOnline())).count());
+        Map<String, Object> status = new LinkedHashMap<>(mqttService.getStatusInfo());
+        List<Maquina> modulosPlayBox = maquinaRepository.findByIntegracao("PLAYBOX");
+        status.put("totalModulosPlayBox", modulosPlayBox.size());
+        status.put("modulosOnline", modulosPlayBox.stream().filter(m -> Boolean.TRUE.equals(m.getOnline())).count());
         return ResponseEntity.ok(status);
     }
 
-    @GetMapping("/maquinas")
+    @GetMapping({"/modulos", "/maquinas"})
     @Operation(
-            summary = "Listar Máquinas com Módulo PlayBox IoT",
-            description = "Retorna a lista de máquinas operando com a integração nativa PlayBox IoT, incluindo IP, sinal Wi-Fi e odômetros de 12V.",
+            summary = "Listar Módulos PlayBox",
+            description = "Retorna a lista de módulos operando com a integração nativa PlayBox, incluindo IP, sinal Wi-Fi e odômetros de 12V.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
-    public ResponseEntity<List<Maquina>> listarMaquinasPlayBox() {
+    public ResponseEntity<List<Maquina>> listarModulosPlayBox() {
         List<Maquina> list = maquinaRepository.findByIntegracao("PLAYBOX");
         return ResponseEntity.ok(list);
     }
 
-    @PostMapping("/maquinas/{deviceId}/credito")
+    @PostMapping({"/modulos/{deviceId}/credito", "/maquinas/{deviceId}/credito"})
     @Operation(
-            summary = "Liberar Crédito Remoto (Pix/Cartão/Manual)",
-            description = "Envia via MQTT um comando de injeção de pulsos de crédito no moedeiro da máquina selecionada.",
+            summary = "Liberar Crédito Remoto no Módulo (Pix/Cartão/Manual)",
+            description = "Envia via MQTT um comando de injeção de pulsos de crédito no moedeiro do módulo selecionado.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
     public ResponseEntity<Map<String, Object>> enviarCredito(
@@ -96,7 +96,7 @@ public class PlayBoxIoTController {
         }
     }
 
-    @PostMapping("/maquinas/{deviceId}/reset")
+    @PostMapping({"/modulos/{deviceId}/reset", "/maquinas/{deviceId}/reset"})
     @Operation(
             summary = "Reiniciar / Resetar Configurações do Módulo",
             description = "Envia comando MQTT para o módulo limpar credenciais de Wi-Fi e retornar ao Modo Portal AP.",
@@ -119,9 +119,9 @@ public class PlayBoxIoTController {
         }
     }
 
-    @PostMapping("/maquinas/{deviceId}/ota")
+    @PostMapping({"/modulos/{deviceId}/ota", "/maquinas/{deviceId}/ota"})
     @Operation(
-            summary = "Atualização de Firmware Remota (OTA)",
+            summary = "Atualização de Firmware Remota (OTA) do Módulo",
             description = "Envia comando para o módulo baixar e gravar firmware remotamente a partir de uma URL binária.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )

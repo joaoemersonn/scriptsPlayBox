@@ -226,7 +226,7 @@ public class OfflineMonitorService {
             saveOfflineTimestamps(zapOfflineFile, zapOffline);
         }
 
-        // 4. PlayBox IoT (Módulos Nativos)
+        // 4. PlayBox Módulos (Nativos)
         Map<String, String> playboxOffline = new HashMap<>();
         if (maquinaRepository != null) {
             try {
@@ -272,7 +272,7 @@ public class OfflineMonitorService {
         log.info("Máquinas VendProMax offline: {}", vendOffline.keySet());
         log.info("Máquinas PayXYZ offline: {}", payOffline.keySet());
         log.info("Máquinas Zapizi offline: {}", zapOffline.keySet());
-        log.info("Máquinas PlayBox IoT offline: {}", playboxOffline.keySet());
+        log.info("Módulos PlayBox offline: {}", playboxOffline.keySet());
         log.info("Status anterior offline: {}", previousOffline.stream().sorted().toList());
         log.info("Status atual offline: {}", currentOffline);
 
