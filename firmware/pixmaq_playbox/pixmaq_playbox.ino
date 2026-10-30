@@ -621,7 +621,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
           <label for="showpass">Mostrar Senha</label>
         </div>
 
-        <label for="device_id">ID da Máquina</label>
+        <label for="device_id">ID do Módulo</label>
         <input type="text" id="device_id" name="device_id" value="%DEVICE_ID%" required maxlength="20">
 
         <label for="mqtt_server">URL de Serviço (Broker MQTT)</label>
@@ -646,7 +646,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
     <!-- ABA 3: STATUS -->
     <div id="tab-status" class="tab-content">
       <table>
-        <tr><td>ID da Máquina</td><td>%DEVICE_ID%</td></tr>
+        <tr><td>ID do Módulo</td><td>%DEVICE_ID%</td></tr>
         <tr><td>Endereço IP</td><td>%IP_ADDR%</td></tr>
         <tr><td>Endereço MAC</td><td>%MAC_ADDR%</td></tr>
         <tr><td>Conexão Wi-Fi</td><td>%WIFI_STATUS%</td></tr>
@@ -809,7 +809,7 @@ void handleSave() {
     h2{color:#db2777;margin-bottom:12px;}p{color:#334155;font-size:14px;line-height:1.5;}</style></head><body>
     <div class="box"><h2>Configurações Salvas!</h2><p>O módulo está se conectando à rede <strong>)raw";
   html += wifi_ssid;
-  html += R"raw(</strong>.<br><br>Acompanhe o status pela tela OLED da máquina.</p></div></body></html>)raw";
+  html += R"raw(</strong>.<br><br>Acompanhe o status pela tela OLED do módulo.</p></div></body></html>)raw";
 
   server.send(200, "text/html", html);
   delay(1000);
