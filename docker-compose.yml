@@ -64,15 +64,23 @@ services:
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN:-}
       - NGROK_DOMAIN=${NGROK_DOMAIN:-}
+      - NGROK_MODE=${NGROK_MODE:-tcp}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
-        if [ -z "$$NGROK_AUTHTOKEN" ] || [ -z "$$NGROK_DOMAIN" ]; then
-          echo "[NGROK] NGROK_AUTHTOKEN ou NGROK_DOMAIN ainda nao configurados no .env. Tunel aguardando configuracao...";
+        if [ -z "$$NGROK_AUTHTOKEN" ]; then
+          echo "[NGROK] NGROK_AUTHTOKEN nao configurado no .env. Tunel aguardando configuracao...";
           while true; do sleep 3600; done;
+        elif [ "$$NGROK_MODE" = "http" ]; then
+          echo "[NGROK] Iniciando tunel HTTP para playbox-scheduler:8080...";
+          if [ -n "$$NGROK_DOMAIN" ]; then
+            exec /bin/ngrok http playbox-scheduler:8080 --url="$$NGROK_DOMAIN";
+          else
+            exec /bin/ngrok http playbox-scheduler:8080;
+          fi
         else
-          echo "[NGROK] Iniciando tunel ngrok para playbox-scheduler:8080 com dominio estatico $$NGROK_DOMAIN...";
-          exec /bin/ngrok http playbox-scheduler:8080 --url="$$NGROK_DOMAIN";
+          echo "[NGROK] Iniciando tunel TCP para mosquitto:1883...";
+          exec /bin/ngrok tcp mosquitto:1883;
         fi
 
   mosquitto:

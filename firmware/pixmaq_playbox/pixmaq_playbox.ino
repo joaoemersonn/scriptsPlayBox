@@ -40,6 +40,8 @@ char wifi_password[65] = "";
 char device_id[21]     = "PB-00001";
 char mqtt_server[65]   = "192.168.1.19";
 int  mqtt_port         = 1883;
+char mqtt_user[33]     = "";
+char mqtt_password[65] = "";
 
 // --- SERVIDORES & CLIENTES ---
 ESP8266WebServer server(80);
@@ -151,7 +153,7 @@ void carregarParametros() {
   if (LittleFS.exists("/config.json")) {
     File f = LittleFS.open("/config.json", "r");
     if (f) {
-      StaticJsonDocument<384> doc;
+      StaticJsonDocument<512> doc;
       DeserializationError err = deserializeJson(doc, f);
       f.close();
 
@@ -161,23 +163,24 @@ void carregarParametros() {
         strlcpy(device_id, doc["device_id"] | "PB-00001", sizeof(device_id));
         strlcpy(mqtt_server, doc["mqtt_server"] | "192.168.1.19", sizeof(mqtt_server));
         mqtt_port = doc["mqtt_port"] | 1883;
+        strlcpy(mqtt_user, doc["mqtt_user"] | "", sizeof(mqtt_user));
+        strlcpy(mqtt_password, doc["mqtt_password"] | "", sizeof(mqtt_password));
 
-        Serial.print("Configuracao carregada! SSID: ");
-        Serial.print(wifi_ssid);
-        Serial.print(" | ID: ");
-        Serial.println(device_id);
+        Serial.printf("Configuracao carregada! SSID: %s | ID: %s | Broker: %s:%d\n", wifi_ssid, device_id, mqtt_server, mqtt_port);
       }
     }
   }
 }
 
 void salvarParametros() {
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   doc["ssid"] = wifi_ssid;
   doc["password"] = wifi_password;
   doc["device_id"] = device_id;
   doc["mqtt_server"] = mqtt_server;
   doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_user"] = mqtt_user;
+  doc["mqtt_password"] = mqtt_password;
 
   File f = LittleFS.open("/config.json", "w");
   if (f) {
@@ -290,7 +293,14 @@ void reconectarMQTT() {
     desenhaTela("CONECTANDO", "Conectando ao Broker", mqtt_server);
 
     String clientId = "playbox-client-" + String(device_id);
-    if (mqttClient.connect(clientId.c_str())) {
+    bool conectado = false;
+    if (strlen(mqtt_user) > 0) {
+      conectado = mqttClient.connect(clientId.c_str(), mqtt_user, mqtt_password);
+    } else {
+      conectado = mqttClient.connect(clientId.c_str());
+    }
+
+    if (conectado) {
       String cmdTopic = "playbox/maquinas/" + String(device_id) + "/comando";
       mqttClient.subscribe(cmdTopic.c_str());
 
@@ -305,6 +315,7 @@ void reconectarMQTT() {
 
       desenhaTela("ONLINE", "Aguardando Pix...", WiFi.localIP().toString().c_str());
     } else {
+      Serial.printf("Falha conexao MQTT (rc=%d). Tentando em 3s...\n", mqttClient.state());
       delay(3000);
     }
   }
@@ -624,10 +635,29 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
         <label for="device_id">ID do Módulo</label>
         <input type="text" id="device_id" name="device_id" value="%DEVICE_ID%" required maxlength="20">
 
-        <label for="mqtt_server">URL de Serviço (Broker MQTT)</label>
-        <input type="text" id="mqtt_server" name="mqtt_server" value="%MQTT_SERVER%" required maxlength="64">
+        <div style="display:flex;gap:10px;">
+          <div style="flex:2;">
+            <label for="mqtt_server">Servidor Broker MQTT</label>
+            <input type="text" id="mqtt_server" name="mqtt_server" value="%MQTT_SERVER%" placeholder="Ex: 4.tcp.ngrok.io ou IP" required maxlength="64">
+          </div>
+          <div style="flex:1;">
+            <label for="mqtt_port">Porta</label>
+            <input type="number" id="mqtt_port" name="mqtt_port" value="%MQTT_PORT%" placeholder="1883" required min="1" max="65535">
+          </div>
+        </div>
 
-        <button type="submit" class="btn-primary">Salvar e Conectar</button>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label for="mqtt_user">Usuário MQTT (Opcional)</label>
+            <input type="text" id="mqtt_user" name="mqtt_user" value="%MQTT_USER%" placeholder="Deixe em branco se anônimo" maxlength="32">
+          </div>
+          <div style="flex:1;">
+            <label for="mqtt_password">Senha MQTT (Opcional)</label>
+            <input type="password" id="mqtt_password" name="mqtt_password" value="%MQTT_PASS%" placeholder="Senha" maxlength="64">
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top:14px;">Salvar e Conectar</button>
       </form>
     </div>
 
@@ -650,6 +680,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
         <tr><td>Endereço IP</td><td>%IP_ADDR%</td></tr>
         <tr><td>Endereço MAC</td><td>%MAC_ADDR%</td></tr>
         <tr><td>Conexão Wi-Fi</td><td>%WIFI_STATUS%</td></tr>
+        <tr><td>Broker MQTT</td><td>%MQTT_SERVER%:%MQTT_PORT%</td></tr>
         <tr><td>Memória RAM Livre</td><td>%FREE_HEAP% KB</td></tr>
         <tr><td>Versão de Firmware</td><td>v2.5 - Play Box BR</td></tr>
         <tr><td>Tempo Ligado</td><td>%UPTIME%</td></tr>
@@ -739,6 +770,9 @@ void handleRoot() {
   String html = FPSTR(PAGE_PORTAL);
   html.replace("%DEVICE_ID%", device_id);
   html.replace("%MQTT_SERVER%", mqtt_server);
+  html.replace("%MQTT_PORT%", String(mqtt_port));
+  html.replace("%MQTT_USER%", mqtt_user);
+  html.replace("%MQTT_PASS%", mqtt_password);
   html.replace("%WIFI_SSID%", wifi_ssid);
 
   String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
@@ -797,7 +831,29 @@ void handleSave() {
     strlcpy(device_id, server.arg("device_id").c_str(), sizeof(device_id));
   }
   if (server.hasArg("mqtt_server")) {
-    strlcpy(mqtt_server, server.arg("mqtt_server").c_str(), sizeof(mqtt_server));
+    String raw = server.arg("mqtt_server");
+    raw.trim();
+    if (raw.startsWith("tcp://")) raw = raw.substring(6);
+    if (raw.startsWith("mqtt://")) raw = raw.substring(7);
+
+    int colon = raw.indexOf(':');
+    if (colon > 0) {
+      strlcpy(mqtt_server, raw.substring(0, colon).c_str(), sizeof(mqtt_server));
+      int p = raw.substring(colon + 1).toInt();
+      if (p > 0) mqtt_port = p;
+    } else {
+      strlcpy(mqtt_server, raw.c_str(), sizeof(mqtt_server));
+    }
+  }
+  if (server.hasArg("mqtt_port")) {
+    int p = server.arg("mqtt_port").toInt();
+    if (p > 0) mqtt_port = p;
+  }
+  if (server.hasArg("mqtt_user")) {
+    strlcpy(mqtt_user, server.arg("mqtt_user").c_str(), sizeof(mqtt_user));
+  }
+  if (server.hasArg("mqtt_password")) {
+    strlcpy(mqtt_password, server.arg("mqtt_password").c_str(), sizeof(mqtt_password));
   }
 
   salvarParametros();
