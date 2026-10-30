@@ -1,6 +1,9 @@
 package br.com.playbox;
 
 import br.com.playbox.controller.PlayBoxModulosController;
+import br.com.playbox.dto.AtualizarFirmwareDTO;
+import br.com.playbox.dto.ComandoRespostaDTO;
+import br.com.playbox.dto.EnviarCreditoDTO;
 import br.com.playbox.entity.Maquina;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.service.PlayBoxMqttService;
@@ -66,13 +69,16 @@ class PlayBoxModulosControllerTest {
     @Test
     @DisplayName("Deve enviar comando de crédito para o módulo com sucesso")
     void testEnviarCreditoSucesso() {
-        when(mqttService.enviarPulsoCredito(eq("PB-00001"), eq(2), anyString())).thenReturn(true);
+        when(mqttService.enviarPulsoCredito(eq("PB-00001"), eq(2), eq("PAY-20261030-98421"))).thenReturn(true);
 
-        ResponseEntity<Map<String, Object>> res = controller.enviarCredito("PB-00001", Map.of("quantidade", 2, "tx_id", "TX-100"));
+        EnviarCreditoDTO dto = new EnviarCreditoDTO(2, "PAY-20261030-98421");
+        ResponseEntity<ComandoRespostaDTO> res = controller.enviarCredito("PB-00001", dto);
         assertEquals(HttpStatus.OK, res.getStatusCode());
-        assertEquals("SUCCESS", res.getBody().get("status"));
-        assertEquals("PB-00001", res.getBody().get("deviceId"));
-        assertEquals(2, res.getBody().get("quantidade"));
+        assertNotNull(res.getBody());
+        assertEquals("SUCCESS", res.getBody().getStatus());
+        assertEquals("PB-00001", res.getBody().getDeviceId());
+        assertEquals(2, res.getBody().getQuantidade());
+        assertEquals("PAY-20261030-98421", res.getBody().getTxId());
     }
 
     @Test
@@ -80,9 +86,11 @@ class PlayBoxModulosControllerTest {
     void testEnviarCreditoDesconectado() {
         when(mqttService.enviarPulsoCredito(anyString(), anyInt(), anyString())).thenReturn(false);
 
-        ResponseEntity<Map<String, Object>> res = controller.enviarCredito("PB-00001", Map.of("quantidade", 1));
+        EnviarCreditoDTO dto = new EnviarCreditoDTO(1, null);
+        ResponseEntity<ComandoRespostaDTO> res = controller.enviarCredito("PB-00001", dto);
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, res.getStatusCode());
-        assertEquals("ERROR", res.getBody().get("status"));
+        assertNotNull(res.getBody());
+        assertEquals("ERROR", res.getBody().getStatus());
     }
 
     @Test
@@ -90,9 +98,10 @@ class PlayBoxModulosControllerTest {
     void testResetarModulo() {
         when(mqttService.enviarResetRemoto("PB-00001")).thenReturn(true);
 
-        ResponseEntity<Map<String, Object>> res = controller.resetarModulo("PB-00001");
+        ResponseEntity<ComandoRespostaDTO> res = controller.resetarModulo("PB-00001");
         assertEquals(HttpStatus.OK, res.getStatusCode());
-        assertEquals("SUCCESS", res.getBody().get("status"));
+        assertNotNull(res.getBody());
+        assertEquals("SUCCESS", res.getBody().getStatus());
     }
 
     @Test
@@ -100,8 +109,10 @@ class PlayBoxModulosControllerTest {
     void testAtualizarFirmwareRemoto() {
         when(mqttService.enviarComandoOTA("PB-00001", "http://ota.playbox.com/firmware.bin")).thenReturn(true);
 
-        ResponseEntity<Map<String, Object>> res = controller.atualizarFirmwareRemoto("PB-00001", Map.of("url", "http://ota.playbox.com/firmware.bin"));
+        AtualizarFirmwareDTO dto = new AtualizarFirmwareDTO("http://ota.playbox.com/firmware.bin");
+        ResponseEntity<ComandoRespostaDTO> res = controller.atualizarFirmwareRemoto("PB-00001", dto);
         assertEquals(HttpStatus.OK, res.getStatusCode());
-        assertEquals("SUCCESS", res.getBody().get("status"));
+        assertNotNull(res.getBody());
+        assertEquals("SUCCESS", res.getBody().getStatus());
     }
 }

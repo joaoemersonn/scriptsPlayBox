@@ -1,11 +1,19 @@
 package br.com.playbox.controller;
 
 import br.com.playbox.config.OpenApiConfig;
+import br.com.playbox.dto.AtualizarFirmwareDTO;
+import br.com.playbox.dto.ComandoRespostaDTO;
+import br.com.playbox.dto.EnviarCreditoDTO;
 import br.com.playbox.entity.Maquina;
 import br.com.playbox.repository.MaquinaRepository;
 import br.com.playbox.service.PlayBoxMqttService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -15,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping({"/api/v1/playbox-modulos", "/api/v1/playbox-iot"})
+@RequestMapping("/api/v1/playbox-modulos")
 @Tag(name = "PlayBox Módulos", description = "Gerenciamento de módulos PlayBox, controle de pulsos MQTT e telemetria em tempo real")
 public class PlayBoxModulosController {
 
@@ -33,6 +41,11 @@ public class PlayBoxModulosController {
             description = "Retorna os detalhes de conexão do backend com o broker MQTT (Host, Porta, Tópicos e estado da conexão).",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Status do broker retornado com sucesso",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = "{\"enabled\":true,\"brokerUrl\":\"tcp://broker.hivemq.com:1883\",\"brokerHost\":\"broker.hivemq.com\",\"brokerPort\":1883,\"baseTopic\":\"playbox/maquinas\",\"connected\":true,\"connecting\":false,\"clientId\":\"playbox-backend-server\",\"totalModulosPlayBox\":1,\"modulosOnline\":1}")))
+    })
     public ResponseEntity<Map<String, Object>> getMqttStatus() {
         Map<String, Object> status = new LinkedHashMap<>(mqttService.getStatusInfo());
         List<Maquina> modulosPlayBox = maquinaRepository.findByIntegracao("PLAYBOX");
@@ -41,113 +54,143 @@ public class PlayBoxModulosController {
         return ResponseEntity.ok(status);
     }
 
-    @GetMapping({"/modulos", "/maquinas"})
+    @GetMapping("/modulos")
     @Operation(
             summary = "Listar Módulos PlayBox",
             description = "Retorna a lista de módulos operando com a integração nativa PlayBox, incluindo IP, sinal Wi-Fi e odômetros de 12V.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de módulos cadastrados e ativos")
+    })
     public ResponseEntity<List<Maquina>> listarModulosPlayBox() {
         List<Maquina> list = maquinaRepository.findByIntegracao("PLAYBOX");
         return ResponseEntity.ok(list);
     }
 
-    @PostMapping({"/modulos/{deviceId}/credito", "/maquinas/{deviceId}/credito"})
+    @PostMapping("/modulos/{deviceId}/credito")
     @Operation(
             summary = "Liberar Crédito Remoto no Módulo (Pix/Cartão/Manual)",
             description = "Envia via MQTT um comando de injeção de pulsos de crédito no moedeiro do módulo selecionado.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
-    public ResponseEntity<Map<String, Object>> enviarCredito(
-            @PathVariable @Parameter(description = "ID do módulo (ex: PB-00001)") String deviceId,
-            @RequestBody(required = false) Map<String, Object> payload
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Comando de crédito enviado ao broker com sucesso",
+                    content = @Content(schema = @Schema(implementation = ComandoRespostaDTO.class),
+                            examples = @ExampleObject(value = "{\"status\":\"SUCCESS\",\"mensagem\":\"Comando de 2 crédito(s) enviado com sucesso ao broker para o módulo PB-00001\",\"deviceId\":\"PB-00001\",\"quantidade\":2,\"txId\":\"PAY-20261030-98421\"}"))),
+            @ApiResponse(responseCode = "503", description = "Broker MQTT desconectado ou indisponível")
+    })
+    public ResponseEntity<ComandoRespostaDTO> enviarCredito(
+            @PathVariable @Parameter(description = "Identificador do módulo na máquina", example = "PB-00001") String deviceId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Dados para injeção de créditos (quantidade e ID do pagamento)",
+                    content = @Content(
+                            schema = @Schema(implementation = EnviarCreditoDTO.class),
+                            examples = @ExampleObject(
+                                    name = "Exemplo Real",
+                                    value = "{\"quantidade\": 2, \"txId\": \"PAY-20261030-98421\"}"
+                            )
+                    )
+            )
+            @RequestBody(required = false) EnviarCreditoDTO payload
     ) {
-        int quantidade = 1;
-        String txId = "TX-API-" + UUID.randomUUID().toString().substring(0, 8);
-
-        if (payload != null) {
-            if (payload.containsKey("quantidade")) {
-                quantidade = Integer.parseInt(payload.get("quantidade").toString());
-            } else if (payload.containsKey("qty")) {
-                quantidade = Integer.parseInt(payload.get("qty").toString());
-            }
-            if (payload.containsKey("tx_id")) {
-                txId = payload.get("tx_id").toString();
-            } else if (payload.containsKey("txId")) {
-                txId = payload.get("txId").toString();
-            }
-        }
+        int quantidade = (payload != null && payload.getQuantidade() != null) ? payload.getQuantidade() : 1;
+        String txId = (payload != null && payload.getTxId() != null && !payload.getTxId().isBlank())
+                ? payload.getTxId().trim()
+                : ("TX-API-" + UUID.randomUUID().toString().substring(0, 8));
 
         boolean publicado = mqttService.enviarPulsoCredito(deviceId, quantidade, txId);
         if (publicado) {
-            return ResponseEntity.ok(Map.of(
-                    "status", "SUCCESS",
-                    "mensagem", "Comando de " + quantidade + " crédito(s) enviado com sucesso ao broker para o módulo " + deviceId,
-                    "deviceId", deviceId,
-                    "quantidade", quantidade,
-                    "txId", txId
+            return ResponseEntity.ok(ComandoRespostaDTO.sucesso(
+                    "Comando de " + quantidade + " crédito(s) enviado com sucesso ao broker para o módulo " + deviceId,
+                    deviceId,
+                    quantidade,
+                    txId
             ));
         } else {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                    "status", "ERROR",
-                    "mensagem", "Não foi possível enviar comando: cliente MQTT desconectado do broker.",
-                    "deviceId", deviceId
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ComandoRespostaDTO.erro(
+                    "Não foi possível enviar comando: cliente MQTT desconectado do broker.",
+                    deviceId
             ));
         }
     }
 
-    @PostMapping({"/modulos/{deviceId}/reset", "/maquinas/{deviceId}/reset"})
+    @PostMapping("/modulos/{deviceId}/reset")
     @Operation(
             summary = "Reiniciar / Resetar Configurações do Módulo",
             description = "Envia comando MQTT para o módulo limpar credenciais de Wi-Fi e retornar ao Modo Portal AP.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
-    public ResponseEntity<Map<String, Object>> resetarModulo(
-            @PathVariable @Parameter(description = "ID do módulo (ex: PB-00001)") String deviceId
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Comando de reset enviado com sucesso",
+                    content = @Content(schema = @Schema(implementation = ComandoRespostaDTO.class))),
+            @ApiResponse(responseCode = "503", description = "Broker MQTT desconectado")
+    })
+    public ResponseEntity<ComandoRespostaDTO> resetarModulo(
+            @PathVariable @Parameter(description = "Identificador do módulo na máquina", example = "PB-00001") String deviceId
     ) {
         boolean publicado = mqttService.enviarResetRemoto(deviceId);
         if (publicado) {
-            return ResponseEntity.ok(Map.of(
-                    "status", "SUCCESS",
-                    "mensagem", "Comando de reset enviado para o módulo " + deviceId
+            return ResponseEntity.ok(ComandoRespostaDTO.sucesso(
+                    "Comando de reset enviado para o módulo " + deviceId,
+                    deviceId,
+                    0,
+                    null
             ));
         } else {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                    "status", "ERROR",
-                    "mensagem", "Cliente MQTT desconectado do broker."
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ComandoRespostaDTO.erro(
+                    "Cliente MQTT desconectado do broker.",
+                    deviceId
             ));
         }
     }
 
-    @PostMapping({"/modulos/{deviceId}/ota", "/maquinas/{deviceId}/ota"})
+    @PostMapping("/modulos/{deviceId}/ota")
     @Operation(
             summary = "Atualização de Firmware Remota (OTA) do Módulo",
-            description = "Envia comando para o módulo baixar e gravar firmware remotamente a partir de uma URL binária.",
+            description = "Envia comando para o módulo baixar e gravar novo firmware remotamente a partir de uma URL binária.",
             security = @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
     )
-    public ResponseEntity<Map<String, Object>> atualizarFirmwareRemoto(
-            @PathVariable @Parameter(description = "ID do módulo (ex: PB-00001)") String deviceId,
-            @RequestBody Map<String, String> body
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Comando OTA enviado com sucesso",
+                    content = @Content(schema = @Schema(implementation = ComandoRespostaDTO.class))),
+            @ApiResponse(responseCode = "400", description = "URL do binário não fornecida ou inválida"),
+            @ApiResponse(responseCode = "503", description = "Broker MQTT desconectado")
+    })
+    public ResponseEntity<ComandoRespostaDTO> atualizarFirmwareRemoto(
+            @PathVariable @Parameter(description = "Identificador do módulo na máquina", example = "PB-00001") String deviceId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "URL do binário compilado",
+                    content = @Content(
+                            schema = @Schema(implementation = AtualizarFirmwareDTO.class),
+                            examples = @ExampleObject(
+                                    name = "Exemplo Real",
+                                    value = "{\"url\": \"http://192.168.1.83:8080/firmware.bin\"}"
+                            )
+                    )
+            )
+            @RequestBody AtualizarFirmwareDTO body
     ) {
-        String url = body != null ? body.get("url") : null;
+        String url = body != null ? body.getUrl() : null;
         if (url == null || url.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "ERROR",
-                    "mensagem", "O campo 'url' com o link do binário é obrigatório."
+            return ResponseEntity.badRequest().body(ComandoRespostaDTO.erro(
+                    "O campo 'url' com o link do binário é obrigatório.",
+                    deviceId
             ));
         }
 
         boolean publicado = mqttService.enviarComandoOTA(deviceId, url.trim());
         if (publicado) {
-            return ResponseEntity.ok(Map.of(
-                    "status", "SUCCESS",
-                    "mensagem", "Comando OTA enviado para o módulo " + deviceId,
-                    "url", url
+            return ResponseEntity.ok(ComandoRespostaDTO.sucesso(
+                    "Comando OTA enviado para o módulo " + deviceId,
+                    deviceId,
+                    0,
+                    url
             ));
         } else {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                    "status", "ERROR",
-                    "mensagem", "Cliente MQTT desconectado do broker."
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ComandoRespostaDTO.erro(
+                    "Cliente MQTT desconectado do broker.",
+                    deviceId
             ));
         }
     }
