@@ -76,6 +76,13 @@
             <version>2.2.2</version>
         </dependency>
 
+        <!-- Eclipse Paho MQTT Client for Native PlayBox IoT Communication -->
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>1.2.5</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

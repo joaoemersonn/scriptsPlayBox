@@ -51,6 +51,28 @@ public class Maquina {
     @Column(name = "ultima_notificacao_estoque_baixo")
     private LocalDateTime ultimaNotificacaoEstoqueBaixo;
 
+    // --- CAMPOS DE TELEMETRIA E HARDWARE IOT NATIVO (PLAYBOX) ---
+    private String ip;
+
+    private Integer rssi;
+
+    private Boolean online = false;
+
+    @Column(name = "last_heartbeat")
+    private LocalDateTime lastHeartbeat;
+
+    @Column(name = "total_digitais")
+    private Long totalDigitais = 0L;
+
+    @Column(name = "total_relogio_entrada")
+    private Long totalRelogioEntrada = 0L;
+
+    @Column(name = "total_relogio_saida")
+    private Long totalRelogioSaida = 0L;
+
+    @Column(name = "uptime_seconds")
+    private Long uptimeSeconds = 0L;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -206,5 +228,69 @@ public class Maquina {
 
     public boolean isEstoqueBaixo() {
         return getEstoqueAtual() < getEstoqueMinimoAlerta();
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public Integer getRssi() {
+        return rssi;
+    }
+
+    public void setRssi(Integer rssi) {
+        this.rssi = rssi;
+    }
+
+    public Boolean getOnline() {
+        return online != null ? online : false;
+    }
+
+    public void setOnline(Boolean online) {
+        this.online = online;
+    }
+
+    public LocalDateTime getLastHeartbeat() {
+        return lastHeartbeat;
+    }
+
+    public void setLastHeartbeat(LocalDateTime lastHeartbeat) {
+        this.lastHeartbeat = lastHeartbeat;
+    }
+
+    public Long getTotalDigitais() {
+        return totalDigitais != null ? totalDigitais : 0L;
+    }
+
+    public void setTotalDigitais(Long totalDigitais) {
+        this.totalDigitais = totalDigitais;
+    }
+
+    public Long getTotalRelogioEntrada() {
+        return totalRelogioEntrada != null ? totalRelogioEntrada : 0L;
+    }
+
+    public void setTotalRelogioEntrada(Long totalRelogioEntrada) {
+        this.totalRelogioEntrada = totalRelogioEntrada;
+    }
+
+    public Long getTotalRelogioSaida() {
+        return totalRelogioSaida != null ? totalRelogioSaida : 0L;
+    }
+
+    public void setTotalRelogioSaida(Long totalRelogioSaida) {
+        this.totalRelogioSaida = totalRelogioSaida;
+    }
+
+    public Long getUptimeSeconds() {
+        return uptimeSeconds != null ? uptimeSeconds : 0L;
+    }
+
+    public void setUptimeSeconds(Long uptimeSeconds) {
+        this.uptimeSeconds = uptimeSeconds;
     }
 }

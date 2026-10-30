@@ -16,6 +16,11 @@ public class AppProperties {
     private final Payxyz payxyz = new Payxyz();
     private final Zapizi zapizi = new Zapizi();
     private final Auth auth = new Auth();
+    private final Mqtt mqtt = new Mqtt();
+
+    public Mqtt getMqtt() {
+        return mqtt;
+    }
 
     public Auth getAuth() {
         return auth;
@@ -263,6 +268,94 @@ public class AppProperties {
 
         public void setPassword(String password) {
             this.password = password;
+        }
+    }
+
+    public static class Mqtt {
+        private boolean enabled = true;
+        private String brokerHost = "broker.hivemq.com";
+        private int brokerPort = 1883;
+        private String username = "";
+        private String password = "";
+        private String clientId = "playbox-backend-server";
+        private String baseTopic = "playbox/maquinas";
+        private int keepAliveSeconds = 60;
+        private int connectionTimeout = 30;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getBrokerHost() {
+            return brokerHost;
+        }
+
+        public void setBrokerHost(String brokerHost) {
+            this.brokerHost = brokerHost;
+        }
+
+        public int getBrokerPort() {
+            return brokerPort;
+        }
+
+        public void setBrokerPort(int brokerPort) {
+            this.brokerPort = brokerPort;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public void setClientId(String clientId) {
+            this.clientId = clientId;
+        }
+
+        public String getBaseTopic() {
+            return baseTopic;
+        }
+
+        public void setBaseTopic(String baseTopic) {
+            this.baseTopic = baseTopic;
+        }
+
+        public int getKeepAliveSeconds() {
+            return keepAliveSeconds;
+        }
+
+        public void setKeepAliveSeconds(int keepAliveSeconds) {
+            this.keepAliveSeconds = keepAliveSeconds;
+        }
+
+        public int getConnectionTimeout() {
+            return connectionTimeout;
+        }
+
+        public void setConnectionTimeout(int connectionTimeout) {
+            this.connectionTimeout = connectionTimeout;
+        }
+
+        public String getBrokerUrl() {
+            return "tcp://" + brokerHost + ":" + brokerPort;
         }
     }
 }

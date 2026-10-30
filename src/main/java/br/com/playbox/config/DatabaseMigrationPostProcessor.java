@@ -130,6 +130,21 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
             }
 
             if (maquinasExists) {
+                Set<String> maqCols = new HashSet<>();
+                try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(maquinas)")) {
+                    while (rs.next()) {
+                        maqCols.add(rs.getString("name").toLowerCase());
+                    }
+                }
+                if (!maqCols.contains("ip")) stmt.execute("ALTER TABLE maquinas ADD COLUMN ip VARCHAR(64)");
+                if (!maqCols.contains("rssi")) stmt.execute("ALTER TABLE maquinas ADD COLUMN rssi INTEGER");
+                if (!maqCols.contains("online")) stmt.execute("ALTER TABLE maquinas ADD COLUMN online INTEGER DEFAULT 0");
+                if (!maqCols.contains("last_heartbeat")) stmt.execute("ALTER TABLE maquinas ADD COLUMN last_heartbeat TIMESTAMP");
+                if (!maqCols.contains("total_digitais")) stmt.execute("ALTER TABLE maquinas ADD COLUMN total_digitais INTEGER DEFAULT 0");
+                if (!maqCols.contains("total_relogio_entrada")) stmt.execute("ALTER TABLE maquinas ADD COLUMN total_relogio_entrada INTEGER DEFAULT 0");
+                if (!maqCols.contains("total_relogio_saida")) stmt.execute("ALTER TABLE maquinas ADD COLUMN total_relogio_saida INTEGER DEFAULT 0");
+                if (!maqCols.contains("uptime_seconds")) stmt.execute("ALTER TABLE maquinas ADD COLUMN uptime_seconds INTEGER DEFAULT 0");
+
                 stmt.execute("""
                     INSERT INTO historico_vinculos_maquina (maquina_id, estabelecimento_id, data_inicio, created_at, motivo)
                     SELECT m.id, m.estabelecimento_id, '2026-01-01 00:00:00', CURRENT_TIMESTAMP, 'Vínculo inicial cadastrado'

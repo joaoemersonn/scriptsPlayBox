@@ -226,8 +226,36 @@ public class OfflineMonitorService {
             saveOfflineTimestamps(zapOfflineFile, zapOffline);
         }
 
-        // Se todas as integrações falharam, não há máquinas para validar
-        if (currentFailingIntegrations.size() >= 3) {
+        // 4. PlayBox IoT (Módulos Nativos)
+        Map<String, String> playboxOffline = new HashMap<>();
+        if (maquinaRepository != null) {
+            try {
+                List<Maquina> playboxMaquinas = maquinaRepository.findByIntegracao("PLAYBOX");
+                LocalDateTime limiteOffline = LocalDateTime.now().minusMinutes(10);
+                for (Maquina m : playboxMaquinas) {
+                    if (m.isAtivo()) {
+                        String ident = m.getNomeIntegracao() != null && !m.getNomeIntegracao().isBlank()
+                                ? m.getNomeIntegracao()
+                                : ("PlayBox " + m.getExternalId());
+                        if (m.getLastHeartbeat() == null || m.getLastHeartbeat().isBefore(limiteOffline)) {
+                            m.setOnline(false);
+                            String timeStr = m.getLastHeartbeat() != null
+                                    ? m.getLastHeartbeat().format(DATE_TIME_FORMATTER)
+                                    : "Sem sinal recente";
+                            playboxOffline.put(ident, timeStr);
+                        } else {
+                            m.setOnline(true);
+                        }
+                    }
+                }
+                maquinaRepository.saveAll(playboxMaquinas);
+            } catch (Exception e) {
+                log.warn("Aviso ao verificar status offline de módulos PlayBox: {}", e.getMessage());
+            }
+        }
+
+        // Se todas as integrações legadas falharam e não há PlayBox, não há máquinas para validar
+        if (currentFailingIntegrations.size() >= 3 && playboxOffline.isEmpty()) {
             log.warn("Todas as integrações falharam no monitoramento.");
             return;
         }
@@ -236,6 +264,7 @@ public class OfflineMonitorService {
         currentOfflineMap.putAll(vendOffline);
         currentOfflineMap.putAll(payOffline);
         currentOfflineMap.putAll(zapOffline);
+        currentOfflineMap.putAll(playboxOffline);
 
         Set<String> currentOfflineSet = new TreeSet<>(currentOfflineMap.keySet());
         List<String> currentOffline = new ArrayList<>(currentOfflineSet);
@@ -243,6 +272,7 @@ public class OfflineMonitorService {
         log.info("Máquinas VendProMax offline: {}", vendOffline.keySet());
         log.info("Máquinas PayXYZ offline: {}", payOffline.keySet());
         log.info("Máquinas Zapizi offline: {}", zapOffline.keySet());
+        log.info("Máquinas PlayBox IoT offline: {}", playboxOffline.keySet());
         log.info("Status anterior offline: {}", previousOffline.stream().sorted().toList());
         log.info("Status atual offline: {}", currentOffline);
 
