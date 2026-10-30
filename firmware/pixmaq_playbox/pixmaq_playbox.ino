@@ -611,7 +611,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
 
       <form action="/save" method="POST">
         <label for="ssid">Nome da Rede Wi-Fi (SSID)</label>
-        <input type="text" id="ssid" name="ssid" placeholder="Selecione acima ou digite" required maxlength="32">
+        <input type="text" id="ssid" name="ssid" placeholder="Selecione acima ou digite" value="%WIFI_SSID%" required maxlength="32">
 
         <label for="password">Senha do Wi-Fi</label>
         <input type="password" id="password" name="password" placeholder="Digite a senha da rede" maxlength="64">
@@ -649,6 +649,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
         <tr><td>ID da Máquina</td><td>%DEVICE_ID%</td></tr>
         <tr><td>Endereço IP</td><td>%IP_ADDR%</td></tr>
         <tr><td>Endereço MAC</td><td>%MAC_ADDR%</td></tr>
+        <tr><td>Conexão Wi-Fi</td><td>%WIFI_STATUS%</td></tr>
         <tr><td>Memória RAM Livre</td><td>%FREE_HEAP% KB</td></tr>
         <tr><td>Versão de Firmware</td><td>v2.5 - Play Box BR</td></tr>
         <tr><td>Tempo Ligado</td><td>%UPTIME%</td></tr>
@@ -738,8 +739,15 @@ void handleRoot() {
   String html = FPSTR(PAGE_PORTAL);
   html.replace("%DEVICE_ID%", device_id);
   html.replace("%MQTT_SERVER%", mqtt_server);
-  html.replace("%IP_ADDR%", WiFi.softAPIP().toString());
-  html.replace("%MAC_ADDR%", WiFi.softAPmacAddress());
+  html.replace("%WIFI_SSID%", wifi_ssid);
+
+  String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+  String macStr = (WiFi.status() == WL_CONNECTED) ? WiFi.macAddress() : WiFi.softAPmacAddress();
+  String wifiStatus = (WiFi.status() == WL_CONNECTED) ? (String(wifi_ssid) + " (" + String(WiFi.RSSI()) + " dBm)") : "Modo AP (PlayBox-BR)";
+
+  html.replace("%IP_ADDR%", ipStr);
+  html.replace("%MAC_ADDR%", macStr);
+  html.replace("%WIFI_STATUS%", wifiStatus);
   html.replace("%FREE_HEAP%", String(ESP.getFreeHeap() / 1024.0, 1));
   html.replace("%UPTIME%", String(millis() / 1000) + "s");
 
@@ -819,14 +827,18 @@ void handleRestart() {
 
 void handleResetWifi() {
   LittleFS.remove("/config.json");
+  WiFi.disconnect(true);
   server.send(200, "text/html", "<h3 style='text-align:center;color:#db2777;font-family:sans-serif;padding:30px;'>Configurações de Wi-Fi apagadas!<br>Reiniciando em modo PlayBox-BR...</h3>");
   delay(1000);
   ESP.restart();
 }
 
 void handleNotFound() {
-  // Redireciona qualquer probe para a raiz
-  server.sendHeader("Location", "http://192.168.4.1/", true);
+  if (portalActive) {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+  } else {
+    server.sendHeader("Location", "/", true);
+  }
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.send(302, "text/plain", "");
 }
@@ -864,22 +876,7 @@ void handleUpdateDone() {
   ESP.restart();
 }
 
-// --- INICIALIZACAO DO MODO ACCESS POINT ---
-void iniciarModoPortal() {
-  portalActive = true;
-  WiFi.disconnect();
-  delay(100);
-
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP("PlayBox-BR");
-
-  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-  dnsServer.start(53, "*", WiFi.softAPIP());
-
-  MDNS.begin("playbox");
-  MDNS.addService("http", "tcp", 80);
-
-  // Registra rotas
+void configurarRotasServidor() {
   server.on("/", handleRoot);
   server.on("/api/scan", handleApiScan);
   server.on("/save", HTTP_POST, handleSave);
@@ -899,6 +896,24 @@ void iniciarModoPortal() {
   });
 
   server.onNotFound(handleNotFound);
+}
+
+// --- INICIALIZACAO DO MODO ACCESS POINT ---
+void iniciarModoPortal() {
+  portalActive = true;
+  WiFi.disconnect();
+  delay(100);
+
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP("PlayBox-BR");
+
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.start(53, "*", WiFi.softAPIP());
+
+  MDNS.begin("playbox");
+  MDNS.addService("http", "tcp", 80);
+
+  configurarRotasServidor();
   server.begin();
 
   Serial.println(">>> MODO PORTAL ATIVADO: PlayBox-BR (192.168.4.1)");
@@ -927,14 +942,22 @@ void setup() {
 
   desenhaTela("INICIANDO", "Iniciando sistema...", "");
 
-  // Se nao ha Wi-Fi configurado ou foi solicitado reset, abre o portal
-  if (strlen(wifi_ssid) == 0 || !LittleFS.exists("/reset_v5_done")) {
-    Serial.println("Sem Wi-Fi configurado. Abrindo portal PlayBox-BR...");
-    File mark = LittleFS.open("/reset_v5_done", "w");
+  // Reset forçado para novo teste limpo solicitado pelo usuario
+  if (!LittleFS.exists("/reset_v6_done")) {
+    Serial.println("Reset forçado v6: Apagando config.json para novo teste...");
+    LittleFS.remove("/config.json");
+    wifi_ssid[0] = '\0';
+    wifi_password[0] = '\0';
+    File mark = LittleFS.open("/reset_v6_done", "w");
     if (mark) {
       mark.print("ok");
       mark.close();
     }
+  }
+
+  // Se nao ha Wi-Fi configurado ou foi solicitado reset, abre o portal
+  if (strlen(wifi_ssid) == 0) {
+    Serial.println("Sem Wi-Fi configurado. Abrindo portal PlayBox-BR...");
     iniciarModoPortal();
     return;
   }
@@ -957,6 +980,13 @@ void setup() {
     Serial.println("\nWi-Fi Conectado com sucesso!");
     desenhaTela("WIFI OK", "Conectado!", WiFi.localIP().toString().c_str());
 
+    MDNS.begin("playbox");
+    MDNS.addService("http", "tcp", 80);
+
+    configurarRotasServidor();
+    server.begin();
+    Serial.printf(">>> Servidor Web ativo na rede local: http://%s ou http://playbox.local\n", WiFi.localIP().toString().c_str());
+
     ArduinoOTA.setHostname(device_id);
     ArduinoOTA.begin();
 
@@ -977,6 +1007,10 @@ void loop() {
     MDNS.update();
     return;
   }
+
+  // Servidor web ativo na rede local (responde requisicoes sem travar)
+  server.handleClient();
+  MDNS.update();
 
   // Modo Normal Conectado ao Wi-Fi e Broker MQTT
   if (WiFi.status() != WL_CONNECTED) {
