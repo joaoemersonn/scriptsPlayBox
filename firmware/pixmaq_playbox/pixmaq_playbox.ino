@@ -497,8 +497,9 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
       margin-bottom: 5px;
       text-align: left;
     }
-    input[type='text'], input[type='password'], input[type='file'] {
+    input[type='text'], input[type='password'], input[type='number'], input[type='file'] {
       width: 100%;
+      box-sizing: border-box;
       border-radius: 10px;
       border: 1px solid var(--border);
       padding: 12px 14px;
@@ -511,6 +512,47 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(219,39,119,0.15);
+    }
+
+    .accordion {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fafbfc;
+    }
+    .accordion-btn {
+      width: 100%;
+      background: #f1f5f9;
+      color: #334155;
+      border: none;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
+    }
+    .accordion-btn:hover {
+      background: #e2e8f0;
+    }
+    .accordion-arrow {
+      font-size: 12px;
+      transition: transform 0.2s ease;
+      display: inline-block;
+      color: #64748b;
+    }
+    .accordion-content {
+      display: none;
+      padding: 12px 14px 16px 14px;
+      background: #ffffff;
+      border-top: 1px solid var(--border);
+    }
+    .accordion-content.show {
+      display: block;
     }
 
     .checkbox-row {
@@ -625,7 +667,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
         <input type="text" id="ssid" name="ssid" placeholder="Selecione acima ou digite" value="%WIFI_SSID%" required maxlength="32">
 
         <label for="password">Senha do Wi-Fi</label>
-        <input type="password" id="password" name="password" placeholder="Digite a senha da rede" maxlength="64">
+        <input type="password" id="password" name="password" placeholder="Digite a senha da rede" value="%WIFI_PASS%" maxlength="64">
 
         <div class="checkbox-row">
           <input type="checkbox" id="showpass" onchange="toggleSenha()">
@@ -635,29 +677,28 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
         <label for="device_id">ID do Módulo</label>
         <input type="text" id="device_id" name="device_id" value="%DEVICE_ID%" required maxlength="20">
 
-        <div style="display:flex;gap:10px;">
-          <div style="flex:2;">
+        <!-- ACCORDION: CONFIGURAÇÕES DO BROKER MQTT -->
+        <div class="accordion">
+          <button type="button" class="accordion-btn" onclick="toggleAccordion('broker-acc')">
+            <span>Configurações do Broker MQTT (Avançado)</span>
+            <span class="accordion-arrow" id="broker-acc-arrow">&#x25b8;</span>
+          </button>
+          <div class="accordion-content" id="broker-acc">
             <label for="mqtt_server">Servidor Broker MQTT</label>
-            <input type="text" id="mqtt_server" name="mqtt_server" value="%MQTT_SERVER%" placeholder="Ex: 4.tcp.ngrok.io ou IP" required maxlength="64">
-          </div>
-          <div style="flex:1;">
-            <label for="mqtt_port">Porta</label>
-            <input type="number" id="mqtt_port" name="mqtt_port" value="%MQTT_PORT%" placeholder="1883" required min="1" max="65535">
-          </div>
-        </div>
+            <input type="text" id="mqtt_server" name="mqtt_server" value="%MQTT_SERVER%" placeholder="Ex: broker.hivemq.com ou IP" required maxlength="64">
 
-        <div style="display:flex;gap:10px;">
-          <div style="flex:1;">
+            <label for="mqtt_port">Porta MQTT</label>
+            <input type="number" id="mqtt_port" name="mqtt_port" value="%MQTT_PORT%" placeholder="1883" required min="1" max="65535">
+
             <label for="mqtt_user">Usuário MQTT (Opcional)</label>
             <input type="text" id="mqtt_user" name="mqtt_user" value="%MQTT_USER%" placeholder="Deixe em branco se anônimo" maxlength="32">
-          </div>
-          <div style="flex:1;">
+
             <label for="mqtt_password">Senha MQTT (Opcional)</label>
-            <input type="password" id="mqtt_password" name="mqtt_password" value="%MQTT_PASS%" placeholder="Senha" maxlength="64">
+            <input type="password" id="mqtt_password" name="mqtt_password" value="%MQTT_PASS%" placeholder="Deixe em branco se anônimo" maxlength="64">
           </div>
         </div>
 
-        <button type="submit" class="btn-primary" style="margin-top:14px;">Salvar e Conectar</button>
+        <button type="submit" class="btn-primary" style="margin-top:16px;">Salvar e Conectar</button>
       </form>
     </div>
 
@@ -705,6 +746,18 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
     function toggleSenha() {
       var p = document.getElementById('password');
       p.type = (p.type === 'password') ? 'text' : 'password';
+    }
+
+    function toggleAccordion(id) {
+      var c = document.getElementById(id);
+      var arrow = document.getElementById(id + '-arrow');
+      if (c.classList.contains('show')) {
+        c.classList.remove('show');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+      } else {
+        c.classList.add('show');
+        if (arrow) arrow.style.transform = 'rotate(90deg)';
+      }
     }
 
     function selecionarRede(nome) {
@@ -774,6 +827,7 @@ void handleRoot() {
   html.replace("%MQTT_USER%", mqtt_user);
   html.replace("%MQTT_PASS%", mqtt_password);
   html.replace("%WIFI_SSID%", wifi_ssid);
+  html.replace("%WIFI_PASS%", wifi_password);
 
   String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
   String macStr = (WiFi.status() == WL_CONNECTED) ? WiFi.macAddress() : WiFi.softAPmacAddress();
@@ -825,7 +879,11 @@ void handleSave() {
     strlcpy(wifi_ssid, server.arg("ssid").c_str(), sizeof(wifi_ssid));
   }
   if (server.hasArg("password")) {
-    strlcpy(wifi_password, server.arg("password").c_str(), sizeof(wifi_password));
+    String p = server.arg("password");
+    p.trim();
+    if (p.length() > 0) {
+      strlcpy(wifi_password, p.c_str(), sizeof(wifi_password));
+    }
   }
   if (server.hasArg("device_id")) {
     strlcpy(device_id, server.arg("device_id").c_str(), sizeof(device_id));
