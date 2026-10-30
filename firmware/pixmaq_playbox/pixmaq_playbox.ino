@@ -260,7 +260,7 @@ void acionarPulsos(int quantidade, const char* txId) {
   mqttClient.publish(statusTopic.c_str(), buffer);
 
   delay(1200);
-  desenhaTela("ONLINE", "Aguardando Pix...", WiFi.localIP().toString().c_str());
+  desenhaTela("ONLINE", "Aguardando Pagto", WiFi.localIP().toString().c_str());
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -313,7 +313,7 @@ void reconectarMQTT() {
       String statusTopic = "playbox/maquinas/" + String(device_id) + "/status";
       mqttClient.publish(statusTopic.c_str(), buf);
 
-      desenhaTela("ONLINE", "Aguardando Pix...", WiFi.localIP().toString().c_str());
+      desenhaTela("ONLINE", "Aguardando Pagto", WiFi.localIP().toString().c_str());
     } else {
       Serial.printf("Falha conexao MQTT (rc=%d). Tentando em 3s...\n", mqttClient.state());
       delay(3000);

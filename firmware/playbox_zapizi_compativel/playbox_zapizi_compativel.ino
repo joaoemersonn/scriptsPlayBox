@@ -3,7 +3,7 @@
  * 
  * Hardware: ESP32 ou ESP8266 (Placa dedicada com conector 8 pinos Zapizi)
  * - SEM TELA OLED (Operação autônoma e silenciosa com LEDs de status)
- * - 1x Saída Optoacoplada: Injeção de Crédito Pix no Moedeiro (NA / Coletor Aberto)
+ * - 1x Saída Optoacoplada: Injeção de Crédito Digital (Pix, Cartão, etc.) no Moedeiro (NA / Coletor Aberto)
  * - 2x Entradas Optoacopladas Isoladas para Pulsos de 12V:
  *     1. Relógio de Entrada da Grua (Odômetro de Dinheiro Físico / Fichas)
  *     2. Relógio de Saída da Grua (Odômetro de Pelúcias Ganhas / Prêmios)
@@ -37,17 +37,17 @@
 
 // --- PINAGEM DO HARDWARE COMPATÍVEL ZAPIZI ---
 #if defined(ESP32)
-  const int PIN_PULSO_PIX        = 23; // Optoacoplador Saída -> Fio Moedeiro (Laranja)
+  const int PIN_PULSO_DIGITAL    = 23; // Optoacoplador Saída -> Fio Moedeiro (Laranja)
   const int PIN_RELOGIO_ENTRADA  = 18; // Optoacoplador Entrada -> Relógio Moedas (12V)
   const int PIN_RELOGIO_SAIDA    = 19; // Optoacoplador Entrada -> Relógio Prêmios (12V)
   const int PIN_LED_WIFI         = 2;  // LED Azul (Conexão e Nuvem)
-  const int PIN_LED_PIX          = 4;  // LED Verde/Vermelho (Operação / Pulso)
+  const int PIN_LED_OPERACAO     = 4;  // LED Verde/Vermelho (Operação / Pulso)
 #else
-  const int PIN_PULSO_PIX        = 5;  // GPIO 5 (D1)
+  const int PIN_PULSO_DIGITAL    = 5;  // GPIO 5 (D1)
   const int PIN_RELOGIO_ENTRADA  = 12; // GPIO 12 (D6)
   const int PIN_RELOGIO_SAIDA    = 14; // GPIO 14 (D5)
   const int PIN_LED_WIFI         = 2;  // GPIO 2
-  const int PIN_LED_PIX          = 4;  // GPIO 4 (D2)
+  const int PIN_LED_OPERACAO     = 4;  // GPIO 4 (D2)
 #endif
 
 // --- DADOS DE CONFIGURACAO ---
@@ -60,9 +60,9 @@ char mqtt_user[33]     = "";
 char mqtt_password[65] = "";
 
 // --- CONTADORES ACUMULADOS (ODÔMETROS PERMANENTES) ---
-volatile unsigned long totalPulsosPix       = 0; // Créditos injetados pelo Pix
-volatile unsigned long totalRelogioEntrada  = 0; // Pulsos mecânicos de dinheiro/ficha
-volatile unsigned long totalRelogioSaida    = 0; // Pulsos mecânicos de pelúcia ganha
+volatile unsigned long totalCreditosDigitais = 0; // Créditos liberados por pagamentos digitais (Pix, Cartão, etc.)
+volatile unsigned long totalRelogioEntrada   = 0; // Pulsos mecânicos de dinheiro físico / fichas
+volatile unsigned long totalRelogioSaida     = 0; // Pulsos mecânicos de pelúcia ganha
 
 // Controle de debounce das interrupções dos relógios (bobinas de 12V geram ruído)
 volatile unsigned long lastDebounceEntrada = 0;
@@ -206,11 +206,11 @@ void carregarParametros() {
     if (f) {
       StaticJsonDocument<256> doc;
       if (!deserializeJson(doc, f)) {
-        totalPulsosPix      = doc["pulsos_pix"] | 0;
-        totalRelogioEntrada = doc["relogio_entrada"] | 0;
-        totalRelogioSaida   = doc["relogio_saida"] | 0;
-        Serial.printf(">>> ODOMETROS CARREGADOS: Pix=%lu | Entrada=%lu | Pelucias=%lu\n",
-          totalPulsosPix, totalRelogioEntrada, totalRelogioSaida);
+        totalCreditosDigitais = doc["creditos_digitais"] | doc["pulsos_pix"] | 0;
+        totalRelogioEntrada   = doc["relogio_entrada"] | 0;
+        totalRelogioSaida     = doc["relogio_saida"] | 0;
+        Serial.printf(">>> ODOMETROS CARREGADOS: Digitais=%lu | Entrada=%lu | Pelucias=%lu\n",
+          totalCreditosDigitais, totalRelogioEntrada, totalRelogioSaida);
       }
       f.close();
     }
@@ -236,9 +236,9 @@ void salvarParametros() {
 
 void salvarContadoresFlash() {
   StaticJsonDocument<256> doc;
-  doc["pulsos_pix"]       = totalPulsosPix;
-  doc["relogio_entrada"]  = totalRelogioEntrada;
-  doc["relogio_saida"]    = totalRelogioSaida;
+  doc["creditos_digitais"] = totalCreditosDigitais;
+  doc["relogio_entrada"]   = totalRelogioEntrada;
+  doc["relogio_saida"]     = totalRelogioSaida;
 
   File f = LittleFS.open("/counters.json", "w");
   if (f) {
@@ -258,21 +258,21 @@ void executarAtualizacaoRemotaOTA(const char* url) {
   #endif
 }
 
-// --- CONTROLE DE PULSO PIX & COMUNICAÇÃO MQTT ---
-void acionarPulsoPix(int quantidade, const char* txId) {
+// --- CONTROLE DE CRÉDITOS DIGITAIS & COMUNICAÇÃO MQTT ---
+void acionarPulsoCredito(int quantidade, const char* txId) {
   // Pisca o LED de operação
-  digitalWrite(PIN_LED_PIX, HIGH);
+  digitalWrite(PIN_LED_OPERACAO, HIGH);
 
   for (int i = 1; i <= quantidade; i++) {
     // Aciona optoacoplador para aterrar a linha do moedeiro momentaneamente (nível LOW na máquina)
-    digitalWrite(PIN_PULSO_PIX, HIGH);
+    digitalWrite(PIN_PULSO_DIGITAL, HIGH);
     delay(100);
-    digitalWrite(PIN_PULSO_PIX, LOW);
+    digitalWrite(PIN_PULSO_DIGITAL, LOW);
     delay(100);
-    totalPulsosPix++;
+    totalCreditosDigitais++;
   }
 
-  digitalWrite(PIN_LED_PIX, LOW);
+  digitalWrite(PIN_LED_OPERACAO, LOW);
   salvarContadoresFlash();
 
   // Envia confirmação imediata ao broker
@@ -281,7 +281,7 @@ void acionarPulsoPix(int quantidade, const char* txId) {
   doc["tx_id"] = txId;
   doc["maquina_id"] = device_id;
   doc["pulsos_liberados"] = quantidade;
-  doc["total_pix_acumulado"] = totalPulsosPix;
+  doc["total_digitais_acumulado"] = totalCreditosDigitais;
   doc["relogio_entrada"] = totalRelogioEntrada;
   doc["relogio_saida"] = totalRelogioSaida;
 
@@ -301,7 +301,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   const char* txId = doc["tx_id"] | "TX-UNKNOWN";
 
   if (strcmp(cmd, "pulse") == 0) {
-    acionarPulsoPix(qty, txId);
+    acionarPulsoCredito(qty, txId);
   } else if (strcmp(cmd, "ota") == 0 || strcmp(cmd, "ota_update") == 0) {
     const char* url = doc["url"] | "";
     if (strlen(url) > 0) executarAtualizacaoRemotaOTA(url);
@@ -337,7 +337,7 @@ void reconectarMQTT() {
       doc["evento"] = "online";
       doc["maquina_id"] = device_id;
       doc["ip"] = WiFi.localIP().toString();
-      doc["total_pix"] = totalPulsosPix;
+      doc["total_digitais"] = totalCreditosDigitais;
       doc["relogio_entrada"] = totalRelogioEntrada;
       doc["relogio_saida"] = totalRelogioSaida;
 
@@ -505,7 +505,7 @@ const char PAGE_PORTAL[] PROGMEM = R"rawhtml(
         <tr><td>Endereço MAC</td><td>%MAC_ADDR%</td></tr>
         <tr><td>Conexão Wi-Fi</td><td>%WIFI_STATUS%</td></tr>
         <tr><td>Broker MQTT</td><td>%MQTT_SERVER%:%MQTT_PORT%</td></tr>
-        <tr><td>Créditos Pix Liberados</td><td style="color:#db2777;font-weight:700;">%TOTAL_PIX%</td></tr>
+        <tr><td>Créditos Digitais</td><td style="color:#db2777;font-weight:700;">%TOTAL_DIGITAIS%</td></tr>
         <tr><td>Relógio Entrada (Espécie)</td><td style="color:#16a34a;font-weight:700;">%TOTAL_ENTRADA%</td></tr>
         <tr><td>Relógio Saída (Pelúcias)</td><td style="color:#2563eb;font-weight:700;">%TOTAL_SAIDA%</td></tr>
         <tr><td>Memória RAM Livre</td><td>%FREE_HEAP% KB</td></tr>
@@ -615,7 +615,7 @@ void handleRoot() {
   html.replace("%WIFI_SSID%", wifi_ssid);
   html.replace("%WIFI_PASS%", wifi_password);
 
-  html.replace("%TOTAL_PIX%", String(totalPulsosPix));
+  html.replace("%TOTAL_DIGITAIS%", String(totalCreditosDigitais));
   html.replace("%TOTAL_ENTRADA%", String(totalRelogioEntrada));
   html.replace("%TOTAL_SAIDA%", String(totalRelogioSaida));
 
@@ -817,14 +817,14 @@ void setup() {
   delay(300);
 
   // Configuração dos pinos de hardware
-  pinMode(PIN_PULSO_PIX, OUTPUT);
-  digitalWrite(PIN_PULSO_PIX, LOW);
+  pinMode(PIN_PULSO_DIGITAL, OUTPUT);
+  digitalWrite(PIN_PULSO_DIGITAL, LOW);
 
   pinMode(PIN_LED_WIFI, OUTPUT);
   digitalWrite(PIN_LED_WIFI, LOW);
 
-  pinMode(PIN_LED_PIX, OUTPUT);
-  digitalWrite(PIN_LED_PIX, LOW);
+  pinMode(PIN_LED_OPERACAO, OUTPUT);
+  digitalWrite(PIN_LED_OPERACAO, LOW);
 
   // Configuração das entradas dos relógios com interrupção (resistor pull-up interno)
   pinMode(PIN_RELOGIO_ENTRADA, INPUT_PULLUP);
@@ -938,7 +938,7 @@ void loop() {
     doc["evento"] = "ping";
     doc["maquina_id"] = device_id;
     doc["rssi"] = WiFi.RSSI();
-    doc["total_pix"] = totalPulsosPix;
+    doc["total_digitais"] = totalCreditosDigitais;
     doc["relogio_entrada"] = totalRelogioEntrada;
     doc["relogio_saida"] = totalRelogioSaida;
     doc["uptime"] = millis() / 1000;

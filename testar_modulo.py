@@ -45,15 +45,18 @@ def on_message(client, userdata, msg):
         
         if evento == "ping":
             rssi = data.get("rssi")
-            pulsos = data.get("total_pulsos")
-            print(f"\n📥 [PING RECEBIDO] Módulo: {data.get('maquina_id')} | Sinal Wi-Fi: {rssi} dBm | Total Pulsos: {pulsos}")
+            pulsos = data.get("total_digitais", data.get("total_pulsos", 0))
+            entrada = data.get("relogio_entrada")
+            saida = data.get("relogio_saida")
+            extra = f" | Moedas: {entrada} | Pelúcias: {saida}" if entrada is not None else ""
+            print(f"\n📥 [PING RECEBIDO] Módulo: {data.get('maquina_id')} | Sinal: {rssi} dBm | Créditos Digitais: {pulsos}{extra}")
         elif evento == "ok":
             tx = data.get("tx_id")
             liberados = data.get("pulsos_liberados")
-            total = data.get("total_acumulado")
-            print(f"\n⚡ [PULSO CONFIRMADO!] Tx: {tx} | Liberados: {liberados} jogada(s) | Total na máquina: {total}")
+            total = data.get("total_digitais_acumulado", data.get("total_acumulado", 0))
+            print(f"\n⚡ [CRÉDITO CONFIRMADO!] Tx: {tx} | Liberados: {liberados} jogada(s) | Total acumulado: {total}")
         elif evento == "online":
-            print(f"\n🟢 [MÓDULO ONLINE] IP na rede local: {data.get('ip')}")
+            print(f"\n🟢 [MÓDULO ONLINE] ID: {data.get('maquina_id')} | IP Local: {data.get('ip')}")
         else:
             print(f"\n📬 [MENSAGEM] {msg.payload.decode('utf-8')}")
     except Exception:
