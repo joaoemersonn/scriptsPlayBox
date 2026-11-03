@@ -231,20 +231,23 @@ public class OfflineMonitorService {
         if (maquinaRepository != null) {
             try {
                 List<Maquina> playboxMaquinas = maquinaRepository.findByIntegracao("PLAYBOX");
-                LocalDateTime limiteOffline = LocalDateTime.now().minusMinutes(10);
+                LocalDateTime limiteOffline = LocalDateTime.now().minusMinutes(5);
                 for (Maquina m : playboxMaquinas) {
-                    if (m.isAtivo()) {
-                        String ident = m.getNomeIntegracao() != null && !m.getNomeIntegracao().isBlank()
+                    if (m.isAtivo() && m.getEstabelecimento() != null &&
+                            !m.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
+                        String ident = resolverNomeExibicao(m, m.getNomeIntegracao() != null && !m.getNomeIntegracao().isBlank()
                                 ? m.getNomeIntegracao()
-                                : ("PlayBox " + m.getExternalId());
-                        if (m.getLastHeartbeat() == null || m.getLastHeartbeat().isBefore(limiteOffline)) {
-                            m.setOnline(false);
+                                : ("PlayBox " + m.getExternalId()));
+                        boolean isOnline = m.getLastHeartbeat() != null && m.getLastHeartbeat().isAfter(limiteOffline);
+                        m.setOnline(isOnline);
+                        if (!isOnline) {
                             String timeStr = m.getLastHeartbeat() != null
                                     ? m.getLastHeartbeat().format(DATE_TIME_FORMATTER)
                                     : "Sem sinal recente";
                             playboxOffline.put(ident, timeStr);
-                        } else {
-                            m.setOnline(true);
+                            if (m.getNomeIntegracao() != null && !m.getNomeIntegracao().isBlank()) {
+                                playboxOffline.put(m.getNomeIntegracao().trim(), timeStr);
+                            }
                         }
                     }
                 }
@@ -740,6 +743,41 @@ public class OfflineMonitorService {
         pruneInactiveOrStorelessMachines(offline, timestamps);
         migrateLegacyOfflineNames(offline, timestamps);
 
+        // Sincroniza em tempo real as máquinas com módulo nativo PLAYBOX
+        if (maquinaRepository != null) {
+            try {
+                List<Maquina> playboxMaquinas = maquinaRepository.findByIntegracao("PLAYBOX");
+                LocalDateTime limiteOffline = LocalDateTime.now().minusMinutes(5);
+                for (Maquina pm : playboxMaquinas) {
+                    if (pm.isAtivo() && pm.getEstabelecimento() != null &&
+                            !pm.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
+                        boolean isOnline = pm.getLastHeartbeat() != null && pm.getLastHeartbeat().isAfter(limiteOffline);
+                        pm.setOnline(isOnline);
+                        String ident = resolverNomeExibicao(pm, pm.getNomeIntegracao());
+                        String nomeInt = pm.getNomeIntegracao() != null ? pm.getNomeIntegracao().trim() : null;
+                        if (!isOnline) {
+                            offline.add(ident);
+                            if (nomeInt != null && !nomeInt.isBlank()) {
+                                offline.add(nomeInt);
+                            }
+                            String ts = pm.getLastHeartbeat() != null ? pm.getLastHeartbeat().format(DATE_TIME_FORMATTER) : "Sem sinal recente";
+                            timestamps.putIfAbsent(ident, ts);
+                            if (nomeInt != null && !nomeInt.isBlank()) {
+                                timestamps.putIfAbsent(nomeInt, ts);
+                            }
+                        } else {
+                            offline.remove(ident);
+                            if (nomeInt != null) offline.remove(nomeInt);
+                            timestamps.remove(ident);
+                            if (nomeInt != null) timestamps.remove(nomeInt);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Aviso ao sincronizar PlayBox em getStatusAtual: {}", e.getMessage());
+            }
+        }
+
         Set<String> failing = loadFileSet(failingIntegrationsFile);
         String lastNotification = loadFileText(previousMessageFile);
 
@@ -757,6 +795,82 @@ public class OfflineMonitorService {
         status.put("failingIntegrations", new ArrayList<>(failing));
         status.put("ultimaNotificacao", lastNotification);
         return status;
+    }
+
+    /**
+     * Sincroniza alteração ou renomeação de uma máquina com o cache de status offline em disco e memória.
+     * Garante que uma máquina renomeada não volte indevidamente para "ONLINE" ou cause inconsistências.
+     */
+    public synchronized void sincronizarAlteracaoMaquina(Maquina maquina, String nomeAnterior) {
+        if (maquina == null) return;
+        Path dataDir = resolveDataDirectory();
+        Path previousOfflineFile = dataDir.resolve("offline_status.txt");
+        Path offlineTimestampsFile = dataDir.resolve("offline_timestamps.json");
+
+        Set<String> offline = loadFileSet(previousOfflineFile);
+        Map<String, String> timestamps = loadOfflineTimestamps(offlineTimestampsFile);
+
+        String novoNome = resolverNomeExibicao(maquina, maquina.getNomeIntegracao());
+        String novoNomeIntegracao = maquina.getNomeIntegracao() != null ? maquina.getNomeIntegracao().trim() : null;
+
+        boolean eraOffline = false;
+        String timestampSalvo = null;
+
+        if (nomeAnterior != null && !nomeAnterior.isBlank()) {
+            String anteriorTrim = nomeAnterior.trim().toLowerCase();
+            for (String item : new ArrayList<>(offline)) {
+                String itemLower = item.toLowerCase();
+                if (itemLower.equals(anteriorTrim) || itemLower.contains(anteriorTrim) || anteriorTrim.contains(itemLower)) {
+                    eraOffline = true;
+                    if (timestamps.containsKey(item)) {
+                        timestampSalvo = timestamps.remove(item);
+                    }
+                    offline.remove(item);
+                }
+            }
+        }
+
+        if ("PLAYBOX".equalsIgnoreCase(maquina.getIntegracao())) {
+            boolean isOnline = maquina.getOnline() != null && maquina.getOnline();
+            if (!isOnline && maquina.isAtivo() && maquina.getEstabelecimento() != null &&
+                    !maquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
+                eraOffline = true;
+                if (timestampSalvo == null) {
+                    timestampSalvo = maquina.getLastHeartbeat() != null
+                            ? maquina.getLastHeartbeat().format(DATE_TIME_FORMATTER)
+                            : "Sem sinal recente";
+                }
+            } else if (isOnline) {
+                eraOffline = false;
+            }
+        }
+
+        if (eraOffline && maquina.isAtivo() && maquina.getEstabelecimento() != null &&
+                !maquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
+            offline.add(novoNome);
+            if (novoNomeIntegracao != null && !novoNomeIntegracao.isBlank()) {
+                offline.add(novoNomeIntegracao);
+            }
+            if (timestampSalvo == null) {
+                timestampSalvo = maquina.getLastHeartbeat() != null
+                        ? maquina.getLastHeartbeat().format(DATE_TIME_FORMATTER)
+                        : "Sem sinal recente";
+            }
+            timestamps.put(novoNome, timestampSalvo);
+            if (novoNomeIntegracao != null && !novoNomeIntegracao.isBlank()) {
+                timestamps.put(novoNomeIntegracao, timestampSalvo);
+            }
+        } else {
+            offline.remove(novoNome);
+            if (novoNomeIntegracao != null) offline.remove(novoNomeIntegracao);
+            timestamps.remove(novoNome);
+            if (novoNomeIntegracao != null) timestamps.remove(novoNomeIntegracao);
+        }
+
+        saveFileSet(previousOfflineFile, offline);
+        saveOfflineTimestamps(offlineTimestampsFile, timestamps);
+        log.info("Sincronização de máquina '{}' (anterior: '{}') concluída. Offline: {}",
+                novoNome, nomeAnterior, eraOffline);
     }
 
     public void pruneInactiveOrStorelessMachines(Set<String> offlineSet, Map<String, String> timestampsMap) {

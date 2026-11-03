@@ -1164,12 +1164,18 @@ function renderMachinesGrid(machines, monitor) {
     let isOffline = false;
     let offlineSince = null;
     if (hasStore && isActive) {
-      for (const [offName, ts] of offlineMap.entries()) {
-        if (cleanName.includes(offName) || offName.includes(cleanName) ||
-            (estName && (estName.includes(offName) || offName.includes(estName)))) {
-          isOffline = true;
-          offlineSince = ts;
-          break;
+      if (m.integracao === 'PLAYBOX' && (!m.online || m.online === false)) {
+        isOffline = true;
+        offlineSince = m.lastHeartbeat ? formatDateTime(m.lastHeartbeat) : 'Sem sinal recente';
+      }
+      if (!isOffline) {
+        for (const [offName, ts] of offlineMap.entries()) {
+          if (cleanName.includes(offName) || offName.includes(cleanName) ||
+              (estName && (estName.includes(offName) || offName.includes(estName)))) {
+            isOffline = true;
+            offlineSince = ts;
+            break;
+          }
         }
       }
     }
@@ -1328,11 +1334,15 @@ function filterMachines() {
     // Offline check: only active machines with store can be offline
     let isOff = false;
     if (hasStore && isActive) {
-      for (const offName of offlineMap.keys()) {
-        if (name.includes(offName) || offName.includes(name) ||
-            (estName && (estName.includes(offName) || offName.includes(estName)))) {
-          isOff = true;
-          break;
+      if (m.integracao === 'PLAYBOX' && (!m.online || m.online === false)) {
+        isOff = true;
+      } else {
+        for (const offName of offlineMap.keys()) {
+          if (name.includes(offName) || offName.includes(name) ||
+              (estName && (estName.includes(offName) || offName.includes(estName)))) {
+            isOff = true;
+            break;
+          }
         }
       }
     }

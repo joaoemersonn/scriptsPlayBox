@@ -26,17 +26,20 @@ public class MaquinaController {
     private final EstabelecimentoRepository estabelecimentoRepository;
     private final MachineSyncService machineSyncService;
     private final br.com.playbox.service.HistoricoVinculoService historicoVinculoService;
+    private final br.com.playbox.service.OfflineMonitorService offlineMonitorService;
 
     public MaquinaController(
             MaquinaRepository maquinaRepository,
             EstabelecimentoRepository estabelecimentoRepository,
             MachineSyncService machineSyncService,
-            br.com.playbox.service.HistoricoVinculoService historicoVinculoService
+            br.com.playbox.service.HistoricoVinculoService historicoVinculoService,
+            br.com.playbox.service.OfflineMonitorService offlineMonitorService
     ) {
         this.maquinaRepository = maquinaRepository;
         this.estabelecimentoRepository = estabelecimentoRepository;
         this.machineSyncService = machineSyncService;
         this.historicoVinculoService = historicoVinculoService;
+        this.offlineMonitorService = offlineMonitorService;
     }
 
     @GetMapping
@@ -78,13 +81,21 @@ public class MaquinaController {
     @Operation(summary = "Atualizar detalhes da máquina (número da planilha, descrição, ativo)")
     public ResponseEntity<Maquina> atualizar(@PathVariable Long id, @RequestBody Maquina dados) {
         return maquinaRepository.findById(id).map(existente -> {
+            String nomeAnterior = existente.getNomeIntegracao();
             if (dados.getNumeroPlanilha() != null) existente.setNumeroPlanilha(dados.getNumeroPlanilha());
             if (dados.getDescricao() != null) existente.setDescricao(dados.getDescricao());
             if (dados.getNomeIntegracao() != null) existente.setNomeIntegracao(dados.getNomeIntegracao());
             if (dados.getExternalId() != null) existente.setExternalId(dados.getExternalId());
             if (dados.getIntegracao() != null) existente.setIntegracao(dados.getIntegracao());
             existente.setAtivo(dados.isAtivo());
-            return ResponseEntity.ok(maquinaRepository.save(existente));
+            if ("PLAYBOX".equalsIgnoreCase(existente.getIntegracao())) {
+                existente.setOnline(existente.getOnline());
+            }
+            Maquina salva = maquinaRepository.save(existente);
+            if (offlineMonitorService != null) {
+                offlineMonitorService.sincronizarAlteracaoMaquina(salva, nomeAnterior);
+            }
+            return ResponseEntity.ok(salva);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -93,7 +104,11 @@ public class MaquinaController {
     public ResponseEntity<Maquina> desativar(@PathVariable Long id) {
         return maquinaRepository.findById(id).map(maq -> {
             maq.setAtivo(false);
-            return ResponseEntity.ok(maquinaRepository.save(maq));
+            Maquina salva = maquinaRepository.save(maq);
+            if (offlineMonitorService != null) {
+                offlineMonitorService.sincronizarAlteracaoMaquina(salva, salva.getNomeIntegracao());
+            }
+            return ResponseEntity.ok(salva);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -102,7 +117,11 @@ public class MaquinaController {
     public ResponseEntity<Maquina> ativar(@PathVariable Long id) {
         return maquinaRepository.findById(id).map(maq -> {
             maq.setAtivo(true);
-            return ResponseEntity.ok(maquinaRepository.save(maq));
+            Maquina salva = maquinaRepository.save(maq);
+            if (offlineMonitorService != null) {
+                offlineMonitorService.sincronizarAlteracaoMaquina(salva, salva.getNomeIntegracao());
+            }
+            return ResponseEntity.ok(salva);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -119,7 +138,11 @@ public class MaquinaController {
         }
 
         historicoVinculoService.alocarMaquina(id, estabelecimentoId, dataHora, motivo);
-        return ResponseEntity.ok(maquinaRepository.findById(id).orElse(null));
+        Maquina salva = maquinaRepository.findById(id).orElse(null);
+        if (salva != null && offlineMonitorService != null) {
+            offlineMonitorService.sincronizarAlteracaoMaquina(salva, salva.getNomeIntegracao());
+        }
+        return ResponseEntity.ok(salva);
     }
 
     @DeleteMapping("/{id}/desalocar")
@@ -134,7 +157,11 @@ public class MaquinaController {
         }
 
         historicoVinculoService.desalocarMaquina(id, dataHora, motivo);
-        return ResponseEntity.ok(maquinaRepository.findById(id).orElse(null));
+        Maquina salva = maquinaRepository.findById(id).orElse(null);
+        if (salva != null && offlineMonitorService != null) {
+            offlineMonitorService.sincronizarAlteracaoMaquina(salva, salva.getNomeIntegracao());
+        }
+        return ResponseEntity.ok(salva);
     }
 
     @GetMapping("/{id}/historico-vinculos")

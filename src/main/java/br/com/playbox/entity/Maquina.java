@@ -247,6 +247,12 @@ public class Maquina {
     }
 
     public Boolean getOnline() {
+        if ("PLAYBOX".equalsIgnoreCase(integracao)) {
+            if (lastHeartbeat == null || lastHeartbeat.isBefore(LocalDateTime.now().minusMinutes(5))) {
+                return false;
+            }
+            return true;
+        }
         return online != null ? online : false;
     }
 

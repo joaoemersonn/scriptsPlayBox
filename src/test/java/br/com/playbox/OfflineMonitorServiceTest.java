@@ -277,4 +277,41 @@ class OfflineMonitorServiceTest {
         assertEquals("21/10/2026 14:09", timestamps.get("Casa Nobre"));
         assertNull(timestamps.get("Casa Nobre - Sertania"));
     }
+
+    @Test
+    void testSincronizarAlteracaoMaquinaRenomeada(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) {
+        br.com.playbox.repository.MaquinaRepository mockRepo = org.mockito.Mockito.mock(br.com.playbox.repository.MaquinaRepository.class);
+        AppProperties properties = new AppProperties();
+        properties.setDataDir(tempDir.toString());
+        OfflineMonitorService service = new OfflineMonitorService(null, null, null, properties, objectMapper, mockRepo);
+
+        br.com.playbox.entity.Estabelecimento est = new br.com.playbox.entity.Estabelecimento();
+        est.setId(10L);
+        est.setNome("Arena Games");
+
+        br.com.playbox.entity.Maquina m = new br.com.playbox.entity.Maquina();
+        m.setId(99L);
+        m.setIntegracao("PLAYBOX");
+        m.setAtivo(true);
+        m.setEstabelecimento(est);
+        m.setLastHeartbeat(java.time.LocalDateTime.now().minusHours(2)); // Offline há 2 horas
+        m.setNomeIntegracao("Modulo Antigo");
+
+        org.mockito.Mockito.when(mockRepo.findByEstabelecimentoId(10L)).thenReturn(List.of(m, new br.com.playbox.entity.Maquina()));
+
+        // Sincroniza máquina inicialmente offline
+        service.sincronizarAlteracaoMaquina(m, null);
+
+        java.nio.file.Path statusFile = tempDir.resolve("offline_status.txt");
+        java.util.Set<String> offline = service.loadFileSet(statusFile);
+        assertTrue(offline.contains("Modulo Antigo"));
+
+        // Agora renomeia a máquina para "Modulo Novo"
+        m.setNomeIntegracao("Modulo Novo");
+        service.sincronizarAlteracaoMaquina(m, "Modulo Antigo");
+
+        java.util.Set<String> offlineAtualizado = service.loadFileSet(statusFile);
+        assertFalse(offlineAtualizado.contains("Modulo Antigo"), "Nome antigo deve ser removido do cache offline");
+        assertTrue(offlineAtualizado.contains("Modulo Novo"), "Novo nome deve continuar marcado como offline");
+    }
 }
