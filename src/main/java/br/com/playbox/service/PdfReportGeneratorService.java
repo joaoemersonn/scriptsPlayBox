@@ -48,6 +48,10 @@ public class PdfReportGeneratorService {
     }
 
     public byte[] gerarRelatorioOperacoesPdf(RelatorioOperacoesDTO dto, boolean incluirHistorico) {
+        return gerarRelatorioOperacoesPdf(dto, incluirHistorico, false);
+    }
+
+    public byte[] gerarRelatorioOperacoesPdf(RelatorioOperacoesDTO dto, boolean incluirHistorico, boolean incluirIdentificador) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         // Margens confortáveis A4 (25pt esquerda/direita, 25pt topo/base)
@@ -94,7 +98,7 @@ public class PdfReportGeneratorService {
                 histTitle.setSpacingAfter(4f);
                 document.add(histTitle);
 
-                adicionarTabelaHistorico(document, dto);
+                adicionarTabelaHistorico(document, dto, incluirIdentificador);
             }
 
             document.close();
@@ -205,18 +209,21 @@ public class PdfReportGeneratorService {
         document.add(table);
     }
 
-    private void adicionarTabelaHistorico(Document document, RelatorioOperacoesDTO dto) throws DocumentException {
-        PdfPTable table = new PdfPTable(8);
+    private void adicionarTabelaHistorico(Document document, RelatorioOperacoesDTO dto, boolean incluirIdentificador) throws DocumentException {
+        int numCols = incluirIdentificador ? 8 : 7;
+        PdfPTable table = new PdfPTable(numCols);
         table.setWidthPercentage(100f);
-        table.setWidths(new float[]{16f, 17f, 8.5f, 13f, 14.5f, 10f, 10.5f, 15.5f});
+        if (incluirIdentificador) {
+            table.setWidths(new float[]{15f, 18f, 9f, 13f, 15f, 10f, 10f, 10f});
+        } else {
+            table.setWidths(new float[]{18f, 22f, 10f, 15f, 11f, 12f, 12f});
+        }
         table.setHeaderRows(1); // Repete o cabeçalho em todas as páginas automaticamente!
 
         // Cabeçalhos da tabela detalhada
-        String[] headers = {
-                "Data", "Máquina", "Valor", "na de Pagam", "Identificador MP", "Estornado", "Creditado na Máquina", "Motivo Estorno"
-        };
-        // Ajuste no cabeçalho exato: "Forma de Pagamento"
-        headers[3] = "Forma de Pagamento";
+        String[] headers = incluirIdentificador
+                ? new String[]{"Data", "Máquina", "Valor", "Forma de Pagamento", "Identificador", "Estornado", "Creditado na Máquina", "Motivo Estorno"}
+                : new String[]{"Data", "Máquina", "Valor", "Forma de Pagamento", "Estornado", "Creditado na Máquina", "Motivo Estorno"};
 
         Font fontHeader = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7.5f, Color.BLACK);
         for (String h : headers) {
@@ -250,9 +257,11 @@ public class PdfReportGeneratorService {
             Font fontForma = item.isPremio() ? fontPremio : fontNormal;
             table.addCell(createMovementCell(item.getFormaPagamento(), fontForma, Element.ALIGN_CENTER));
 
-            // 5. Identificador MP (se for prêmio, destaca em dourado)
-            Font fontId = item.isPremio() ? fontPremio : fontNormal;
-            table.addCell(createMovementCell(item.getIdentificadorMp(), fontId, Element.ALIGN_CENTER));
+            // 5. Identificador (opcional)
+            if (incluirIdentificador) {
+                Font fontId = item.isPremio() ? fontPremio : fontNormal;
+                table.addCell(createMovementCell(item.getIdentificadorMp(), fontId, Element.ALIGN_CENTER));
+            }
 
             // 6. Estornado (Recebido = verde, Não Recebido = vermelho)
             Font fontEst = item.isEstornado() ? fontRed : fontGreen;
@@ -264,7 +273,7 @@ public class PdfReportGeneratorService {
 
             // 8. Motivo Estorno
             String motivo = item.getMotivoEstorno() != null ? item.getMotivoEstorno() : "";
-            table.addCell(createMovementCell(motivo, fontSmallReason, Element.ALIGN_LEFT));
+            table.addCell(createMovementCell(item.isEstornado() ? motivo : "", fontSmallReason, Element.ALIGN_LEFT));
         }
 
         document.add(table);

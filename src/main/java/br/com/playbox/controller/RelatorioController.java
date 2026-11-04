@@ -70,7 +70,10 @@ public class RelatorioController {
             @RequestParam(required = false) String tituloUnidade,
 
             @Parameter(description = "Incluir tabela com histórico de movimentações detalhado (default: true)")
-            @RequestParam(required = false, defaultValue = "true") boolean incluirHistorico
+            @RequestParam(required = false, defaultValue = "true") boolean incluirHistorico,
+
+            @Parameter(description = "Incluir coluna de Identificador na tabela de movimentações (default: false)")
+            @RequestParam(required = false, defaultValue = "false") boolean incluirIdentificador
     ) {
         byte[] pdf = relatorioOperacoesService.gerarPdf(
                 estabelecimentoId,
@@ -84,7 +87,8 @@ public class RelatorioController {
                 visitasManutencao,
                 percentualRepasse,
                 tituloUnidade,
-                incluirHistorico
+                incluirHistorico,
+                incluirIdentificador
         );
 
         String filename = "relatorio-operacoes" + (estabelecimentoId != null ? "-estab-" + estabelecimentoId : "") + ".pdf";

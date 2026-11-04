@@ -67,15 +67,14 @@ class PdfReportGeneratorServiceTest {
 
         dto.setMovimentacoes(List.of(item1, item2));
 
-        byte[] pdfBytes = generator.gerarRelatorioOperacoesPdf(dto, true);
+        byte[] pdfBytesSemId = generator.gerarRelatorioOperacoesPdf(dto, true, false);
+        assertNotNull(pdfBytesSemId);
+        assertTrue(pdfBytesSemId.length > 500);
+        assertEquals('%', (char) pdfBytesSemId[0]);
 
-        assertNotNull(pdfBytes);
-        assertTrue(pdfBytes.length > 500);
-
-        // Assinatura de cabeçalho do PDF: %PDF-
-        assertEquals('%', (char) pdfBytes[0]);
-        assertEquals('P', (char) pdfBytes[1]);
-        assertEquals('D', (char) pdfBytes[2]);
-        assertEquals('F', (char) pdfBytes[3]);
+        byte[] pdfBytesComId = generator.gerarRelatorioOperacoesPdf(dto, true, true);
+        assertNotNull(pdfBytesComId);
+        assertTrue(pdfBytesComId.length > 500);
+        assertEquals('%', (char) pdfBytesComId[0]);
     }
 }

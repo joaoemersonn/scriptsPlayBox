@@ -3309,7 +3309,8 @@ async function downloadRelatorioPdf() {
   const visitas = document.getElementById('pdf-param-visitas')?.value || '350.00';
   const repasse = document.getElementById('pdf-param-repasse')?.value || '25.0';
 
-  let url = `/api/relatorios/pdf?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}`;
+  const incluirIdentificador = document.getElementById('pdf-param-identificador')?.checked || false;
+  let url = `/api/relatorios/pdf?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}&incluirIdentificador=${incluirIdentificador}`;
   if (estabId) url += `&estabelecimentoId=${estabId}`;
 
   if (periodo === 'custom') {

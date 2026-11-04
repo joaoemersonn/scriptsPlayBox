@@ -322,6 +322,38 @@ public class RelatorioOperacoesService {
             String tituloUnidade,
             boolean incluirHistorico
     ) {
+        return gerarPdf(
+                estabelecimentoId,
+                maquinaId,
+                periodo,
+                dataInicio,
+                dataFim,
+                valorUnitarioPelucia,
+                taxaMaquininhaPercentual,
+                mensalidadeTelemetria,
+                visitasManutencao,
+                percentualRepasse,
+                tituloUnidade,
+                incluirHistorico,
+                false
+        );
+    }
+
+    public byte[] gerarPdf(
+            Long estabelecimentoId,
+            Long maquinaId,
+            String periodo,
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            Double valorUnitarioPelucia,
+            Double taxaMaquininhaPercentual,
+            Double mensalidadeTelemetria,
+            Double visitasManutencao,
+            Double percentualRepasse,
+            String tituloUnidade,
+            boolean incluirHistorico,
+            boolean incluirIdentificador
+    ) {
         RelatorioOperacoesDTO dto = compilarRelatorio(
                 estabelecimentoId,
                 maquinaId,
@@ -336,6 +368,6 @@ public class RelatorioOperacoesService {
                 tituloUnidade
         );
 
-        return pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico);
+        return pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador);
     }
 }

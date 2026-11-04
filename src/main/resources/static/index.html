@@ -1445,6 +1445,15 @@
               <input type="number" step="1" id="pdf-param-repasse" value="25.0" oninput="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
             </div>
 
+            <!-- Opção Coluna Identificador -->
+            <div class="pt-2 border-t border-slate-100">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" id="pdf-param-identificador" class="w-4 h-4 rounded text-pink-600 border-slate-300 focus:ring-pink-500">
+                <span class="text-xs font-semibold text-slate-700">Incluir coluna "Identificador"</span>
+              </label>
+              <p class="text-[11px] text-slate-500 mt-0.5 ml-6">Desativado por padrão para um PDF mais limpo e compacto.</p>
+            </div>
+
             <!-- Download Button -->
             <button onclick="downloadRelatorioPdf()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs shadow-md shadow-pink-500/20 active:scale-95 transition">
               <i data-lucide="download" class="w-4 h-4"></i> Baixar Relatório em PDF
