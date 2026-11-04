@@ -165,9 +165,9 @@ const TAB_METADATA = {
   maquinas: { title: 'Máquinas & Status', subtitle: 'Telemetria e monitoramento de conectividade' },
   estoque: { title: 'Estoque Pelúcias', subtitle: 'Controle de níveis e reposição física' },
   coletas: { title: 'Coleta Espécie', subtitle: 'Auditoria de notas e moedas físicas' },
-  alugueis: { title: 'Aluguéis & Repasses', subtitle: 'Contratos fixos e dinâmicos com pontos comerciais' },
+  alugueis: { title: 'Aluguéis & Repasses', subtitle: 'Contratos fixos e dinâmicos com estabelecimentos' },
   transacoes: { title: 'Transações & Testes', subtitle: 'Auditoria financeira e desconsideração de testes' },
-  estabelecimentos: { title: 'Pontos Comerciais', subtitle: 'Lojas parceiras e histórico de máquinas' },
+  estabelecimentos: { title: 'Estabelecimentos', subtitle: 'Lojas parceiras e histórico de máquinas' },
   relatorios: { title: 'Relatório PDF', subtitle: 'Fechamentos mensais e extratos executivos' },
   configuracoes: { title: 'Agendamentos & WhatsApp', subtitle: 'Personalização de disparos e relatórios dinâmicos' }
 };
@@ -2676,10 +2676,10 @@ function renderAlugueisTable(items) {
 
     return `
       <tr class="${rowBg} transition border-b border-slate-100">
-        <!-- Coluna 1: Ponto Comercial & Local -->
+        <!-- Coluna 1: Estabelecimento & Local -->
         <td class="p-3.5">
           <div class="font-black text-slate-900 text-xs sm:text-sm hover:text-pink-600 transition cursor-pointer flex items-center gap-1.5" onclick="openHistoricoAluguelModal(${est.id}, '${escapeHtml(est.nome)}')" title="Clique para ver o histórico completo de pagamentos desta loja">
-            <span>${escapeHtml(est.nome || 'Ponto Comercial')}</span>
+            <span>${escapeHtml(est.nome || 'Estabelecimento')}</span>
             <i data-lucide="history" class="w-3.5 h-3.5 text-slate-400 hover:text-pink-600"></i>
           </div>
           <div class="text-[11px] text-slate-500 font-medium flex items-center gap-2 mt-0.5 flex-wrap">
@@ -2787,7 +2787,7 @@ async function openPagarAluguelModal(aluguelId) {
         if (pixChaveEl) pixChaveEl.textContent = pixKey.chaveOuDetalhe;
         if (btnCopiar) btnCopiar.style.display = 'inline-block';
       } else {
-        if (pixChaveEl) pixChaveEl.textContent = 'Nenhuma chave PIX cadastrada para este ponto comercial.';
+        if (pixChaveEl) pixChaveEl.textContent = 'Nenhuma chave PIX cadastrada para este estabelecimento.';
       }
     } catch (e) {
       if (pixChaveEl) pixChaveEl.textContent = 'Não foi possível carregar a chave PIX.';
@@ -2871,7 +2871,7 @@ async function confirmarDefinirValorAluguel() {
 async function openHistoricoAluguelModal(estabelecimentoId, nomeLoja) {
   const sub = document.getElementById('historico-aluguel-loja-sub');
   const tbody = document.getElementById('historico-aluguel-tbody');
-  if (sub) sub.textContent = `Ponto Comercial: ${nomeLoja}`;
+  if (sub) sub.textContent = `Estabelecimento: ${nomeLoja}`;
   if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">Carregando histórico do banco de dados...</td></tr>';
 
   openModal('modal-historico-aluguel');
@@ -2950,7 +2950,7 @@ function openCalcularDinamicoModal(aluguelId) {
   const est = item?.estabelecimento || {};
 
   document.getElementById('calc-dinamico-id').value = aluguelId;
-  document.getElementById('calc-dinamico-loja-sub').textContent = `${est.nome || 'Ponto Comercial'} • Mês: ${item?.mesAno || '--'} (Lucro do mês anterior)`;
+  document.getElementById('calc-dinamico-loja-sub').textContent = `${est.nome || 'Estabelecimento'} • Mês: ${item?.mesAno || '--'} (Lucro do mês anterior)`;
 
   document.getElementById('calc-dinamico-pelucia').value = est.valorUnitarioPelucia != null ? Number(est.valorUnitarioPelucia).toFixed(2) : '19.90';
   document.getElementById('calc-dinamico-taxa').value = est.taxaMaquininha != null ? Number(est.taxaMaquininha).toFixed(2) : '4.99';
@@ -2987,7 +2987,7 @@ async function calcularDinamicoIndividual(id) {
 
 
 // ============================================================================
-// TAB 6: PONTOS COMERCIAIS (ESTABELECIMENTOS)
+// TAB 6: ESTABELECIMENTOS
 // ============================================================================
 
 async function loadEstabelecimentosData() {
@@ -3047,8 +3047,8 @@ function renderEstabelecimentosGrid(stores) {
             <button onclick="openEditEstabelecimentoModal(${e.id})" class="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 transition shadow-sm" title="Editar">
               <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
             </button>
-            <button onclick="toggleEstabelecimentoAtivo(${e.id}, ${e.ativo})" class="p-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 ${e.ativo ? 'text-amber-600' : 'text-emerald-600'} transition shadow-sm" title="${e.ativo ? 'Desativar ponto' : 'Reativar ponto'}">
-              <i data-lucide="${e.ativo ? 'pause' : 'play'}" class="w-3.5 h-3.5"></i>
+            <button onclick="toggleEstabelecimentoAtivo(${e.id}, ${e.ativo})" class="p-2 rounded-xl border transition shadow-sm ${e.ativo ? 'bg-white hover:bg-rose-50 border-slate-300 text-slate-500 hover:text-rose-600' : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'}" title="${e.ativo ? 'Desativar estabelecimento' : 'Ativar estabelecimento'}">
+              <i data-lucide="power" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </div>
@@ -3069,7 +3069,7 @@ function filterEstabelecimentos() {
 }
 
 function openCreateEstabelecimentoModal() {
-  document.getElementById('modal-estab-title').innerHTML = '<i data-lucide="store" class="w-4 h-4 text-purple-400"></i> Cadastrar Novo Ponto Comercial';
+  document.getElementById('modal-estab-title').innerHTML = '<i data-lucide="store" class="w-4 h-4 text-purple-400"></i> Cadastrar Novo Estabelecimento';
   document.getElementById('estab-id').value = '';
   document.getElementById('estab-nome').value = '';
   document.getElementById('estab-cidade').value = '';
@@ -3091,7 +3091,7 @@ function openEditEstabelecimentoModal(id) {
   const est = state.stores.find(x => x.id === id);
   if (!est) return;
 
-  document.getElementById('modal-estab-title').innerHTML = '<i data-lucide="store" class="w-4 h-4 text-purple-400"></i> Editar Ponto Comercial';
+  document.getElementById('modal-estab-title').innerHTML = '<i data-lucide="store" class="w-4 h-4 text-purple-400"></i> Editar Estabelecimento';
   document.getElementById('estab-id').value = est.id;
   document.getElementById('estab-nome').value = est.nome || '';
   document.getElementById('estab-cidade').value = est.cidade || '';
@@ -3147,16 +3147,16 @@ async function salvarEstabelecimento() {
   try {
     if (id) {
       await apiRequest(`/api/estabelecimentos/${id}`, { method: 'PUT', body: payload });
-      showToast('Ponto comercial atualizado!', 'success');
+      showToast('Estabelecimento atualizado!', 'success');
     } else {
       await apiRequest('/api/estabelecimentos', { method: 'POST', body: payload });
-      showToast('Ponto comercial cadastrado!', 'success');
+      showToast('Estabelecimento cadastrado!', 'success');
     }
     closeModal('modal-estabelecimento');
     loadEstabelecimentosData();
     loadInitialLookups();
   } catch (err) {
-    showToast('Erro ao salvar ponto: ' + err.message, 'error');
+    showToast('Erro ao salvar estabelecimento: ' + err.message, 'error');
   }
 }
 
@@ -3164,7 +3164,7 @@ async function toggleEstabelecimentoAtivo(id, atual) {
   const action = atual ? 'desativar' : 'ativar';
   try {
     await apiRequest(`/api/estabelecimentos/${id}/${action}`, { method: 'PUT' });
-    showToast(`Estabelecimento ${atual ? 'desativado' : 'reativado'}!`, 'info');
+    showToast(`Estabelecimento ${atual ? 'desativado' : 'ativado'}!`, 'info');
     loadEstabelecimentosData();
   } catch (err) {
     showToast('Erro: ' + err.message, 'error');
@@ -4490,7 +4490,7 @@ async function openHistoricoMaquinaModal(maquinaId) {
   const maq = (state.machines || []).find(m => String(m.id) === String(maquinaId));
   const maqNome = maq ? (maq.nomeIntegracao || maq.descricao || `Máquina #${maquinaId}`) : `Máquina #${maquinaId}`;
 
-  document.getElementById('hist-maq-subtitulo').textContent = `Linha do tempo de pontos comerciais: ${maqNome}`;
+  document.getElementById('hist-maq-subtitulo').textContent = `Linha do tempo de estabelecimentos: ${maqNome}`;
 
   const tbody = document.getElementById('hist-maq-tbody');
   tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400"><span class="spinner w-4 h-4 inline-block mr-2"></span> Carregando histórico...</td></tr>';
@@ -4655,7 +4655,7 @@ async function loadRelatoriosAgendados() {
       } else if (item.tipoExibicao === 'GERAL') {
         detalheDesc = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">Resumo Geral</span>';
       } else {
-        detalheDesc = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-pink-50 text-pink-700 border border-pink-200" title="Oculta máquina se única, detalha se 2+">Por Ponto Comercial</span>';
+        detalheDesc = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-pink-50 text-pink-700 border border-pink-200" title="Oculta máquina se única, detalha se 2+">Por Estabelecimento</span>';
       }
 
       // Destino WhatsApp

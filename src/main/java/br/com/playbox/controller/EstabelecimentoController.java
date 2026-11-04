@@ -22,7 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/estabelecimentos")
-@Tag(name = "Estabelecimentos", description = "Gerenciamento de pontos comerciais, meios de pagamento e vinculação de máquinas")
+@Tag(name = "Estabelecimentos", description = "Gerenciamento de estabelecimentos, meios de pagamento e vinculação de máquinas")
 @SecurityRequirement(name = OpenApiConfig.SECURITY_SCHEME_NAME)
 public class EstabelecimentoController {
 
