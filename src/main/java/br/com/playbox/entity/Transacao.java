@@ -271,11 +271,44 @@ public class Transacao {
         return bruto;
     }
 
+    public boolean isPix() {
+        if (valorPix != null && valorPix > 0) return true;
+        if (tipoPagamento == null) return false;
+        String tp = tipoPagamento.trim().toUpperCase();
+        return tp.contains("PIX") || tp.contains("BANK_TRANSFER") || tp.contains("ACCOUNT_MONEY")
+                || tp.contains("MERCADOPAGO") || tp.contains("CREDITO_DIGITAL") || tp.contains("CREDITO-REMOTO")
+                || tp.contains("VENDA MANUAL");
+    }
+
+    public boolean isCredito() {
+        if (valorCredito != null && valorCredito > 0) return true;
+        if (tipoPagamento == null) return false;
+        String tp = tipoPagamento.trim().toUpperCase();
+        return tp.equals("CREDITO") || tp.contains("CREDIT_CARD") || tp.equals("CREDIT");
+    }
+
+    public boolean isDebito() {
+        if (valorDebito != null && valorDebito > 0) return true;
+        if (tipoPagamento == null) return false;
+        String tp = tipoPagamento.trim().toUpperCase();
+        return tp.equals("DEBITO") || tp.contains("DEBIT_CARD") || tp.equals("DEBIT") || tp.contains("PREPAID_CARD");
+    }
+
+    public boolean isCash() {
+        if (valorCash != null && valorCash > 0) return true;
+        if (tipoPagamento == null) return false;
+        String tp = tipoPagamento.trim().toUpperCase();
+        return tp.equals("CASH") || tp.equals("DINHEIRO") || tp.equals("ESPECIE");
+    }
+
     /**
      * Retorna o valor em espécie (cash) efetivo apurado para conferência de caixa (descontando testes).
      */
     public double getValorCashEfetivo() {
         double cash = this.valorCash != null ? this.valorCash : 0.0;
+        if (cash == 0.0 && isCash() && (this.valorPix == null || this.valorPix == 0.0) && (this.valorCredito == null || this.valorCredito == 0.0) && (this.valorDebito == null || this.valorDebito == 0.0)) {
+            cash = getValorEfetivo();
+        }
         if (Boolean.TRUE.equals(this.teste)) {
             if (this.valorTeste != null && this.valorTeste > 0.0) {
                 return Math.max(0.0, cash - this.valorTeste);
@@ -289,21 +322,43 @@ public class Transacao {
         if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
             return 0.0;
         }
-        return this.valorPix != null ? this.valorPix : 0.0;
+        if (this.valorPix != null && this.valorPix > 0.0) {
+            return this.valorPix;
+        }
+        if (isPix() && (this.valorCash == null || this.valorCash == 0.0) && (this.valorCredito == null || this.valorCredito == 0.0) && (this.valorDebito == null || this.valorDebito == 0.0)) {
+            return getValorEfetivo();
+        }
+        return 0.0;
     }
 
     public double getValorCreditoEfetivo() {
         if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
             return 0.0;
         }
-        return this.valorCredito != null ? this.valorCredito : 0.0;
+        if (this.valorCredito != null && this.valorCredito > 0.0) {
+            return this.valorCredito;
+        }
+        if (isCredito() && (this.valorCash == null || this.valorCash == 0.0) && (this.valorPix == null || this.valorPix == 0.0) && (this.valorDebito == null || this.valorDebito == 0.0)) {
+            return getValorEfetivo();
+        }
+        return 0.0;
     }
 
     public double getValorDebitoEfetivo() {
         if (Boolean.TRUE.equals(this.teste) && (this.valorTeste == null || this.valorTeste <= 0.0)) {
             return 0.0;
         }
-        return this.valorDebito != null ? this.valorDebito : 0.0;
+        if (this.valorDebito != null && this.valorDebito > 0.0) {
+            return this.valorDebito;
+        }
+        if (isDebito() && (this.valorCash == null || this.valorCash == 0.0) && (this.valorPix == null || this.valorPix == 0.0) && (this.valorCredito == null || this.valorCredito == 0.0)) {
+            return getValorEfetivo();
+        }
+        return 0.0;
+    }
+
+    public double getValorCartaoEfetivo() {
+        return getValorCreditoEfetivo() + getValorDebitoEfetivo();
     }
 
     public double getValorEstornoEfetivo() {

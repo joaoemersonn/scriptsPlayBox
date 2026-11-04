@@ -3258,11 +3258,16 @@ async function previewRelatorioOperacoes() {
     // Entradas (compatível com objeto estruturado e campos planos)
     const ent = data.entradas || {};
     const totalEntradas = ent.totalEntradas ?? data.totalEntradas ?? 0;
-    const maquininha = ent.maquininha ?? data.entradasMaquininha ?? 0;
+    const pix = ent.pix ?? data.entradasPix ?? 0;
+    const cartao = ent.cartao ?? data.entradasCartao ?? ((ent.cartaoCredito || data.entradasCartaoCredito || 0) + (ent.cartaoDebito || data.entradasCartaoDebito || 0));
     const especie = ent.especie ?? data.entradasEspecie ?? 0;
-    document.getElementById('pdf-prev-entradas-total').textContent = formatMoney(totalEntradas);
-    document.getElementById('pdf-prev-maquininha').textContent = formatMoney(maquininha);
-    document.getElementById('pdf-prev-especie').textContent = formatMoney(especie);
+    const maquininha = ent.maquininha ?? data.entradasMaquininha ?? (pix + cartao);
+
+    if (document.getElementById('pdf-prev-entradas-total')) document.getElementById('pdf-prev-entradas-total').textContent = formatMoney(totalEntradas);
+    if (document.getElementById('pdf-prev-pix')) document.getElementById('pdf-prev-pix').textContent = formatMoney(pix);
+    if (document.getElementById('pdf-prev-cartao')) document.getElementById('pdf-prev-cartao').textContent = formatMoney(cartao);
+    if (document.getElementById('pdf-prev-especie')) document.getElementById('pdf-prev-especie').textContent = formatMoney(especie);
+    if (document.getElementById('pdf-prev-maquininha')) document.getElementById('pdf-prev-maquininha').textContent = formatMoney(maquininha);
 
     // Saídas (compatível com objeto estruturado e campos planos)
     const sai = data.saidas || {};

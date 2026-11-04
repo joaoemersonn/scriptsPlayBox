@@ -143,8 +143,11 @@ public class PdfReportGeneratorService {
         table.addCell(createDataCell("ESPECIE", false, Element.ALIGN_LEFT));
         table.addCell(createDataCell(formatCurrency(dto.getEntradasEspecie()), false, Element.ALIGN_RIGHT));
 
-        table.addCell(createDataCell("MAQUININHA", false, Element.ALIGN_LEFT));
-        table.addCell(createDataCell(formatCurrency(dto.getEntradasMaquininha()), false, Element.ALIGN_RIGHT));
+        table.addCell(createDataCell("PIX", false, Element.ALIGN_LEFT));
+        table.addCell(createDataCell(formatCurrency(dto.getEntradasPix()), false, Element.ALIGN_RIGHT));
+
+        table.addCell(createDataCell("CARTÃO CRÉDITO / DÉBITO", false, Element.ALIGN_LEFT));
+        table.addCell(createDataCell(formatCurrency(dto.getEntradasCartao()), false, Element.ALIGN_RIGHT));
 
         table.addCell(createDataCell("TOTAL", true, Element.ALIGN_LEFT));
         table.addCell(createDataCell(formatCurrency(dto.getTotalEntradas()), true, Element.ALIGN_RIGHT));

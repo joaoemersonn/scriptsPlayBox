@@ -105,6 +105,12 @@ public class DatabaseMigrationPostProcessor implements BeanPostProcessor {
                 stmt.execute("UPDATE transacoes SET quantidade_premios = 0.0 WHERE quantidade_premios IS NULL");
                 stmt.execute("UPDATE transacoes SET teste = 0 WHERE teste IS NULL");
                 stmt.execute("UPDATE transacoes SET valor_teste = 0.0 WHERE valor_teste IS NULL");
+
+                // Retrofitting de transações onde o breakdown estava zerado mas tipo_pagamento possui a especificação
+                stmt.execute("UPDATE transacoes SET valor_pix = valor WHERE (valor_pix = 0.0 OR valor_pix IS NULL) AND valor > 0 AND UPPER(tipo_pagamento) IN ('PIX', 'BANK_TRANSFER', 'ACCOUNT_MONEY', 'MERCADOPAGO', 'CREDITO_DIGITAL', 'CREDITO-REMOTO', 'VENDA MANUAL')");
+                stmt.execute("UPDATE transacoes SET valor_credito = valor WHERE (valor_credito = 0.0 OR valor_credito IS NULL) AND valor > 0 AND UPPER(tipo_pagamento) IN ('CREDITO', 'CREDIT_CARD', 'CREDIT')");
+                stmt.execute("UPDATE transacoes SET valor_debito = valor WHERE (valor_debito = 0.0 OR valor_debito IS NULL) AND valor > 0 AND UPPER(tipo_pagamento) IN ('DEBITO', 'DEBIT_CARD', 'DEBIT', 'PREPAID_CARD')");
+                stmt.execute("UPDATE transacoes SET valor_cash = valor WHERE (valor_cash = 0.0 OR valor_cash IS NULL) AND valor > 0 AND UPPER(tipo_pagamento) IN ('CASH', 'DINHEIRO', 'ESPECIE')");
             }
 
             // 4. Tabela historico_vinculos_maquina (histórico de vigência e movimentação de máquinas)

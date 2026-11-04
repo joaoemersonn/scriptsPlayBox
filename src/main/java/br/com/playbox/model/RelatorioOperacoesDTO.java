@@ -17,6 +17,10 @@ public class RelatorioOperacoesDTO {
 
     // Entradas
     private double entradasEspecie;
+    private double entradasPix;
+    private double entradasCartaoCredito;
+    private double entradasCartaoDebito;
+    private double entradasCartao;
     private double entradasMaquininha;
     private double totalEntradas;
 
@@ -40,6 +44,15 @@ public class RelatorioOperacoesDTO {
 
     public void recalcularTotais() {
         this.custoTotalPelucia = round(this.quantidadePremios * this.valorUnitarioPelucia);
+        double digital = round(this.entradasPix + this.entradasCartaoCredito + this.entradasCartaoDebito);
+        if (digital > 0 || (this.entradasPix == 0 && this.entradasCartaoCredito == 0 && this.entradasCartaoDebito == 0 && this.entradasMaquininha == 0)) {
+            this.entradasCartao = round(this.entradasCartaoCredito + this.entradasCartaoDebito);
+            this.entradasMaquininha = digital;
+        } else if (this.entradasMaquininha > 0 && digital == 0) {
+            // Compatibilidade retroativa caso apenas entradasMaquininha seja setado
+            this.entradasPix = this.entradasMaquininha;
+            digital = this.entradasMaquininha;
+        }
         this.totalEntradas = round(this.entradasEspecie + this.entradasMaquininha);
         // Taxa da maquininha calculada sobre o total de entradas (como no relatório padrão)
         this.taxaMaquininhaValor = round(this.totalEntradas * (this.taxaMaquininhaPercentual / 100.0));
@@ -120,6 +133,38 @@ public class RelatorioOperacoesDTO {
 
     public void setEntradasEspecie(double entradasEspecie) {
         this.entradasEspecie = entradasEspecie;
+    }
+
+    public double getEntradasPix() {
+        return entradasPix;
+    }
+
+    public void setEntradasPix(double entradasPix) {
+        this.entradasPix = entradasPix;
+    }
+
+    public double getEntradasCartaoCredito() {
+        return entradasCartaoCredito;
+    }
+
+    public void setEntradasCartaoCredito(double entradasCartaoCredito) {
+        this.entradasCartaoCredito = entradasCartaoCredito;
+    }
+
+    public double getEntradasCartaoDebito() {
+        return entradasCartaoDebito;
+    }
+
+    public void setEntradasCartaoDebito(double entradasCartaoDebito) {
+        this.entradasCartaoDebito = entradasCartaoDebito;
+    }
+
+    public double getEntradasCartao() {
+        return entradasCartao;
+    }
+
+    public void setEntradasCartao(double entradasCartao) {
+        this.entradasCartao = entradasCartao;
     }
 
     public double getEntradasMaquininha() {
@@ -225,8 +270,12 @@ public class RelatorioOperacoesDTO {
     public java.util.Map<String, Object> getEntradas() {
         java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
         map.put("totalEntradas", this.totalEntradas);
-        map.put("maquininha", this.entradasMaquininha);
         map.put("especie", this.entradasEspecie);
+        map.put("pix", this.entradasPix);
+        map.put("cartao", this.entradasCartao);
+        map.put("cartaoCredito", this.entradasCartaoCredito);
+        map.put("cartaoDebito", this.entradasCartaoDebito);
+        map.put("maquininha", this.entradasMaquininha);
         return map;
     }
 

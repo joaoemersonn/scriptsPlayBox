@@ -154,14 +154,17 @@ public class RelatorioOperacoesService {
         );
 
         double cash = 0.0;
-        double maquininha = 0.0;
+        double pix = 0.0;
+        double credito = 0.0;
+        double debito = 0.0;
         double estornos = 0.0;
         double premios = 0.0;
 
         for (Transacao t : transacoes) {
             cash += t.getValorCashEfetivo();
-            double mq = t.getValorPixEfetivo() + t.getValorCreditoEfetivo() + t.getValorDebitoEfetivo();
-            maquininha += mq;
+            pix += t.getValorPixEfetivo();
+            credito += t.getValorCreditoEfetivo();
+            debito += t.getValorDebitoEfetivo();
             estornos += t.getValorEstornoEfetivo();
             premios += t.getQuantidadePremiosEfetiva();
 
@@ -224,7 +227,11 @@ public class RelatorioOperacoesService {
         }
 
         dto.setEntradasEspecie(cash);
-        dto.setEntradasMaquininha(maquininha);
+        dto.setEntradasPix(pix);
+        dto.setEntradasCartaoCredito(credito);
+        dto.setEntradasCartaoDebito(debito);
+        dto.setEntradasCartao(credito + debito);
+        dto.setEntradasMaquininha(pix + credito + debito);
         dto.setValorEstornado(estornos);
         dto.setQuantidadePremios((int) premios);
 

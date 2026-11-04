@@ -153,10 +153,13 @@ public class TransactionImportService {
                             txTime = parseTimestamp(p.get("data").asText(), timestamp);
                         }
 
-                        double valorCash = "CASH".equalsIgnoreCase(tipo) ? valor : 0.0;
-                        double valorPix = "PIX".equalsIgnoreCase(tipo) ? valor : 0.0;
-                        double valorCredito = "CREDITO".equalsIgnoreCase(tipo) ? valor : 0.0;
-                        double valorDebito = "DEBITO".equalsIgnoreCase(tipo) ? valor : 0.0;
+                        double valorCash = isCashType(tipo) ? valor : 0.0;
+                        double valorPix = isPixType(tipo) ? valor : 0.0;
+                        double valorCredito = isCreditoType(tipo) ? valor : 0.0;
+                        double valorDebito = isDebitoType(tipo) ? valor : 0.0;
+                        if (valorCash == 0.0 && valorPix == 0.0 && valorCredito == 0.0 && valorDebito == 0.0 && valor > 0.0) {
+                            valorPix = valor;
+                        }
 
                         String externalTxId = "VENDPROMAX_TX_" + pId;
                         saveOrUpdateTransaction("VENDPROMAX", externalTxId, extId, txTime, tipo,
@@ -214,10 +217,13 @@ public class TransactionImportService {
                             double ve = dados.hasNonNull("valorTotalEstorno") ? dados.get("valorTotalEstorno").asDouble() : 0.0;
 
                             if (vt > 0.0 || ve > 0.0) {
-                                double valorCash = ("ESPECIE".equalsIgnoreCase(forma) || "DINHEIRO".equalsIgnoreCase(forma) || "CASH".equalsIgnoreCase(forma)) ? vt : 0.0;
-                                double valorPix = "PIX".equalsIgnoreCase(forma) ? vt : 0.0;
-                                double valorCredito = "CREDITO".equalsIgnoreCase(forma) ? vt : 0.0;
-                                double valorDebito = "DEBITO".equalsIgnoreCase(forma) ? vt : 0.0;
+                                double valorCash = isCashType(forma) ? vt : 0.0;
+                                double valorPix = isPixType(forma) ? vt : 0.0;
+                                double valorCredito = isCreditoType(forma) ? vt : 0.0;
+                                double valorDebito = isDebitoType(forma) ? vt : 0.0;
+                                if (valorCash == 0.0 && valorPix == 0.0 && valorCredito == 0.0 && valorDebito == 0.0 && vt > 0.0) {
+                                    valorPix = vt;
+                                }
 
                                 String externalTxId = "PAYXYZ_" + forma + "_" + extId + "_" + dayId;
                                 saveOrUpdateTransaction("PAYXYZ", externalTxId, extId, timestamp, forma,
@@ -287,10 +293,13 @@ public class TransactionImportService {
                             txTime = parseTimestamp(item.get("created").asText(), timestamp);
                         }
 
-                        double cash = ("DINHEIRO".equalsIgnoreCase(provider) || "ESPECIE".equalsIgnoreCase(provider) || "CASH".equalsIgnoreCase(provider)) ? total : 0.0;
-                        double pix = "PIX".equalsIgnoreCase(provider) ? total : 0.0;
-                        double credito = "CREDITO".equalsIgnoreCase(provider) ? total : 0.0;
-                        double debito = "DEBITO".equalsIgnoreCase(provider) ? total : 0.0;
+                        double cash = isCashType(provider) ? total : 0.0;
+                        double pix = isPixType(provider) ? total : 0.0;
+                        double credito = isCreditoType(provider) ? total : 0.0;
+                        double debito = isDebitoType(provider) ? total : 0.0;
+                        if (cash == 0.0 && pix == 0.0 && credito == 0.0 && debito == 0.0 && total > 0.0) {
+                            pix = total;
+                        }
 
                         String externalTxId = "ZAPIZI_TX_" + saleId;
                         saveOrUpdateTransaction("ZAPIZI", externalTxId, extId, txTime, provider,
@@ -463,5 +472,31 @@ public class TransactionImportService {
                     externalTxId
             );
         }
+    }
+
+    private boolean isCashType(String type) {
+        if (type == null) return false;
+        String t = type.trim().toUpperCase();
+        return t.contains("CASH") || t.contains("DINHEIRO") || t.contains("ESPECIE");
+    }
+
+    private boolean isPixType(String type) {
+        if (type == null) return false;
+        String t = type.trim().toUpperCase();
+        return t.contains("PIX") || t.contains("BANK_TRANSFER") || t.contains("ACCOUNT_MONEY")
+                || t.contains("MERCADOPAGO") || t.contains("CREDITO_DIGITAL") || t.contains("CREDITO-REMOTO")
+                || t.contains("VENDA MANUAL");
+    }
+
+    private boolean isCreditoType(String type) {
+        if (type == null) return false;
+        String t = type.trim().toUpperCase();
+        return t.contains("CREDIT_CARD") || t.equals("CREDITO") || t.equals("CREDIT");
+    }
+
+    private boolean isDebitoType(String type) {
+        if (type == null) return false;
+        String t = type.trim().toUpperCase();
+        return t.contains("DEBIT_CARD") || t.equals("DEBITO") || t.equals("DEBIT") || t.contains("PREPAID_CARD");
     }
 }
