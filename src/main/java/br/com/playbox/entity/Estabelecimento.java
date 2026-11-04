@@ -34,6 +34,18 @@ public class Estabelecimento {
     @Column(name = "percentual_repasse")
     private Double percentualRepasse = 25.0; // Padrão 25% sobre o lucro
 
+    @Column(name = "valor_unitario_pelucia")
+    private Double valorUnitarioPelucia = 19.90;
+
+    @Column(name = "taxa_maquininha")
+    private Double taxaMaquininha = 4.99;
+
+    @Column(name = "mensalidade_telemetria")
+    private Double mensalidadeTelemetria = 69.90;
+
+    @Column(name = "visitas_manutencao")
+    private Double visitasManutencao = 350.00;
+
     @Column(name = "data_inicio")
     private String dataInicio;
 
@@ -191,6 +203,38 @@ public class Estabelecimento {
 
     public void setPercentualRepasse(Double percentualRepasse) {
         this.percentualRepasse = percentualRepasse;
+    }
+
+    public Double getValorUnitarioPelucia() {
+        return valorUnitarioPelucia;
+    }
+
+    public void setValorUnitarioPelucia(Double valorUnitarioPelucia) {
+        this.valorUnitarioPelucia = valorUnitarioPelucia;
+    }
+
+    public Double getTaxaMaquininha() {
+        return taxaMaquininha;
+    }
+
+    public void setTaxaMaquininha(Double taxaMaquininha) {
+        this.taxaMaquininha = taxaMaquininha;
+    }
+
+    public Double getMensalidadeTelemetria() {
+        return mensalidadeTelemetria;
+    }
+
+    public void setMensalidadeTelemetria(Double mensalidadeTelemetria) {
+        this.mensalidadeTelemetria = mensalidadeTelemetria;
+    }
+
+    public Double getVisitasManutencao() {
+        return visitasManutencao;
+    }
+
+    public void setVisitasManutencao(Double visitasManutencao) {
+        this.visitasManutencao = visitasManutencao;
     }
 
     public boolean isAluguelDinamico() {

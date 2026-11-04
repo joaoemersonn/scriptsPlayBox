@@ -157,10 +157,14 @@ public class AluguelService {
 
         double pct = percentualRepasse != null ? percentualRepasse
                 : (est.getPercentualRepasse() != null ? est.getPercentualRepasse() : 25.0);
-        double unitPelucia = valorUnitarioPelucia != null ? valorUnitarioPelucia : 19.90;
-        double taxaMq = taxaMaquininha != null ? taxaMaquininha : 4.99;
-        double telem = telemetria != null ? telemetria : 69.90;
-        double vis = visitas != null ? visitas : 350.00;
+        double unitPelucia = valorUnitarioPelucia != null ? valorUnitarioPelucia
+                : (est.getValorUnitarioPelucia() != null ? est.getValorUnitarioPelucia() : 19.90);
+        double taxaMq = taxaMaquininha != null ? taxaMaquininha
+                : (est.getTaxaMaquininha() != null ? est.getTaxaMaquininha() : 4.99);
+        double telem = telemetria != null ? telemetria
+                : (est.getMensalidadeTelemetria() != null ? est.getMensalidadeTelemetria() : 69.90);
+        double vis = visitas != null ? visitas
+                : (est.getVisitasManutencao() != null ? est.getVisitasManutencao() : 350.00);
 
         RelatorioOperacoesDTO dto = relatorioOperacoesService.compilarRelatorio(
                 est.getId(), null, null, inicioMes, fimMes,

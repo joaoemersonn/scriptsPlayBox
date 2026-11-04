@@ -76,5 +76,10 @@ class PdfReportGeneratorServiceTest {
         assertNotNull(pdfBytesComId);
         assertTrue(pdfBytesComId.length > 500);
         assertEquals('%', (char) pdfBytesComId[0]);
+
+        byte[] pdfBytesSemRepasse = generator.gerarRelatorioOperacoesPdf(dto, true, false, false);
+        assertNotNull(pdfBytesSemRepasse);
+        assertTrue(pdfBytesSemRepasse.length > 500);
+        assertEquals('%', (char) pdfBytesSemRepasse[0]);
     }
 }

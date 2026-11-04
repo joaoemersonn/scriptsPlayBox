@@ -48,10 +48,14 @@ public class PdfReportGeneratorService {
     }
 
     public byte[] gerarRelatorioOperacoesPdf(RelatorioOperacoesDTO dto, boolean incluirHistorico) {
-        return gerarRelatorioOperacoesPdf(dto, incluirHistorico, false);
+        return gerarRelatorioOperacoesPdf(dto, incluirHistorico, false, true);
     }
 
     public byte[] gerarRelatorioOperacoesPdf(RelatorioOperacoesDTO dto, boolean incluirHistorico, boolean incluirIdentificador) {
+        return gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador, true);
+    }
+
+    public byte[] gerarRelatorioOperacoesPdf(RelatorioOperacoesDTO dto, boolean incluirHistorico, boolean incluirIdentificador, boolean incluirRepasse) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         // Margens confortáveis A4 (25pt esquerda/direita, 25pt topo/base)
@@ -88,7 +92,7 @@ public class PdfReportGeneratorService {
             adicionarTabelaSaidas(document, dto);
 
             // Bloco de Lucro / Repasse
-            adicionarBlocoLucroRepasse(document, dto);
+            adicionarBlocoLucroRepasse(document, dto, incluirRepasse);
 
             // 3. HISTÓRICO DE MOVIMENTAÇÕES (se solicitado)
             if (incluirHistorico && dto.getMovimentacoes() != null && !dto.getMovimentacoes().isEmpty()) {
@@ -191,7 +195,7 @@ public class PdfReportGeneratorService {
         document.add(table);
     }
 
-    private void adicionarBlocoLucroRepasse(Document document, RelatorioOperacoesDTO dto) throws DocumentException {
+    private void adicionarBlocoLucroRepasse(Document document, RelatorioOperacoesDTO dto, boolean incluirRepasse) throws DocumentException {
         PdfPTable table = new PdfPTable(2);
         table.setWidthPercentage(100f);
         table.setWidths(new float[]{75f, 25f});
@@ -201,10 +205,12 @@ public class PdfReportGeneratorService {
         table.addCell(createBlackSummaryCell("Lucro Total", Element.ALIGN_LEFT));
         table.addCell(createBlackSummaryCell(formatCurrency(dto.getLucroTotal()), Element.ALIGN_RIGHT));
 
-        // Percentual Acordado / Repasse (25%)
-        String labelPercent = formatPercent(dto.getPercentualRepasse());
-        table.addCell(createBlackSummaryCell(labelPercent, Element.ALIGN_LEFT));
-        table.addCell(createBlackSummaryCell(formatCurrency(dto.getValorRepasse()), Element.ALIGN_RIGHT));
+        // Percentual Acordado / Repasse (Opcional)
+        if (incluirRepasse) {
+            String labelPercent = formatPercent(dto.getPercentualRepasse());
+            table.addCell(createBlackSummaryCell(labelPercent, Element.ALIGN_LEFT));
+            table.addCell(createBlackSummaryCell(formatCurrency(dto.getValorRepasse()), Element.ALIGN_RIGHT));
+        }
 
         document.add(table);
     }

@@ -84,6 +84,10 @@ public class EstabelecimentoController {
             if (dados.getDataInicio() != null) existente.setDataInicio(dados.getDataInicio());
             if (dados.getTipoAluguel() != null) existente.setTipoAluguel(dados.getTipoAluguel());
             if (dados.getPercentualRepasse() != null) existente.setPercentualRepasse(dados.getPercentualRepasse());
+            if (dados.getValorUnitarioPelucia() != null) existente.setValorUnitarioPelucia(dados.getValorUnitarioPelucia());
+            if (dados.getTaxaMaquininha() != null) existente.setTaxaMaquininha(dados.getTaxaMaquininha());
+            if (dados.getMensalidadeTelemetria() != null) existente.setMensalidadeTelemetria(dados.getMensalidadeTelemetria());
+            if (dados.getVisitasManutencao() != null) existente.setVisitasManutencao(dados.getVisitasManutencao());
             if (existente.isAtivo() && !dados.isAtivo()) {
                 aluguelRepasseRepository.deleteByEstabelecimentoIdAndPagoFalse(id);
             }

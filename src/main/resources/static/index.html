@@ -1385,7 +1385,7 @@
             <!-- Estabelecimento -->
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Ponto Comercial:</label>
-              <select id="pdf-param-estab" onchange="previewRelatorioOperacoes()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+              <select id="pdf-param-estab" onchange="onPdfEstabChange()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
                 <option value="">Consolidado de Todos</option>
               </select>
             </div>
@@ -1454,6 +1454,15 @@
               <p class="text-[11px] text-slate-500 mt-0.5 ml-6">Desativado por padrão para um PDF mais limpo e compacto.</p>
             </div>
 
+            <!-- Opção Repasse (25% / Comissão) -->
+            <div class="pt-2 border-t border-slate-100">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" id="pdf-param-repasse-opcional" checked onchange="previewRelatorioOperacoes()" class="w-4 h-4 rounded text-pink-600 border-slate-300 focus:ring-pink-500">
+                <span class="text-xs font-semibold text-slate-700">Incluir cálculo de repasse no documento</span>
+              </label>
+              <p class="text-[11px] text-slate-500 mt-0.5 ml-6">Exibe a linha de repasse/comissão (% sobre o lucro) no quadro final do PDF.</p>
+            </div>
+
             <!-- Download Button -->
             <button onclick="downloadRelatorioPdf()" class="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs shadow-md shadow-pink-500/20 active:scale-95 transition">
               <i data-lucide="download" class="w-4 h-4"></i> Baixar Relatório em PDF
@@ -1513,7 +1522,7 @@
               </div>
 
               <!-- Repasse da Loja -->
-              <div class="p-4 rounded-2xl bg-purple-50/70 border border-purple-100 space-y-2">
+              <div id="pdf-prev-repasse-card" class="p-4 rounded-2xl bg-purple-50/70 border border-purple-100 space-y-2 transition-all">
                 <div class="text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center justify-between">
                   <span id="pdf-prev-repasse-badge">Repasse Acordado (25%)</span>
                   <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5 text-purple-600"></i>
@@ -2134,6 +2143,63 @@
     </div>
   </div>
 
+  <!-- Modal 8.4: Calcular Aluguel Dinâmico com Parâmetros Preenchidos -->
+  <div id="modal-calcular-dinamico" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="glass-card max-w-lg w-full p-6 space-y-4 animate-fade-in shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4 text-pink-600"></i> Calcular Repasse Dinâmico
+          </h3>
+          <p id="calc-dinamico-loja-sub" class="text-xs text-slate-500 font-medium mt-0.5">--</p>
+        </div>
+        <button onclick="closeModal('modal-calcular-dinamico')" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <input type="hidden" id="calc-dinamico-id">
+
+      <div class="p-3 bg-pink-50/60 rounded-xl border border-pink-200/80 text-xs text-slate-700 space-y-1">
+        <div class="font-bold text-pink-900 flex items-center gap-1.5">
+          <i data-lucide="info" class="w-3.5 h-3.5 text-pink-600"></i> Parâmetros Operacionais da Loja
+        </div>
+        <p class="text-[11px] text-slate-600 leading-relaxed">
+          Os campos abaixo já vêm preenchidos com os padrões cadastrados no estabelecimento. Você pode alterar qualquer valor antes de calcular e gerar o repasse.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Custo Unitário Pelúcia (R$):</label>
+          <input type="number" step="0.10" id="calc-dinamico-pelucia" value="19.90" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Taxa Maquininha (%):</label>
+          <input type="number" step="0.01" id="calc-dinamico-taxa" value="4.99" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Mensalidade Telemetria (R$):</label>
+          <input type="number" step="1.00" id="calc-dinamico-telemetria" value="69.90" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Visitas & Manutenção (R$):</label>
+          <input type="number" step="1.00" id="calc-dinamico-visitas" value="350.00" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 shadow-sm focus:outline-none focus:border-pink-500">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Percentual de Repasse (% sobre o Lucro):</label>
+        <input type="number" step="1.0" id="calc-dinamico-repasse" value="25.0" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-pink-700 shadow-sm focus:outline-none focus:border-pink-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('modal-calcular-dinamico')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-semibold transition">Cancelar</button>
+        <button onclick="confirmarCalcularDinamico()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-pink-500/20 active:scale-95 transition">Calcular & Salvar Repasse</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal 8.5: Histórico de Aluguéis do Ponto Comercial -->
   <div id="modal-historico-aluguel" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
     <div class="glass-card max-w-2xl w-full p-6 space-y-4 animate-fade-in shadow-2xl">
@@ -2222,6 +2288,33 @@
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">% do Lucro (se Dinâmico):</label>
           <input type="number" step="1.0" id="estab-percentual-repasse" value="25.0" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-pink-700 shadow-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-100">
+        </div>
+      </div>
+
+      <!-- Parâmetros Operacionais Padrão (utilizados em relatórios e no cálculo dinâmico) -->
+      <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-3">
+        <div class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-3.5 h-3.5 text-pink-600"></i> Parâmetros Operacionais Padrão (Custos e Taxas)
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Custo Pelúcia (R$):</label>
+            <input type="number" step="0.10" id="estab-pelucia" value="19.90" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 shadow-xs focus:outline-none focus:border-pink-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Taxa Maquininha (%):</label>
+            <input type="number" step="0.01" id="estab-taxa-maq" value="4.99" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 shadow-xs focus:outline-none focus:border-pink-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Mensalidade Telemetria (R$):</label>
+            <input type="number" step="1.00" id="estab-telemetria" value="69.90" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 shadow-xs focus:outline-none focus:border-pink-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Visitas & Manutenção (R$):</label>
+            <input type="number" step="1.00" id="estab-visitas" value="350.00" class="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 shadow-xs focus:outline-none focus:border-pink-500">
+          </div>
         </div>
       </div>
 

@@ -2734,7 +2734,7 @@ function renderAlugueisTable(items) {
           </button>
 
           ${isDinamico ? `
-            <button onclick="calcularDinamicoIndividual(${a.id})" class="px-2 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 text-xs font-bold transition" title="Recalcular repasse dinâmico (25% do lucro)">
+            <button onclick="openCalcularDinamicoModal(${a.id})" class="px-2 py-1.5 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 text-xs font-bold transition" title="Calcular repasse dinâmico com parâmetros pré-preenchidos">
               <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
             </button>
           ` : ''}
@@ -2945,15 +2945,44 @@ async function recalcularDinamicosMes() {
   }
 }
 
-async function calcularDinamicoIndividual(id) {
-  showToast('Calculando repasse dinâmico (25% do lucro)...', 'info');
+function openCalcularDinamicoModal(aluguelId) {
+  const item = (state.alugueis.rawList || []).find(a => a.id === aluguelId);
+  const est = item?.estabelecimento || {};
+
+  document.getElementById('calc-dinamico-id').value = aluguelId;
+  document.getElementById('calc-dinamico-loja-sub').textContent = `${est.nome || 'Ponto Comercial'} • Mês: ${item?.mesAno || '--'} (Lucro do mês anterior)`;
+
+  document.getElementById('calc-dinamico-pelucia').value = est.valorUnitarioPelucia != null ? Number(est.valorUnitarioPelucia).toFixed(2) : '19.90';
+  document.getElementById('calc-dinamico-taxa').value = est.taxaMaquininha != null ? Number(est.taxaMaquininha).toFixed(2) : '4.99';
+  document.getElementById('calc-dinamico-telemetria').value = est.mensalidadeTelemetria != null ? Number(est.mensalidadeTelemetria).toFixed(2) : '69.90';
+  document.getElementById('calc-dinamico-visitas').value = est.visitasManutencao != null ? Number(est.visitasManutencao).toFixed(2) : '350.00';
+  document.getElementById('calc-dinamico-repasse').value = item?.percentualRepasse != null ? Number(item.percentualRepasse).toFixed(1) : (est.percentualRepasse != null ? Number(est.percentualRepasse).toFixed(1) : '25.0');
+
+  openModal('modal-calcular-dinamico');
+}
+
+async function confirmarCalcularDinamico() {
+  const id = document.getElementById('calc-dinamico-id').value;
+  const pelucia = document.getElementById('calc-dinamico-pelucia').value;
+  const taxa = document.getElementById('calc-dinamico-taxa').value;
+  const telemetria = document.getElementById('calc-dinamico-telemetria').value;
+  const visitas = document.getElementById('calc-dinamico-visitas').value;
+  const repasse = document.getElementById('calc-dinamico-repasse').value;
+
+  showToast('Calculando repasse dinâmico...', 'info');
   try {
-    await apiRequest(`/api/alugueis/${id}/calcular-dinamico`, { method: 'POST' });
-    showToast('Repasse dinâmico recalculado com sucesso!', 'success');
+    const url = `/api/alugueis/${id}/calcular-dinamico?valorUnitarioPelucia=${pelucia}&taxaMaquininha=${taxa}&telemetria=${telemetria}&visitas=${visitas}&percentualRepasse=${repasse}`;
+    await apiRequest(url, { method: 'POST' });
+    closeModal('modal-calcular-dinamico');
+    showToast('Repasse dinâmico recalculado e salvo com sucesso!', 'success');
     loadAlugueisData(true);
   } catch (err) {
-    showToast('Erro ao calcular: ' + err.message, 'error');
+    showToast('Erro ao calcular repasse: ' + err.message, 'error');
   }
+}
+
+async function calcularDinamicoIndividual(id) {
+  openCalcularDinamicoModal(id);
 }
 
 
@@ -3049,6 +3078,10 @@ function openCreateEstabelecimentoModal() {
   document.getElementById('estab-dia-vencimento').value = 10;
   document.getElementById('estab-valor-acordado').value = 250;
   document.getElementById('estab-percentual-repasse').value = 25;
+  document.getElementById('estab-pelucia').value = '19.90';
+  document.getElementById('estab-taxa-maq').value = '4.99';
+  document.getElementById('estab-telemetria').value = '69.90';
+  document.getElementById('estab-visitas').value = '350.00';
   document.getElementById('estab-ativo').checked = true;
 
   openModal('modal-estabelecimento');
@@ -3066,7 +3099,11 @@ function openEditEstabelecimentoModal(id) {
   document.getElementById('estab-tipo-aluguel').value = est.tipoAluguel || 'FIXO';
   document.getElementById('estab-dia-vencimento').value = est.diaPagamento || 10;
   document.getElementById('estab-valor-acordado').value = est.valorAcordado || 0;
-  document.getElementById('estab-percentual-repasse').value = est.percentualRepasse || 25;
+  document.getElementById('estab-percentual-repasse').value = est.percentualRepasse ?? 25;
+  document.getElementById('estab-pelucia').value = est.valorUnitarioPelucia != null ? Number(est.valorUnitarioPelucia).toFixed(2) : '19.90';
+  document.getElementById('estab-taxa-maq').value = est.taxaMaquininha != null ? Number(est.taxaMaquininha).toFixed(2) : '4.99';
+  document.getElementById('estab-telemetria').value = est.mensalidadeTelemetria != null ? Number(est.mensalidadeTelemetria).toFixed(2) : '69.90';
+  document.getElementById('estab-visitas').value = est.visitasManutencao != null ? Number(est.visitasManutencao).toFixed(2) : '350.00';
   document.getElementById('estab-ativo').checked = est.ativo !== false;
 
   openModal('modal-estabelecimento');
@@ -3081,6 +3118,10 @@ async function salvarEstabelecimento() {
   const dia = parseInt(document.getElementById('estab-dia-vencimento').value) || 10;
   const valor = parseFloat(document.getElementById('estab-valor-acordado').value) || 0;
   const perc = parseFloat(document.getElementById('estab-percentual-repasse').value) || 25;
+  const pelucia = parseFloat(document.getElementById('estab-pelucia').value) || 19.90;
+  const taxa = parseFloat(document.getElementById('estab-taxa-maq').value) || 4.99;
+  const telemetria = parseFloat(document.getElementById('estab-telemetria').value) || 69.90;
+  const visitas = parseFloat(document.getElementById('estab-visitas').value) || 350.00;
   const ativo = document.getElementById('estab-ativo').checked;
 
   if (!nome) {
@@ -3096,6 +3137,10 @@ async function salvarEstabelecimento() {
     diaPagamento: dia,
     valorAcordado: valor,
     percentualRepasse: perc,
+    valorUnitarioPelucia: pelucia,
+    taxaMaquininha: taxa,
+    mensalidadeTelemetria: telemetria,
+    visitasManutencao: visitas,
     ativo
   };
 
@@ -3208,6 +3253,27 @@ async function removerMeioPagamento(meioId) {
 // TAB 7: RELATÓRIO OPERAÇÕES & PDF
 // ============================================================================
 
+function onPdfEstabChange() {
+  const estabId = document.getElementById('pdf-param-estab')?.value;
+  if (estabId) {
+    const est = (state.stores || []).find(s => String(s.id) === String(estabId));
+    if (est) {
+      if (est.valorUnitarioPelucia != null) document.getElementById('pdf-param-pelucia').value = Number(est.valorUnitarioPelucia).toFixed(2);
+      if (est.taxaMaquininha != null) document.getElementById('pdf-param-taxa').value = Number(est.taxaMaquininha).toFixed(2);
+      if (est.mensalidadeTelemetria != null) document.getElementById('pdf-param-telemetria').value = Number(est.mensalidadeTelemetria).toFixed(2);
+      if (est.visitasManutencao != null) document.getElementById('pdf-param-visitas').value = Number(est.visitasManutencao).toFixed(2);
+      if (est.percentualRepasse != null) document.getElementById('pdf-param-repasse').value = Number(est.percentualRepasse).toFixed(1);
+    }
+  } else {
+    document.getElementById('pdf-param-pelucia').value = '19.90';
+    document.getElementById('pdf-param-taxa').value = '4.99';
+    document.getElementById('pdf-param-telemetria').value = '69.90';
+    document.getElementById('pdf-param-visitas').value = '350.00';
+    document.getElementById('pdf-param-repasse').value = '25.0';
+  }
+  previewRelatorioOperacoes();
+}
+
 function onPeriodoPdfChange() {
   const periodo = document.getElementById('pdf-param-periodo')?.value;
   const customBox = document.getElementById('pdf-custom-dates-container');
@@ -3283,8 +3349,18 @@ async function previewRelatorioOperacoes() {
     document.getElementById('pdf-prev-pelucias-custo').textContent = formatMoney(custoPel);
 
     // Lucro & Repasse
+    const incluirRepasse = document.getElementById('pdf-param-repasse-opcional')?.checked !== false;
     document.getElementById('pdf-prev-lucro-total').textContent = formatMoney(data.lucroTotal ?? 0);
-    document.getElementById('pdf-prev-repasse-badge').textContent = `Repasse Acordado (${data.percentualRepasse || 25}%)`;
+    const cardRepasse = document.getElementById('pdf-prev-repasse-card');
+    if (cardRepasse) {
+      cardRepasse.style.opacity = incluirRepasse ? '1' : '0.4';
+    }
+    const badgeRepasse = document.getElementById('pdf-prev-repasse-badge');
+    if (badgeRepasse) {
+      badgeRepasse.textContent = incluirRepasse 
+        ? `Repasse Acordado (${data.percentualRepasse || 25}%)` 
+        : `Repasse Desativado (${data.percentualRepasse || 25}%)`;
+    }
     document.getElementById('pdf-prev-repasse-valor').textContent = formatMoney(data.valorRepasse ?? 0);
 
     // Pelúcias
@@ -3310,7 +3386,8 @@ async function downloadRelatorioPdf() {
   const repasse = document.getElementById('pdf-param-repasse')?.value || '25.0';
 
   const incluirIdentificador = document.getElementById('pdf-param-identificador')?.checked || false;
-  let url = `/api/relatorios/pdf?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}&incluirIdentificador=${incluirIdentificador}`;
+  const incluirRepasse = document.getElementById('pdf-param-repasse-opcional')?.checked !== false;
+  let url = `/api/relatorios/pdf?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}&incluirIdentificador=${incluirIdentificador}&incluirRepasse=${incluirRepasse}`;
   if (estabId) url += `&estabelecimentoId=${estabId}`;
 
   if (periodo === 'custom') {

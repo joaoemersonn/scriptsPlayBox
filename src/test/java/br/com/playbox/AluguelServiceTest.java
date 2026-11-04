@@ -178,5 +178,42 @@ class AluguelServiceTest {
         assertEquals(2, resumo.get("qtdTotal"));
         assertEquals(2, resumo.get("qtdEmAberto"));
     }
+
+    @Test
+    @DisplayName("Deve usar parâmetros de custo customizados do estabelecimento no cálculo dinâmico")
+    void testCalcularAluguelDinamicoComParametrosCustomizadosEstabelecimento() {
+        Estabelecimento loja = new Estabelecimento("Loja Custom", "Custódia", "Gabriel", "Dia 06", 150.0, "2025-01-01");
+        loja.setId(5L);
+        loja.setAtivo(true);
+        loja.setTipoAluguel("DINAMICO");
+        loja.setPercentualRepasse(30.0);
+        loja.setValorUnitarioPelucia(15.00);
+        loja.setTaxaMaquininha(3.50);
+        loja.setMensalidadeTelemetria(50.00);
+        loja.setVisitasManutencao(200.00);
+
+        AluguelRepasse aluguel = new AluguelRepasse(loja, "2026-11", LocalDate.of(2026, 11, 6), 0.0);
+        aluguel.setId(55L);
+
+        RelatorioOperacoesDTO dto = new RelatorioOperacoesDTO();
+        dto.setLucroTotal(1000.00);
+        dto.setPercentualRepasse(30.0);
+        dto.setValorRepasse(300.00);
+
+        when(aluguelRepository.findById(55L)).thenReturn(Optional.of(aluguel));
+        when(relatorioOperacoesService.compilarRelatorio(
+                eq(5L), isNull(), isNull(),
+                eq(LocalDate.of(2026, 10, 1)), eq(LocalDate.of(2026, 10, 31)),
+                eq(15.00), eq(3.50), eq(50.00), eq(200.00), eq(30.0), isNull()
+        )).thenReturn(dto);
+        when(aluguelRepository.save(any(AluguelRepasse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AluguelRepasse resultado = service.calcularAluguelDinamico(55L, null, null, null, null, null);
+
+        assertEquals(300.00, resultado.getValor());
+        assertEquals(30.0, resultado.getPercentualRepasse());
+        assertEquals(1000.00, resultado.getLucroCalculado());
+        assertEquals("2026-10", resultado.getMesCompetencia());
+    }
 }
 

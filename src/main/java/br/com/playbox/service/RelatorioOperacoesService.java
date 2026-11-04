@@ -135,12 +135,18 @@ public class RelatorioOperacoesService {
             dto.setUnidade("PlayBox - Geral");
         }
 
-        // 4. Parâmetros de Custo (com suporte a override)
-        dto.setValorUnitarioPelucia(valorUnitarioPelucia != null ? valorUnitarioPelucia : 19.90);
-        dto.setTaxaMaquininhaPercentual(taxaMaquininhaPercentual != null ? taxaMaquininhaPercentual : 4.99);
-        dto.setMensalidadeTelemetria(mensalidadeTelemetria != null ? mensalidadeTelemetria : 69.90);
-        dto.setVisitasManutencao(visitasManutencao != null ? visitasManutencao : 350.00);
-        dto.setPercentualRepasse(percentualRepasse != null ? percentualRepasse : 25.0);
+        // 4. Parâmetros de Custo (com suporte a override e fallback para o estabelecimento)
+        Double defaultPelucia = (est != null && est.getValorUnitarioPelucia() != null) ? est.getValorUnitarioPelucia() : 19.90;
+        Double defaultTaxa = (est != null && est.getTaxaMaquininha() != null) ? est.getTaxaMaquininha() : 4.99;
+        Double defaultTelem = (est != null && est.getMensalidadeTelemetria() != null) ? est.getMensalidadeTelemetria() : 69.90;
+        Double defaultVisitas = (est != null && est.getVisitasManutencao() != null) ? est.getVisitasManutencao() : 350.00;
+        Double defaultRepasse = (est != null && est.getPercentualRepasse() != null) ? est.getPercentualRepasse() : 25.0;
+
+        dto.setValorUnitarioPelucia(valorUnitarioPelucia != null ? valorUnitarioPelucia : defaultPelucia);
+        dto.setTaxaMaquininhaPercentual(taxaMaquininhaPercentual != null ? taxaMaquininhaPercentual : defaultTaxa);
+        dto.setMensalidadeTelemetria(mensalidadeTelemetria != null ? mensalidadeTelemetria : defaultTelem);
+        dto.setVisitasManutencao(visitasManutencao != null ? visitasManutencao : defaultVisitas);
+        dto.setPercentualRepasse(percentualRepasse != null ? percentualRepasse : defaultRepasse);
 
         // 5. Coleta de dados a partir da base consolidada de transações (VendProMax, Zapizi, PayXYZ)
         log.info("Consolidando relatório de operações a partir da base de transações (período {} a {})...", p.inicio(), p.fim());
@@ -355,6 +361,30 @@ public class RelatorioOperacoesService {
             boolean incluirHistorico,
             boolean incluirIdentificador
     ) {
+        return gerarPdf(
+                estabelecimentoId, maquinaId, periodo, dataInicio, dataFim,
+                valorUnitarioPelucia, taxaMaquininhaPercentual, mensalidadeTelemetria,
+                visitasManutencao, percentualRepasse, tituloUnidade,
+                incluirHistorico, incluirIdentificador, true
+        );
+    }
+
+    public byte[] gerarPdf(
+            Long estabelecimentoId,
+            Long maquinaId,
+            String periodo,
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            Double valorUnitarioPelucia,
+            Double taxaMaquininhaPercentual,
+            Double mensalidadeTelemetria,
+            Double visitasManutencao,
+            Double percentualRepasse,
+            String tituloUnidade,
+            boolean incluirHistorico,
+            boolean incluirIdentificador,
+            boolean incluirRepasse
+    ) {
         RelatorioOperacoesDTO dto = compilarRelatorio(
                 estabelecimentoId,
                 maquinaId,
@@ -369,7 +399,7 @@ public class RelatorioOperacoesService {
                 tituloUnidade
         );
 
-        return pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador);
+        return pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador, incluirRepasse);
     }
 
     public static String formatarTipoPagamentoPtBr(Transacao t) {
