@@ -3208,63 +3208,111 @@ async function removerMeioPagamento(meioId) {
 // TAB 7: RELATÓRIO OPERAÇÕES & PDF
 // ============================================================================
 
+function onPeriodoPdfChange() {
+  const periodo = document.getElementById('pdf-param-periodo')?.value;
+  const customBox = document.getElementById('pdf-custom-dates-container');
+  if (customBox) {
+    if (periodo === 'custom') {
+      customBox.classList.remove('hidden');
+      const iniInput = document.getElementById('pdf-param-data-inicio');
+      const fimInput = document.getElementById('pdf-param-data-fim');
+      if (iniInput && !iniInput.value) {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        iniInput.value = d.toISOString().split('T')[0];
+      }
+      if (fimInput && !fimInput.value) {
+        fimInput.value = new Date().toISOString().split('T')[0];
+      }
+    } else {
+      customBox.classList.add('hidden');
+    }
+  }
+  previewRelatorioOperacoes();
+}
+
 async function previewRelatorioOperacoes() {
-  const estabId = document.getElementById('pdf-param-estab').value;
-  const periodo = document.getElementById('pdf-param-periodo').value;
-  const pelucia = document.getElementById('pdf-param-pelucia').value;
-  const taxa = document.getElementById('pdf-param-taxa').value;
-  const telemetria = document.getElementById('pdf-param-telemetria').value;
-  const visitas = document.getElementById('pdf-param-visitas').value;
-  const repasse = document.getElementById('pdf-param-repasse').value;
+  const estabId = document.getElementById('pdf-param-estab')?.value;
+  const periodo = document.getElementById('pdf-param-periodo')?.value || 'mes-anterior';
+  const pelucia = document.getElementById('pdf-param-pelucia')?.value || '19.90';
+  const taxa = document.getElementById('pdf-param-taxa')?.value || '4.99';
+  const telemetria = document.getElementById('pdf-param-telemetria')?.value || '69.90';
+  const visitas = document.getElementById('pdf-param-visitas')?.value || '350.00';
+  const repasse = document.getElementById('pdf-param-repasse')?.value || '25.0';
 
   let url = `/api/relatorios/operacoes/json?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}`;
   if (estabId) url += `&estabelecimentoId=${estabId}`;
 
+  if (periodo === 'custom') {
+    const dataInicio = document.getElementById('pdf-param-data-inicio')?.value;
+    const dataFim = document.getElementById('pdf-param-data-fim')?.value;
+    if (dataInicio) url += `&dataInicio=${dataInicio}`;
+    if (dataFim) url += `&dataFim=${dataFim}`;
+  }
+
   try {
     const data = await apiRequest(url);
 
-    document.getElementById('pdf-preview-title').textContent = data.tituloUnidade || 'Consolidado Geral';
+    document.getElementById('pdf-preview-title').textContent = data.tituloUnidade || data.unidade || 'Consolidado Geral';
     
-    // Entradas
+    // Entradas (compatível com objeto estruturado e campos planos)
     const ent = data.entradas || {};
-    document.getElementById('pdf-prev-entradas-total').textContent = formatMoney(ent.totalEntradas || 0);
-    document.getElementById('pdf-prev-maquininha').textContent = formatMoney(ent.maquininha || 0);
-    document.getElementById('pdf-prev-especie').textContent = formatMoney(ent.especie || 0);
+    const totalEntradas = ent.totalEntradas ?? data.totalEntradas ?? 0;
+    const maquininha = ent.maquininha ?? data.entradasMaquininha ?? 0;
+    const especie = ent.especie ?? data.entradasEspecie ?? 0;
+    document.getElementById('pdf-prev-entradas-total').textContent = formatMoney(totalEntradas);
+    document.getElementById('pdf-prev-maquininha').textContent = formatMoney(maquininha);
+    document.getElementById('pdf-prev-especie').textContent = formatMoney(especie);
 
-    // Saídas
+    // Saídas (compatível com objeto estruturado e campos planos)
     const sai = data.saidas || {};
-    document.getElementById('pdf-prev-saidas-total').textContent = formatMoney(sai.totalSaidas || 0);
-    document.getElementById('pdf-prev-taxa-valor').textContent = formatMoney(sai.taxaMaquininha || 0);
-    document.getElementById('pdf-prev-telemetria-valor').textContent = formatMoney(sai.mensalidadeSistema || 0);
-    document.getElementById('pdf-prev-visitas-valor').textContent = formatMoney(sai.visitasManutencao || 0);
-    document.getElementById('pdf-prev-pelucias-custo').textContent = formatMoney(sai.custoPelucias || 0);
+    const totalSaidas = sai.totalSaidas ?? data.totalSaidas ?? 0;
+    const taxaMaq = sai.taxaMaquininha ?? data.taxaMaquininhaValor ?? 0;
+    const mensalidade = sai.mensalidadeSistema ?? data.mensalidadeTelemetria ?? 0;
+    const manutencao = sai.visitasManutencao ?? data.visitasManutencao ?? 0;
+    const custoPel = sai.custoPelucias ?? data.custoTotalPelucia ?? 0;
+    document.getElementById('pdf-prev-saidas-total').textContent = formatMoney(totalSaidas);
+    document.getElementById('pdf-prev-taxa-valor').textContent = formatMoney(taxaMaq);
+    document.getElementById('pdf-prev-telemetria-valor').textContent = formatMoney(mensalidade);
+    document.getElementById('pdf-prev-visitas-valor').textContent = formatMoney(manutencao);
+    document.getElementById('pdf-prev-pelucias-custo').textContent = formatMoney(custoPel);
 
     // Lucro & Repasse
-    document.getElementById('pdf-prev-lucro-total').textContent = formatMoney(data.lucroTotal || 0);
+    document.getElementById('pdf-prev-lucro-total').textContent = formatMoney(data.lucroTotal ?? 0);
     document.getElementById('pdf-prev-repasse-badge').textContent = `Repasse Acordado (${data.percentualRepasse || 25}%)`;
-    document.getElementById('pdf-prev-repasse-valor').textContent = formatMoney(data.valorRepasse || 0);
+    document.getElementById('pdf-prev-repasse-valor').textContent = formatMoney(data.valorRepasse ?? 0);
 
     // Pelúcias
     const met = data.metricasPelucia || {};
-    document.getElementById('pdf-prev-pelucias-qtd').textContent = `${met.peluciasSaidas || 0} un`;
-    document.getElementById('pdf-prev-pelucias-unit').textContent = formatMoney(met.valorUnitarioPelucia || 19.9);
-    document.getElementById('pdf-prev-rec-premio').textContent = formatMoney(met.receitaPorPremio || 0);
+    const qtdPremios = met.peluciasSaidas ?? data.quantidadePremios ?? 0;
+    const unitPelucia = met.valorUnitarioPelucia ?? data.valorUnitarioPelucia ?? 19.9;
+    const recPremio = met.receitaPorPremio ?? (qtdPremios > 0 ? totalEntradas / qtdPremios : 0);
+    document.getElementById('pdf-prev-pelucias-qtd').textContent = `${qtdPremios} un`;
+    document.getElementById('pdf-prev-pelucias-unit').textContent = formatMoney(unitPelucia);
+    document.getElementById('pdf-prev-rec-premio').textContent = formatMoney(recPremio);
   } catch (err) {
     console.error('Erro no preview do relatório:', err);
   }
 }
 
 async function downloadRelatorioPdf() {
-  const estabId = document.getElementById('pdf-param-estab').value;
-  const periodo = document.getElementById('pdf-param-periodo').value;
-  const pelucia = document.getElementById('pdf-param-pelucia').value;
-  const taxa = document.getElementById('pdf-param-taxa').value;
-  const telemetria = document.getElementById('pdf-param-telemetria').value;
-  const visitas = document.getElementById('pdf-param-visitas').value;
-  const repasse = document.getElementById('pdf-param-repasse').value;
+  const estabId = document.getElementById('pdf-param-estab')?.value;
+  const periodo = document.getElementById('pdf-param-periodo')?.value || 'mes-anterior';
+  const pelucia = document.getElementById('pdf-param-pelucia')?.value || '19.90';
+  const taxa = document.getElementById('pdf-param-taxa')?.value || '4.99';
+  const telemetria = document.getElementById('pdf-param-telemetria')?.value || '69.90';
+  const visitas = document.getElementById('pdf-param-visitas')?.value || '350.00';
+  const repasse = document.getElementById('pdf-param-repasse')?.value || '25.0';
 
   let url = `/api/relatorios/pdf?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}`;
   if (estabId) url += `&estabelecimentoId=${estabId}`;
+
+  if (periodo === 'custom') {
+    const dataInicio = document.getElementById('pdf-param-data-inicio')?.value;
+    const dataFim = document.getElementById('pdf-param-data-fim')?.value;
+    if (dataInicio) url += `&dataInicio=${dataInicio}`;
+    if (dataFim) url += `&dataFim=${dataFim}`;
+  }
 
   showToast('Gerando documento PDF oficial...', 'info');
 

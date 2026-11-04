@@ -218,6 +218,38 @@ public class RelatorioOperacoesDTO {
         this.movimentacoes = movimentacoes;
     }
 
+    public String getTituloUnidade() {
+        return unidade;
+    }
+
+    public java.util.Map<String, Object> getEntradas() {
+        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("totalEntradas", this.totalEntradas);
+        map.put("maquininha", this.entradasMaquininha);
+        map.put("especie", this.entradasEspecie);
+        return map;
+    }
+
+    public java.util.Map<String, Object> getSaidas() {
+        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("totalSaidas", this.totalSaidas);
+        map.put("taxaMaquininha", this.taxaMaquininhaValor);
+        map.put("mensalidadeSistema", this.mensalidadeTelemetria);
+        map.put("visitasManutencao", this.visitasManutencao);
+        map.put("custoPelucias", this.custoTotalPelucia);
+        map.put("valorEstornado", this.valorEstornado);
+        return map;
+    }
+
+    public java.util.Map<String, Object> getMetricasPelucia() {
+        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("peluciasSaidas", this.quantidadePremios);
+        map.put("valorUnitarioPelucia", this.valorUnitarioPelucia);
+        map.put("custoTotalPelucia", this.custoTotalPelucia);
+        map.put("receitaPorPremio", this.quantidadePremios > 0 ? round(this.totalEntradas / this.quantidadePremios) : 0.0);
+        return map;
+    }
+
     public static class MovimentacaoItem {
         private String dataHora;
         private String maquina;

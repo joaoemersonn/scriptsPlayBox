@@ -37,6 +37,28 @@ public class RelatorioOperacoesService {
     private final VendProMaxClient vendClient;
     private final AppProperties properties;
     private final PdfReportGeneratorService pdfGenerator;
+    private final TransactionImportService transactionImportService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RelatorioOperacoesService(
+            RelatorioService relatorioService,
+            EstabelecimentoRepository estabelecimentoRepository,
+            MaquinaRepository maquinaRepository,
+            TransacaoRepository transacaoRepository,
+            VendProMaxClient vendClient,
+            AppProperties properties,
+            PdfReportGeneratorService pdfGenerator,
+            TransactionImportService transactionImportService
+    ) {
+        this.relatorioService = relatorioService;
+        this.estabelecimentoRepository = estabelecimentoRepository;
+        this.maquinaRepository = maquinaRepository;
+        this.transacaoRepository = transacaoRepository;
+        this.vendClient = vendClient;
+        this.properties = properties;
+        this.pdfGenerator = pdfGenerator;
+        this.transactionImportService = transactionImportService;
+    }
 
     public RelatorioOperacoesService(
             RelatorioService relatorioService,
@@ -47,13 +69,7 @@ public class RelatorioOperacoesService {
             AppProperties properties,
             PdfReportGeneratorService pdfGenerator
     ) {
-        this.relatorioService = relatorioService;
-        this.estabelecimentoRepository = estabelecimentoRepository;
-        this.maquinaRepository = maquinaRepository;
-        this.transacaoRepository = transacaoRepository;
-        this.vendClient = vendClient;
-        this.properties = properties;
-        this.pdfGenerator = pdfGenerator;
+        this(relatorioService, estabelecimentoRepository, maquinaRepository, transacaoRepository, vendClient, properties, pdfGenerator, null);
     }
 
     public RelatorioOperacoesDTO compilarRelatorio(
@@ -72,9 +88,15 @@ public class RelatorioOperacoesService {
         RelatorioService.PeriodoCalculado p = relatorioService.calcularPeriodo(periodo, dataInicio, dataFim);
         RelatorioOperacoesDTO dto = new RelatorioOperacoesDTO();
 
+        // 0. Garante que as transações do período estejam importadas do provedor externo
+        if (transactionImportService != null) {
+            transactionImportService.ensureTransactionsImported(p.inicio().toLocalDate(), p.fim().toLocalDate());
+        }
+
         // 1. Título do Período
-        String tituloPeriodo = String.format("Relatório Mensal de Operações (%s a %s)",
-                p.inicio().format(DMY_FORMATTER), p.fim().format(DMY_FORMATTER));
+        String tituloPeriodo = (p.titulo() != null && !p.titulo().isBlank())
+                ? p.titulo()
+                : String.format("Relatório Mensal de Operações (%s a %s)", p.inicio().format(DMY_FORMATTER), p.fim().format(DMY_FORMATTER));
         dto.setTituloPeriodo(tituloPeriodo);
 
         // 2. Resolução de Estabelecimento e Máquinas
@@ -113,137 +135,98 @@ public class RelatorioOperacoesService {
             dto.setUnidade("PlayBox - Geral");
         }
 
-        // 4. Parâmetros de Custo (fixos por enquanto como solicitado, com suporte a override)
+        // 4. Parâmetros de Custo (com suporte a override)
         dto.setValorUnitarioPelucia(valorUnitarioPelucia != null ? valorUnitarioPelucia : 19.90);
         dto.setTaxaMaquininhaPercentual(taxaMaquininhaPercentual != null ? taxaMaquininhaPercentual : 4.99);
         dto.setMensalidadeTelemetria(mensalidadeTelemetria != null ? mensalidadeTelemetria : 69.90);
         dto.setVisitasManutencao(visitasManutencao != null ? visitasManutencao : 350.00);
         dto.setPercentualRepasse(percentualRepasse != null ? percentualRepasse : 25.0);
 
-        // 5. Coleta de dados (Tenta obter dados detalhados da API VendProMax caso haja máquina VendProMax)
-        boolean dadosVendObtidos = false;
-        String inicioIso = p.inicio().atZone(ZONE_ID).format(ISO_FORMATTER);
-        String fimIso = p.fim().atZone(ZONE_ID).format(ISO_FORMATTER);
+        // 5. Coleta de dados a partir da base consolidada de transações (VendProMax, Zapizi, PayXYZ)
+        log.info("Consolidando relatório de operações a partir da base de transações (período {} a {})...", p.inicio(), p.fim());
+        List<Transacao> transacoes = transacaoRepository.findFiltered(
+                p.inicio(),
+                p.fim(),
+                estabelecimentoId,
+                est != null ? est.getCidade() : null,
+                maquinaId,
+                null
+        );
 
-        for (Maquina m : maquinas) {
-            if ("VENDPROMAX".equalsIgnoreCase(m.getIntegracao()) && m.getExternalId() != null) {
-                try {
-                    String token = vendClient.login(properties.getVendpromax().getEmail(), properties.getVendpromax().getPassword());
-                    if (token != null) {
-                        JsonNode cashNode = vendClient.getReport(token, "relatorio-01-cash", m.getExternalId(), inicioIso, fimIso, false);
-                        JsonNode pagamentosNode = vendClient.getReport(token, "relatorio-03-pagamentos", m.getExternalId(), inicioIso, fimIso, false);
-                        JsonNode estornosNode = vendClient.getReport(token, "relatorio-04-estornos", m.getExternalId(), inicioIso, fimIso, false);
-                        JsonNode premiosNode = vendClient.getReport(token, "relatorio-premios", m.getExternalId(), inicioIso, fimIso, false);
-                        JsonNode pagamentosPeriodo = vendClient.getPagamentosPeriodo(token, m.getExternalId(), inicioIso, fimIso);
+        double cash = 0.0;
+        double maquininha = 0.0;
+        double estornos = 0.0;
+        double premios = 0.0;
 
-                        double cash = (cashNode != null && cashNode.hasNonNull("valor")) ? cashNode.get("valor").asDouble() : 0.0;
-                        double estornos = (estornosNode != null && estornosNode.hasNonNull("valor")) ? estornosNode.get("valor").asDouble() : 0.0;
-                        double pix = (pagamentosNode != null && pagamentosNode.hasNonNull("pix")) ? pagamentosNode.get("pix").asDouble() : 0.0;
-                        double credito = (pagamentosNode != null && pagamentosNode.hasNonNull("credito")) ? pagamentosNode.get("credito").asDouble() : 0.0;
-                        double debito = (pagamentosNode != null && pagamentosNode.hasNonNull("debito")) ? pagamentosNode.get("debito").asDouble() : 0.0;
-                        int qtdPremios = (premiosNode != null && premiosNode.hasNonNull("quantidade")) ? premiosNode.get("quantidade").asInt() : 0;
+        for (Transacao t : transacoes) {
+            cash += t.getValorCashEfetivo();
+            double mq = t.getValorPixEfetivo() + t.getValorCreditoEfetivo() + t.getValorDebitoEfetivo();
+            maquininha += mq;
+            estornos += t.getValorEstornoEfetivo();
+            premios += t.getQuantidadePremiosEfetiva();
 
-                        // Entradas representam o faturamento bruto (estornos são deduzidos na seção de Saídas)
-                        double maquininha = pix + credito + debito + estornos;
+            String maqNome = (t.getEstabelecimento() != null)
+                    ? t.getEstabelecimento().getNome() + (t.getEstabelecimento().getCidade() != null && !t.getEstabelecimento().getCidade().isBlank() ? " - " + t.getEstabelecimento().getCidade() : "")
+                    : (t.getMaquina() != null && t.getMaquina().getNomeIntegracao() != null ? t.getMaquina().getNomeIntegracao() : "PlayBox");
 
-                        dto.setEntradasEspecie(dto.getEntradasEspecie() + cash);
-                        dto.setEntradasMaquininha(dto.getEntradasMaquininha() + maquininha);
-                        dto.setValorEstornado(dto.getValorEstornado() + estornos);
-                        dto.setQuantidadePremios(dto.getQuantidadePremios() + qtdPremios);
+            String dataFormatada = t.getTimestamp().format(DISPLAY_DATE_FORMATTER);
 
-                        // Processamento do histórico de movimentações detalhado
-                        if (pagamentosPeriodo != null && pagamentosPeriodo.hasNonNull("pagamentos") && pagamentosPeriodo.get("pagamentos").isArray()) {
-                            String nomeMaquinaStr = (est != null)
-                                    ? est.getNome() + (est.getCidade() != null && !est.getCidade().isBlank() ? " - " + est.getCidade() : "")
-                                    : (m.getNomeIntegracao() != null ? m.getNomeIntegracao() : "Máquina #" + m.getId());
-
-                            for (JsonNode item : pagamentosPeriodo.get("pagamentos")) {
-                                MovimentacaoItem mi = parseMovimentacaoVendProMax(item, nomeMaquinaStr);
-                                if (mi != null) {
-                                    dto.getMovimentacoes().add(mi);
-                                }
-                            }
-                        }
-
-                        dadosVendObtidos = true;
-                    }
-                } catch (Exception e) {
-                    log.warn("Falha ao consultar detalhes em tempo real da máquina {}: {}", m.getExternalId(), e.getMessage());
-                }
+            // Linha de faturamento
+            if (t.getValorEfetivo() > 0) {
+                dto.getMovimentacoes().add(new MovimentacaoItem(
+                        dataFormatada,
+                        maqNome,
+                        PdfReportGeneratorService.formatCurrency(t.getValorEfetivo()),
+                        t.getTipoPagamento() != null ? t.getTipoPagamento() : "Venda",
+                        t.getExternalTxId(),
+                        "Recebido",
+                        "Creditado",
+                        "",
+                        false,
+                        false,
+                        false
+                ));
             }
-        }
-
-        // Se não for máquina VendProMax ou se a chamada online falhar, consolida a partir do banco de dados local
-        if (!dadosVendObtidos) {
-            log.info("Consolidando relatório de operações a partir da base local de transações...");
-            List<Transacao> transacoes = transacaoRepository.findFiltered(
-                    p.inicio(),
-                    p.fim(),
-                    estabelecimentoId,
-                    est != null ? est.getCidade() : null,
-                    maquinaId,
-                    null
-            );
-
-            double cash = 0.0;
-            double maquininha = 0.0;
-            double estornos = 0.0;
-            double premios = 0.0;
-
-            for (Transacao t : transacoes) {
-                cash += t.getValorCashEfetivo();
-                double mq = t.getValorPixEfetivo() + t.getValorCreditoEfetivo() + t.getValorDebitoEfetivo();
-                maquininha += mq;
-                estornos += t.getValorEstornoEfetivo();
-                premios += t.getQuantidadePremiosEfetiva();
-
-                String maqNome = (t.getEstabelecimento() != null)
-                        ? t.getEstabelecimento().getNome() + (t.getEstabelecimento().getCidade() != null ? " - " + t.getEstabelecimento().getCidade() : "")
-                        : (t.getMaquina() != null && t.getMaquina().getNomeIntegracao() != null ? t.getMaquina().getNomeIntegracao() : "PlayBox");
-
-                String dataFormatada = t.getTimestamp().format(DISPLAY_DATE_FORMATTER);
-
-                // Linha de faturamento
-                if (t.getValorEfetivo() > 0) {
+            // Linha de estorno (se houver)
+            if (t.getValorEstornoEfetivo() > 0) {
+                dto.getMovimentacoes().add(new MovimentacaoItem(
+                        dataFormatada,
+                        maqNome,
+                        PdfReportGeneratorService.formatCurrency(t.getValorEstornoEfetivo()),
+                        t.getTipoPagamento() != null ? t.getTipoPagamento() : "Estorno",
+                        t.getExternalTxId(),
+                        "Não Recebido",
+                        "Estornado",
+                        "Estorno",
+                        false,
+                        true,
+                        true
+                ));
+            }
+            // Linha de prêmio
+            if (t.getQuantidadePremiosEfetiva() > 0) {
+                for (int i = 0; i < (int) t.getQuantidadePremiosEfetiva(); i++) {
                     dto.getMovimentacoes().add(new MovimentacaoItem(
                             dataFormatada,
                             maqNome,
-                            PdfReportGeneratorService.formatCurrency(t.getValorEfetivo()),
-                            t.getTipoPagamento() != null ? t.getTipoPagamento() : "Venda",
-                            t.getExternalTxId(),
+                            "-",
+                            "PRÊMIO",
+                            "PRÊMIO",
                             "Recebido",
                             "Creditado",
                             "",
-                            false,
+                            true,
                             false,
                             false
                     ));
                 }
-                // Linha de prêmio
-                if (t.getQuantidadePremiosEfetiva() > 0) {
-                    for (int i = 0; i < (int) t.getQuantidadePremiosEfetiva(); i++) {
-                        dto.getMovimentacoes().add(new MovimentacaoItem(
-                                dataFormatada,
-                                maqNome,
-                                "-",
-                                "PRÊMIO",
-                                "PRÊMIO",
-                                "Recebido",
-                                "Creditado",
-                                "",
-                                true,
-                                false,
-                                false
-                        ));
-                    }
-                }
             }
-
-            dto.setEntradasEspecie(cash);
-            dto.setEntradasMaquininha(maquininha);
-            dto.setValorEstornado(estornos);
-            dto.setQuantidadePremios((int) premios);
         }
+
+        dto.setEntradasEspecie(cash);
+        dto.setEntradasMaquininha(maquininha);
+        dto.setValorEstornado(estornos);
+        dto.setQuantidadePremios((int) premios);
 
         // 6. Recalcula todos os totais matemáticos de saídas, lucro e repasse
         dto.recalcularTotais();
