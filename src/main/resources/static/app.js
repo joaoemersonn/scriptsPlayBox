@@ -4390,16 +4390,18 @@ function renderResultadoConciliacao(data) {
 function renderPaymentMethodPill(tipo) {
   if (!tipo) return '';
   const up = String(tipo).toUpperCase();
-  if (up === 'PIX') {
-    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">PIX</span>`;
-  } else if (up === 'DINHEIRO' || up === 'CASH' || up === 'ESPECIE') {
-    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 w-fit">DINHEIRO</span>`;
-  } else if (up === 'CREDITO' || up === 'DEBITO' || up === 'CARTAO') {
-    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 w-fit">${escapeHtml(up)}</span>`;
-  } else if (up === 'PREMIOS') {
-    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 w-fit">PRÊMIOS</span>`;
+  if (up === 'PIX' || up.includes('BANK_TRANSFER') || up.includes('ACCOUNT_MONEY') || up.includes('MERCADOPAGO') || up.includes('CREDITO_DIGITAL') || up.includes('CREDITO-REMOTO') || up.includes('VENDA MANUAL')) {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">Pix</span>`;
+  } else if (up === 'DINHEIRO' || up === 'CASH' || up === 'ESPECIE' || up.includes('ESPECIE') || up.includes('DINHEIRO')) {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 w-fit">Dinheiro em espécie</span>`;
+  } else if (up.includes('CREDIT') || up === 'CREDITO') {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 w-fit">Cartão de crédito</span>`;
+  } else if (up.includes('DEBIT') || up === 'DEBITO' || up.includes('PREPAID')) {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 w-fit">Cartão de débito</span>`;
+  } else if (up.includes('PREMIO')) {
+    return `<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 w-fit">Prêmio</span>`;
   }
-  return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 w-fit">${escapeHtml(up)}</span>`;
+  return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 w-fit">${escapeHtml(tipo)}</span>`;
 }
 
 async function openHistoricoMaquinaModal(maquinaId) {

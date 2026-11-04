@@ -173,6 +173,7 @@ public class RelatorioOperacoesService {
                     : (t.getMaquina() != null && t.getMaquina().getNomeIntegracao() != null ? t.getMaquina().getNomeIntegracao() : "PlayBox");
 
             String dataFormatada = t.getTimestamp().format(DISPLAY_DATE_FORMATTER);
+            String tipoFormatado = formatarTipoPagamentoPtBr(t);
 
             // Linha de faturamento
             if (t.getValorEfetivo() > 0) {
@@ -180,7 +181,7 @@ public class RelatorioOperacoesService {
                         dataFormatada,
                         maqNome,
                         PdfReportGeneratorService.formatCurrency(t.getValorEfetivo()),
-                        t.getTipoPagamento() != null ? t.getTipoPagamento() : "Venda",
+                        tipoFormatado,
                         t.getExternalTxId(),
                         "Recebido",
                         "Creditado",
@@ -196,7 +197,7 @@ public class RelatorioOperacoesService {
                         dataFormatada,
                         maqNome,
                         PdfReportGeneratorService.formatCurrency(t.getValorEstornoEfetivo()),
-                        t.getTipoPagamento() != null ? t.getTipoPagamento() : "Estorno",
+                        tipoFormatado,
                         t.getExternalTxId(),
                         "Não Recebido",
                         "Estornado",
@@ -369,5 +370,44 @@ public class RelatorioOperacoesService {
         );
 
         return pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador);
+    }
+
+    public static String formatarTipoPagamentoPtBr(Transacao t) {
+        if (t == null) return "Venda";
+        String raw = t.getTipoPagamento() != null ? t.getTipoPagamento().trim().toUpperCase() : "";
+
+        if (raw.contains("CREDIT_CARD") || raw.equals("CREDITO") || raw.equals("CREDIT")) {
+            return "Cartão de crédito";
+        }
+        if (raw.contains("DEBIT_CARD") || raw.equals("DEBITO") || raw.equals("DEBIT") || raw.contains("PREPAID")) {
+            return "Cartão de débito";
+        }
+        if (raw.contains("PIX") || raw.contains("BANK_TRANSFER") || raw.contains("ACCOUNT_MONEY")
+                || raw.contains("MERCADOPAGO") || raw.contains("CREDITO_DIGITAL") || raw.contains("CREDITO-REMOTO")
+                || raw.contains("VENDA MANUAL")) {
+            return "Pix";
+        }
+        if (raw.contains("CASH") || raw.contains("DINHEIRO") || raw.contains("ESPECIE")) {
+            return "Dinheiro em espécie";
+        }
+        if (raw.contains("PREMIO")) {
+            return "Prêmio";
+        }
+
+        // Fallbacks por colunas numéricas caso tipoPagamento seja genérico
+        if (t.getValorCreditoEfetivo() > 0 && t.getValorDebitoEfetivo() == 0 && t.getValorPixEfetivo() == 0 && t.getValorCashEfetivo() == 0) {
+            return "Cartão de crédito";
+        }
+        if (t.getValorDebitoEfetivo() > 0 && t.getValorCreditoEfetivo() == 0 && t.getValorPixEfetivo() == 0 && t.getValorCashEfetivo() == 0) {
+            return "Cartão de débito";
+        }
+        if (t.getValorPixEfetivo() > 0 && t.getValorCashEfetivo() == 0 && t.getValorCreditoEfetivo() == 0 && t.getValorDebitoEfetivo() == 0) {
+            return "Pix";
+        }
+        if (t.getValorCashEfetivo() > 0 && t.getValorPixEfetivo() == 0 && t.getValorCreditoEfetivo() == 0 && t.getValorDebitoEfetivo() == 0) {
+            return "Dinheiro em espécie";
+        }
+
+        return !raw.isBlank() ? raw : "Venda";
     }
 }

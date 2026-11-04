@@ -144,13 +144,13 @@ public class PdfReportGeneratorService {
         table.addCell(createHeaderCell("ENTRADAS", COLOR_GREEN_HEADER, Element.ALIGN_LEFT));
         table.addCell(createHeaderCell("VALOR", COLOR_GREEN_HEADER, Element.ALIGN_RIGHT));
 
-        table.addCell(createDataCell("ESPECIE", false, Element.ALIGN_LEFT));
+        table.addCell(createDataCell("Dinheiro em espécie", false, Element.ALIGN_LEFT));
         table.addCell(createDataCell(formatCurrency(dto.getEntradasEspecie()), false, Element.ALIGN_RIGHT));
 
-        table.addCell(createDataCell("PIX", false, Element.ALIGN_LEFT));
+        table.addCell(createDataCell("Pix", false, Element.ALIGN_LEFT));
         table.addCell(createDataCell(formatCurrency(dto.getEntradasPix()), false, Element.ALIGN_RIGHT));
 
-        table.addCell(createDataCell("CARTÃO CRÉDITO / DÉBITO", false, Element.ALIGN_LEFT));
+        table.addCell(createDataCell("Cartão de crédito / débito", false, Element.ALIGN_LEFT));
         table.addCell(createDataCell(formatCurrency(dto.getEntradasCartao()), false, Element.ALIGN_RIGHT));
 
         table.addCell(createDataCell("TOTAL", true, Element.ALIGN_LEFT));
@@ -254,7 +254,7 @@ public class PdfReportGeneratorService {
             table.addCell(createMovementCell(item.getValor(), fontNormal, Element.ALIGN_CENTER));
 
             // 4. Forma de Pagamento (se for prêmio, destaca em dourado)
-            Font fontForma = item.isPremio() ? fontPremio : fontNormal;
+            Font fontForma = (item.isPremio() || "Prêmio".equalsIgnoreCase(item.getFormaPagamento())) ? fontPremio : fontNormal;
             table.addCell(createMovementCell(item.getFormaPagamento(), fontForma, Element.ALIGN_CENTER));
 
             // 5. Identificador (opcional)
