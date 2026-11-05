@@ -1,6 +1,8 @@
 package br.com.playbox.controller;
 
 import br.com.playbox.config.OpenApiConfig;
+import br.com.playbox.service.RelatorioOperacoesService;
+import br.com.playbox.service.RelatorioOperacoesService.RelatorioPdfResult;
 import br.com.playbox.service.RelatorioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
