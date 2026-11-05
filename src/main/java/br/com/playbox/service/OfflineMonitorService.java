@@ -2,6 +2,7 @@ package br.com.playbox.service;
 
 import br.com.playbox.client.*;
 import br.com.playbox.config.AppProperties;
+import br.com.playbox.entity.Estabelecimento;
 import br.com.playbox.entity.Maquina;
 import br.com.playbox.repository.MaquinaRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -233,7 +234,7 @@ public class OfflineMonitorService {
                 List<Maquina> playboxMaquinas = maquinaRepository.findByIntegracao("PLAYBOX");
                 LocalDateTime limiteOffline = LocalDateTime.now().minusMinutes(5);
                 for (Maquina m : playboxMaquinas) {
-                    if (m.isAtivo() && m.getEstabelecimento() != null &&
+                    if (m.isAtivo() && m.getEstabelecimento() != null && m.getEstabelecimento().isAtivo() &&
                             !m.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
                         String ident = resolverNomeExibicao(m, m.getNomeIntegracao() != null && !m.getNomeIntegracao().isBlank()
                                 ? m.getNomeIntegracao()
@@ -245,9 +246,6 @@ public class OfflineMonitorService {
                                     ? m.getLastHeartbeat().format(DATE_TIME_FORMATTER)
                                     : "Sem sinal recente";
                             playboxOffline.put(ident, timeStr);
-                            if (m.getNomeIntegracao() != null && !m.getNomeIntegracao().isBlank()) {
-                                playboxOffline.put(m.getNomeIntegracao().trim(), timeStr);
-                            }
                         }
                     }
                 }
@@ -442,9 +440,9 @@ public class OfflineMonitorService {
                             log.info("Máquina '{}' (ID: {}) está inativa. Ignorando do monitoramento offline.", name, dbMaquina.getId());
                             continue;
                         }
-                        // Não monitora máquinas sem estabelecimento associado (depósito)
-                        if (dbMaquina.getEstabelecimento() == null) {
-                            log.info("Máquina '{}' (ID: {}) sem loja alocada. Ignorando do monitoramento offline.", name, dbMaquina.getId());
+                        // Não monitora máquinas sem estabelecimento associado (depósito) ou em estabelecimento inativo
+                        if (dbMaquina.getEstabelecimento() == null || !dbMaquina.getEstabelecimento().isAtivo()) {
+                            log.info("Máquina '{}' (ID: {}) sem loja alocada ou em estabelecimento inativo. Ignorando do monitoramento offline.", name, dbMaquina.getId());
                             continue;
                         }
                         if (dbMaquina.getEstabelecimento().getNome() != null &&
@@ -749,7 +747,7 @@ public class OfflineMonitorService {
                 List<Maquina> playboxMaquinas = maquinaRepository.findByIntegracao("PLAYBOX");
                 LocalDateTime limiteOffline = LocalDateTime.now().minusMinutes(5);
                 for (Maquina pm : playboxMaquinas) {
-                    if (pm.isAtivo() && pm.getEstabelecimento() != null &&
+                    if (pm.isAtivo() && pm.getEstabelecimento() != null && pm.getEstabelecimento().isAtivo() &&
                             !pm.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
                         boolean isOnline = pm.getLastHeartbeat() != null && pm.getLastHeartbeat().isAfter(limiteOffline);
                         pm.setOnline(isOnline);
@@ -757,14 +755,8 @@ public class OfflineMonitorService {
                         String nomeInt = pm.getNomeIntegracao() != null ? pm.getNomeIntegracao().trim() : null;
                         if (!isOnline) {
                             offline.add(ident);
-                            if (nomeInt != null && !nomeInt.isBlank()) {
-                                offline.add(nomeInt);
-                            }
                             String ts = pm.getLastHeartbeat() != null ? pm.getLastHeartbeat().format(DATE_TIME_FORMATTER) : "Sem sinal recente";
                             timestamps.putIfAbsent(ident, ts);
-                            if (nomeInt != null && !nomeInt.isBlank()) {
-                                timestamps.putIfAbsent(nomeInt, ts);
-                            }
                         } else {
                             offline.remove(ident);
                             if (nomeInt != null) offline.remove(nomeInt);
@@ -832,7 +824,7 @@ public class OfflineMonitorService {
 
         if ("PLAYBOX".equalsIgnoreCase(maquina.getIntegracao())) {
             boolean isOnline = maquina.getOnline() != null && maquina.getOnline();
-            if (!isOnline && maquina.isAtivo() && maquina.getEstabelecimento() != null &&
+            if (!isOnline && maquina.isAtivo() && maquina.getEstabelecimento() != null && maquina.getEstabelecimento().isAtivo() &&
                     !maquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
                 eraOffline = true;
                 if (timestampSalvo == null) {
@@ -845,21 +837,15 @@ public class OfflineMonitorService {
             }
         }
 
-        if (eraOffline && maquina.isAtivo() && maquina.getEstabelecimento() != null &&
+        if (eraOffline && maquina.isAtivo() && maquina.getEstabelecimento() != null && maquina.getEstabelecimento().isAtivo() &&
                 !maquina.getEstabelecimento().getNome().toLowerCase().contains("sem loja")) {
             offline.add(novoNome);
-            if (novoNomeIntegracao != null && !novoNomeIntegracao.isBlank()) {
-                offline.add(novoNomeIntegracao);
-            }
             if (timestampSalvo == null) {
                 timestampSalvo = maquina.getLastHeartbeat() != null
                         ? maquina.getLastHeartbeat().format(DATE_TIME_FORMATTER)
                         : "Sem sinal recente";
             }
             timestamps.put(novoNome, timestampSalvo);
-            if (novoNomeIntegracao != null && !novoNomeIntegracao.isBlank()) {
-                timestamps.put(novoNomeIntegracao, timestampSalvo);
-            }
         } else {
             offline.remove(novoNome);
             if (novoNomeIntegracao != null) offline.remove(novoNomeIntegracao);
@@ -873,13 +859,76 @@ public class OfflineMonitorService {
                 novoNome, nomeAnterior, eraOffline);
     }
 
+    /**
+     * Sincroniza a alteração de status ou nome de um estabelecimento com o cache offline.
+     * Se o estabelecimento foi desativado, remove suas máquinas do monitoramento offline.
+     * Se foi renomeado, migra o nome antigo para o novo no cache para evitar falsos alertas.
+     */
+    public synchronized void sincronizarAlteracaoEstabelecimento(Estabelecimento est, String nomeAnterior) {
+        if (est == null || maquinaRepository == null) return;
+        Path dataDir = resolveDataDirectory();
+        Path previousOfflineFile = dataDir.resolve("offline_status.txt");
+        Path offlineTimestampsFile = dataDir.resolve("offline_timestamps.json");
+
+        Set<String> offline = loadFileSet(previousOfflineFile);
+        Map<String, String> timestamps = loadOfflineTimestamps(offlineTimestampsFile);
+
+        List<Maquina> maquinas = est.getId() != null ? maquinaRepository.findByEstabelecimentoId(est.getId()) : List.of();
+
+        if (!est.isAtivo()) {
+            // Remove o estabelecimento e todas as suas máquinas do cache offline
+            String estNome = est.getNome() != null ? est.getNome().trim().toLowerCase() : "";
+            String antigoNome = nomeAnterior != null ? nomeAnterior.trim().toLowerCase() : "";
+
+            Set<String> toRemove = new HashSet<>();
+            for (String item : offline) {
+                String itemLower = item.toLowerCase();
+                if ((!estNome.isEmpty() && itemLower.equals(estNome)) ||
+                    (!antigoNome.isEmpty() && itemLower.equals(antigoNome))) {
+                    toRemove.add(item);
+                }
+                for (Maquina m : maquinas) {
+                    if (m.getNomeIntegracao() != null && itemLower.equals(m.getNomeIntegracao().trim().toLowerCase())) {
+                        toRemove.add(item);
+                    }
+                    if (m.getDescricao() != null && itemLower.equals(m.getDescricao().trim().toLowerCase())) {
+                        toRemove.add(item);
+                    }
+                }
+            }
+
+            offline.removeAll(toRemove);
+            if (timestamps != null) {
+                for (String rem : toRemove) {
+                    timestamps.remove(rem);
+                }
+            }
+            saveFileSet(previousOfflineFile, offline);
+            saveOfflineTimestamps(offlineTimestampsFile, timestamps);
+            log.info("Estabelecimento '{}' desativado. Removidas entradas offline: {}", est.getNome(), toRemove);
+        } else if (nomeAnterior != null && !nomeAnterior.isBlank() && !nomeAnterior.equalsIgnoreCase(est.getNome())) {
+            // Migra nome anterior para novo nome no cache
+            String novoNome = est.getNome().trim();
+            if (offline.remove(nomeAnterior.trim())) {
+                offline.add(novoNome);
+                if (timestamps != null && timestamps.containsKey(nomeAnterior.trim())) {
+                    String ts = timestamps.remove(nomeAnterior.trim());
+                    timestamps.put(novoNome, ts);
+                }
+                saveFileSet(previousOfflineFile, offline);
+                saveOfflineTimestamps(offlineTimestampsFile, timestamps);
+                log.info("Estabelecimento renomeado de '{}' para '{}' migrado no cache offline.", nomeAnterior, novoNome);
+            }
+        }
+    }
+
     public void pruneInactiveOrStorelessMachines(Set<String> offlineSet, Map<String, String> timestampsMap) {
         if (maquinaRepository == null || offlineSet == null || offlineSet.isEmpty()) {
             return;
         }
         try {
             List<Maquina> activeWithStore = maquinaRepository.findByAtivoTrue().stream()
-                    .filter(m -> m.getEstabelecimento() != null &&
+                    .filter(m -> m.getEstabelecimento() != null && m.getEstabelecimento().isAtivo() &&
                             !m.getEstabelecimento().getNome().toLowerCase().contains("sem loja"))
                     .toList();
 
@@ -969,7 +1018,7 @@ public class OfflineMonitorService {
         }
         try {
             List<Maquina> activeMachines = maquinaRepository.findByAtivoTrue().stream()
-                    .filter(m -> m.getEstabelecimento() != null &&
+                    .filter(m -> m.getEstabelecimento() != null && m.getEstabelecimento().isAtivo() &&
                             !m.getEstabelecimento().getNome().toLowerCase().contains("sem loja"))
                     .toList();
 

@@ -31,19 +31,22 @@ public class EstabelecimentoController {
     private final MeioPagamentoRepository meioPagamentoRepository;
     private final AluguelRepasseRepository aluguelRepasseRepository;
     private final br.com.playbox.service.HistoricoVinculoService historicoVinculoService;
+    private final br.com.playbox.service.OfflineMonitorService offlineMonitorService;
 
     public EstabelecimentoController(
             EstabelecimentoRepository repository,
             MaquinaRepository maquinaRepository,
             MeioPagamentoRepository meioPagamentoRepository,
             AluguelRepasseRepository aluguelRepasseRepository,
-            br.com.playbox.service.HistoricoVinculoService historicoVinculoService
+            br.com.playbox.service.HistoricoVinculoService historicoVinculoService,
+            br.com.playbox.service.OfflineMonitorService offlineMonitorService
     ) {
         this.repository = repository;
         this.maquinaRepository = maquinaRepository;
         this.meioPagamentoRepository = meioPagamentoRepository;
         this.aluguelRepasseRepository = aluguelRepasseRepository;
         this.historicoVinculoService = historicoVinculoService;
+        this.offlineMonitorService = offlineMonitorService;
     }
 
     @GetMapping
@@ -76,6 +79,7 @@ public class EstabelecimentoController {
     @Transactional
     public ResponseEntity<Estabelecimento> atualizar(@PathVariable Long id, @RequestBody Estabelecimento dados) {
         return repository.findById(id).map(existente -> {
+            String nomeAnterior = existente.getNome();
             if (dados.getNome() != null) existente.setNome(dados.getNome());
             if (dados.getCidade() != null) existente.setCidade(dados.getCidade());
             if (dados.getResponsavel() != null) existente.setResponsavel(dados.getResponsavel());
@@ -92,7 +96,11 @@ public class EstabelecimentoController {
                 aluguelRepasseRepository.deleteByEstabelecimentoIdAndPagoFalse(id);
             }
             existente.setAtivo(dados.isAtivo());
-            return ResponseEntity.ok(repository.save(existente));
+            Estabelecimento salvo = repository.save(existente);
+            if (offlineMonitorService != null) {
+                offlineMonitorService.sincronizarAlteracaoEstabelecimento(salvo, nomeAnterior);
+            }
+            return ResponseEntity.ok(salvo);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -121,7 +129,11 @@ public class EstabelecimentoController {
         return repository.findById(id).map(est -> {
             est.setAtivo(false);
             aluguelRepasseRepository.deleteByEstabelecimentoIdAndPagoFalse(id);
-            return ResponseEntity.ok(repository.save(est));
+            Estabelecimento salvo = repository.save(est);
+            if (offlineMonitorService != null) {
+                offlineMonitorService.sincronizarAlteracaoEstabelecimento(salvo, null);
+            }
+            return ResponseEntity.ok(salvo);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -130,7 +142,11 @@ public class EstabelecimentoController {
     public ResponseEntity<Estabelecimento> ativar(@PathVariable Long id) {
         return repository.findById(id).map(est -> {
             est.setAtivo(true);
-            return ResponseEntity.ok(repository.save(est));
+            Estabelecimento salvo = repository.save(est);
+            if (offlineMonitorService != null) {
+                offlineMonitorService.sincronizarAlteracaoEstabelecimento(salvo, null);
+            }
+            return ResponseEntity.ok(salvo);
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -138,7 +154,13 @@ public class EstabelecimentoController {
     @Operation(summary = "Excluir estabelecimento (desvincula máquinas e remove cobranças e meios de pagamento associados)")
     @Transactional
     public ResponseEntity<Void> excluir(@PathVariable Long id) {
-        if (!repository.existsById(id)) return ResponseEntity.notFound().build();
+        Estabelecimento est = repository.findById(id).orElse(null);
+        if (est == null) return ResponseEntity.notFound().build();
+
+        if (offlineMonitorService != null) {
+            est.setAtivo(false);
+            offlineMonitorService.sincronizarAlteracaoEstabelecimento(est, null);
+        }
 
         // Desvincular máquinas associadas
         List<Maquina> maquinas = maquinaRepository.findByEstabelecimentoId(id);

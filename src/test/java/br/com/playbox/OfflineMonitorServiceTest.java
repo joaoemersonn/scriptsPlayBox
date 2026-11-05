@@ -314,4 +314,81 @@ class OfflineMonitorServiceTest {
         assertFalse(offlineAtualizado.contains("Modulo Antigo"), "Nome antigo deve ser removido do cache offline");
         assertTrue(offlineAtualizado.contains("Modulo Novo"), "Novo nome deve continuar marcado como offline");
     }
+
+    @Test
+    void testIgnorarMaquinaEstabelecimentoInativo() {
+        br.com.playbox.repository.MaquinaRepository mockRepo = org.mockito.Mockito.mock(br.com.playbox.repository.MaquinaRepository.class);
+        AppProperties properties = new AppProperties();
+        OfflineMonitorService service = new OfflineMonitorService(null, null, null, properties, objectMapper, mockRepo);
+
+        br.com.playbox.entity.Estabelecimento estInativo = new br.com.playbox.entity.Estabelecimento();
+        estInativo.setId(5L);
+        estInativo.setNome("Loja Desativada");
+        estInativo.setAtivo(false);
+
+        br.com.playbox.entity.Maquina m = new br.com.playbox.entity.Maquina();
+        m.setId(20L);
+        m.setNomeIntegracao("Modulo Teste");
+        m.setExternalId("PB-TESTE");
+        m.setAtivo(true);
+        m.setEstabelecimento(estInativo);
+
+        org.mockito.Mockito.when(mockRepo.findByIntegracaoAndExternalId("PLAYBOX", "PB-TESTE")).thenReturn(java.util.Optional.of(m));
+
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("id", "PB-TESTE");
+        node.put("nome", "Modulo Teste");
+        node.put("status", "OFFLINE");
+
+        Map<String, String> result = service.getOfflineMachinesWithTimestamps(
+                List.of(node),
+                ZoneId.of("America/Sao_Paulo"),
+                "PLAYBOX"
+        );
+
+        assertTrue(result.isEmpty(), "Máquinas em estabelecimentos inativos não devem ser monitoradas como offline.");
+    }
+
+    @Test
+    void testSincronizarDesativacaoEstabelecimento(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tempDir) {
+        br.com.playbox.repository.MaquinaRepository mockRepo = org.mockito.Mockito.mock(br.com.playbox.repository.MaquinaRepository.class);
+        AppProperties properties = new AppProperties();
+        properties.setDataDir(tempDir.toString());
+        OfflineMonitorService service = new OfflineMonitorService(null, null, null, properties, objectMapper, mockRepo);
+
+        br.com.playbox.entity.Estabelecimento est = new br.com.playbox.entity.Estabelecimento();
+        est.setId(17L);
+        est.setNome("Loja Teste");
+        est.setAtivo(false);
+
+        br.com.playbox.entity.Maquina m = new br.com.playbox.entity.Maquina();
+        m.setId(15L);
+        m.setNomeIntegracao("Modulo Playbox TST");
+        m.setEstabelecimento(est);
+
+        org.mockito.Mockito.when(mockRepo.findByEstabelecimentoId(17L)).thenReturn(List.of(m));
+
+        java.nio.file.Path statusFile = tempDir.resolve("offline_status.txt");
+        java.nio.file.Path tsFile = tempDir.resolve("offline_timestamps.json");
+
+        service.saveFileSet(statusFile, new java.util.TreeSet<>(List.of("Loja Teste", "Modulo Playbox TST", "Casa Nobre")));
+        service.saveOfflineTimestamps(tsFile, new java.util.TreeMap<>(Map.of(
+                "Loja Teste", "01/11/2026 13:11",
+                "Modulo Playbox TST", "01/11/2026 13:11",
+                "Casa Nobre", "04/11/2026 14:37"
+        )));
+
+        // Executa sincronização com o estabelecimento desativado
+        service.sincronizarAlteracaoEstabelecimento(est, null);
+
+        java.util.Set<String> offlineApos = service.loadFileSet(statusFile);
+        assertFalse(offlineApos.contains("Loja Teste"));
+        assertFalse(offlineApos.contains("Modulo Playbox TST"));
+        assertTrue(offlineApos.contains("Casa Nobre"));
+
+        Map<String, String> tsApos = service.loadOfflineTimestamps(tsFile);
+        assertFalse(tsApos.containsKey("Loja Teste"));
+        assertFalse(tsApos.containsKey("Modulo Playbox TST"));
+        assertTrue(tsApos.containsKey("Casa Nobre"));
+    }
 }
