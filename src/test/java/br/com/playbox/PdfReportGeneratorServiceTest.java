@@ -82,4 +82,42 @@ class PdfReportGeneratorServiceTest {
         assertTrue(pdfBytesSemRepasse.length > 500);
         assertEquals('%', (char) pdfBytesSemRepasse[0]);
     }
+
+    @Test
+    @DisplayName("Deve gerar PDF com titulo customizado, subtitulo e metadados dinâmicos")
+    void testGerarPdfComTituloCustomizado() {
+        RelatorioOperacoesDTO dto = new RelatorioOperacoesDTO();
+        dto.setTituloDocumento("Relatório Praça do Sabor - 11-2026");
+        dto.setSubtituloDocumento("Unidade 02-Praça do Sabor • Sertânia (01/11/2026 a 30/11/2026)");
+        dto.setNomeArquivo("Relatório Praça do Sabor - 11-2026.pdf");
+        dto.setTituloPeriodo("Relatório Mensal de Operações");
+        dto.setUnidade("Unidade 02-Praça do Sabor");
+        dto.recalcularTotais();
+
+        byte[] pdf = generator.gerarRelatorioOperacoesPdf(dto, false);
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 500);
+        assertEquals('%', (char) pdf[0]);
+        assertEquals("Relatório Praça do Sabor - 11-2026", dto.getTituloDocumento());
+        assertEquals("Relatório Praça do Sabor - 11-2026.pdf", dto.getNomeArquivo());
+    }
+
+    @Test
+    @DisplayName("Deve sanitizar nome de arquivo e formatar periodo corretamente")
+    void testSanitizarNomeArquivoEPeriodo() {
+        String sanitized = br.com.playbox.service.RelatorioOperacoesService.sanitizarNomeArquivo("Relatório: Loja/Principal * 10/2026?");
+        assertEquals("Relatório- Loja-Principal - 10-2026-.pdf", sanitized);
+
+        String semExtensao = br.com.playbox.service.RelatorioOperacoesService.sanitizarNomeArquivo("Relatório Geral 10-2026");
+        assertEquals("Relatório Geral 10-2026.pdf", semExtensao);
+
+        var pMes = new br.com.playbox.service.RelatorioService.PeriodoCalculado(
+                "mes-anterior",
+                "Relatório de Outubro",
+                java.time.LocalDateTime.of(2026, 10, 1, 0, 0),
+                java.time.LocalDateTime.of(2026, 10, 31, 23, 59, 59)
+        );
+        String periodoFormatado = br.com.playbox.service.RelatorioOperacoesService.extrairPeriodoFormatado(pMes, "mes-anterior");
+        assertEquals("10-2026", periodoFormatado);
+    }
 }

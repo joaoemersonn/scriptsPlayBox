@@ -78,7 +78,7 @@ public class RelatorioController {
             @Parameter(description = "Incluir linha de cálculo de repasse/comissão (default: true)")
             @RequestParam(required = false, defaultValue = "true") boolean incluirRepasse
     ) {
-        byte[] pdf = relatorioOperacoesService.gerarPdf(
+        RelatorioOperacoesService.RelatorioPdfResult result = relatorioOperacoesService.gerarPdfComMetadados(
                 estabelecimentoId,
                 maquinaId,
                 periodo,
@@ -95,12 +95,21 @@ public class RelatorioController {
                 incluirRepasse
         );
 
-        String filename = "relatorio-operacoes" + (estabelecimentoId != null ? "-estab-" + estabelecimentoId : "") + ".pdf";
+        String filename = result.nomeArquivo();
+        if (filename == null || filename.isBlank()) {
+            filename = "relatorio-operacoes" + (estabelecimentoId != null ? "-estab-" + estabelecimentoId : "") + ".pdf";
+        }
+
+        org.springframework.http.ContentDisposition contentDisposition = org.springframework.http.ContentDisposition.inline()
+                .filename(filename, java.nio.charset.StandardCharsets.UTF_8)
+                .build();
 
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "application/pdf")
-                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .body(pdf);
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                .header("X-Filename", java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8))
+                .header(org.springframework.http.HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition, X-Filename")
+                .body(result.pdfBytes());
     }
 
     @GetMapping("/operacoes/json")

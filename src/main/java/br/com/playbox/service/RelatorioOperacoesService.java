@@ -118,22 +118,69 @@ public class RelatorioOperacoesService {
             maquinas = maquinaRepository.findByAtivoTrue();
         }
 
-        // 3. Título da Unidade
-        if (tituloUnidadeCustomizado != null && !tituloUnidadeCustomizado.isBlank()) {
-            dto.setUnidade(tituloUnidadeCustomizado.trim());
-        } else if (est != null) {
-            Integer num = (!maquinas.isEmpty() && maquinas.get(0).getNumeroPlanilha() != null)
-                    ? maquinas.get(0).getNumeroPlanilha()
-                    : est.getId().intValue();
-            dto.setUnidade(String.format("Unidade %02d-%s", num, est.getNome()));
+        // 3. Título da Unidade, Título do Documento e Nome do Arquivo
+        String entityName;
+        String cidade = null;
+        Integer unidadeNum = null;
+
+        if (est != null) {
+            entityName = est.getNome() != null ? est.getNome().trim() : "Estabelecimento #" + est.getId();
+            cidade = est.getCidade();
+            if (!maquinas.isEmpty() && maquinas.get(0).getNumeroPlanilha() != null) {
+                unidadeNum = maquinas.get(0).getNumeroPlanilha();
+            } else if (est.getId() != null) {
+                unidadeNum = est.getId().intValue();
+            }
+            String unidadeStr = (unidadeNum != null) ? String.format("Unidade %02d-%s", unidadeNum, entityName) : entityName;
+            dto.setUnidade(unidadeStr);
             dto.setEstabelecimentoNome(est.getNome());
             dto.setCidade(est.getCidade());
-        } else if (!maquinas.isEmpty()) {
+        } else if (tituloUnidadeCustomizado != null && !tituloUnidadeCustomizado.isBlank()) {
+            entityName = tituloUnidadeCustomizado.trim();
+            dto.setUnidade(entityName);
+        } else if (!maquinas.isEmpty() && maquinas.size() == 1) {
             Maquina m0 = maquinas.get(0);
-            dto.setUnidade(m0.getNomeIntegracao() != null ? m0.getNomeIntegracao() : "Máquina #" + m0.getId());
+            entityName = m0.getNomeIntegracao() != null ? m0.getNomeIntegracao().trim() : "Máquina #" + m0.getId();
+            dto.setUnidade(entityName);
+            if (m0.getEstabelecimento() != null) {
+                cidade = m0.getEstabelecimento().getCidade();
+                dto.setCidade(cidade);
+                dto.setEstabelecimentoNome(m0.getEstabelecimento().getNome());
+            }
         } else {
+            entityName = "Geral";
             dto.setUnidade("PlayBox - Geral");
         }
+
+        // Título e Nome do Documento / Arquivo (ex: "Relatório Geral 10-2026", "Relatório Praça do Sabor - 11-2026")
+        String periodoFormatado = extrairPeriodoFormatado(p, periodo);
+        String tituloDocumento;
+        if ("Geral".equalsIgnoreCase(entityName) || "PlayBox - Geral".equalsIgnoreCase(entityName)) {
+            tituloDocumento = "Relatório Geral " + periodoFormatado;
+        } else {
+            tituloDocumento = "Relatório " + entityName + " - " + periodoFormatado;
+        }
+        dto.setTituloDocumento(tituloDocumento);
+        dto.setNomeArquivo(sanitizarNomeArquivo(tituloDocumento));
+
+        // Subtítulo descritivo para o cabeçalho do PDF
+        String intervaloDatas = p.inicio().format(DMY_FORMATTER) + " a " + p.fim().format(DMY_FORMATTER);
+        String subtitulo;
+        if (est != null) {
+            String unidadePrefix = dto.getUnidade();
+            if (cidade != null && !cidade.isBlank()) {
+                subtitulo = unidadePrefix + " • " + cidade + " (" + intervaloDatas + ")";
+            } else {
+                subtitulo = unidadePrefix + " (" + intervaloDatas + ")";
+            }
+        } else if (tituloUnidadeCustomizado != null && !tituloUnidadeCustomizado.isBlank()) {
+            subtitulo = tituloUnidadeCustomizado.trim() + " (" + intervaloDatas + ")";
+        } else if (!maquinas.isEmpty() && maquinas.size() == 1) {
+            subtitulo = dto.getUnidade() + " (" + intervaloDatas + ")";
+        } else {
+            subtitulo = "PlayBox Consolidado (" + intervaloDatas + ")";
+        }
+        dto.setSubtituloDocumento(subtitulo);
 
         // 4. Parâmetros de Custo (com suporte a override e fallback para o estabelecimento)
         Double defaultPelucia = (est != null && est.getValorUnitarioPelucia() != null) ? est.getValorUnitarioPelucia() : 19.90;
@@ -369,7 +416,9 @@ public class RelatorioOperacoesService {
         );
     }
 
-    public byte[] gerarPdf(
+    public record RelatorioPdfResult(byte[] pdfBytes, String nomeArquivo, RelatorioOperacoesDTO dto) {}
+
+    public RelatorioPdfResult gerarPdfComMetadados(
             Long estabelecimentoId,
             Long maquinaId,
             String periodo,
@@ -399,7 +448,85 @@ public class RelatorioOperacoesService {
                 tituloUnidade
         );
 
-        return pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador, incluirRepasse);
+        byte[] pdf = pdfGenerator.gerarRelatorioOperacoesPdf(dto, incluirHistorico, incluirIdentificador, incluirRepasse);
+        return new RelatorioPdfResult(pdf, dto.getNomeArquivo(), dto);
+    }
+
+    public byte[] gerarPdf(
+            Long estabelecimentoId,
+            Long maquinaId,
+            String periodo,
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            Double valorUnitarioPelucia,
+            Double taxaMaquininhaPercentual,
+            Double mensalidadeTelemetria,
+            Double visitasManutencao,
+            Double percentualRepasse,
+            String tituloUnidade,
+            boolean incluirHistorico,
+            boolean incluirIdentificador,
+            boolean incluirRepasse
+    ) {
+        return gerarPdfComMetadados(
+                estabelecimentoId,
+                maquinaId,
+                periodo,
+                dataInicio,
+                dataFim,
+                valorUnitarioPelucia,
+                taxaMaquininhaPercentual,
+                mensalidadeTelemetria,
+                visitasManutencao,
+                percentualRepasse,
+                tituloUnidade,
+                incluirHistorico,
+                incluirIdentificador,
+                incluirRepasse
+        ).pdfBytes();
+    }
+
+    public static String extrairPeriodoFormatado(RelatorioService.PeriodoCalculado p, String periodoOriginal) {
+        if (p == null || p.inicio() == null) return "";
+        String pNorm = periodoOriginal != null ? periodoOriginal.trim().toLowerCase() : "";
+        if (pNorm.isBlank() && p.periodo() != null) {
+            pNorm = p.periodo().trim().toLowerCase();
+        }
+
+        LocalDate inicio = p.inicio().toLocalDate();
+        LocalDate fim = p.fim() != null ? p.fim().toLocalDate() : inicio;
+
+        if ("ano".equals(pNorm)) {
+            return String.valueOf(inicio.getYear());
+        }
+
+        if ("hoje".equals(pNorm) || "ontem".equals(pNorm) || "24h-anterior".equals(pNorm) || "24h".equals(pNorm) || "12h-atual".equals(pNorm) || "12h".equals(pNorm)) {
+            return inicio.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        }
+
+        boolean isMesInteiro = (inicio.getDayOfMonth() == 1 && fim.getDayOfMonth() == fim.lengthOfMonth() && inicio.getMonth() == fim.getMonth() && inicio.getYear() == fim.getYear())
+                || "mes".equals(pNorm) || "mes-anterior".equals(pNorm) || "setembro".equals(pNorm);
+
+        if (isMesInteiro) {
+            return String.format("%02d-%d", inicio.getMonthValue(), inicio.getYear());
+        }
+
+        if (inicio.equals(fim)) {
+            return inicio.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        }
+
+        return inicio.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) + " a " + fim.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+    }
+
+    public static String sanitizarNomeArquivo(String nome) {
+        if (nome == null || nome.isBlank()) return "relatorio.pdf";
+        String sanitized = nome.replaceAll("[\\\\/:*?\"<>|]", "-")
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (!sanitized.toLowerCase().endsWith(".pdf")) {
+            sanitized += ".pdf";
+        }
+        return sanitized;
     }
 
     public static String formatarTipoPagamentoPtBr(Transacao t) {

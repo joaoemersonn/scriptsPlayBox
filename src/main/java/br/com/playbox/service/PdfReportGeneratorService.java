@@ -66,17 +66,33 @@ public class PdfReportGeneratorService {
             writer.setPageEvent(new PageNumberFooterEvent());
             document.open();
 
+            String tituloPrincipal = (dto.getTituloDocumento() != null && !dto.getTituloDocumento().isBlank())
+                    ? dto.getTituloDocumento()
+                    : (dto.getTituloPeriodo() != null ? dto.getTituloPeriodo() : "Relatório de Operações");
+
+            String subtitulo = (dto.getSubtituloDocumento() != null && !dto.getSubtituloDocumento().isBlank())
+                    ? dto.getSubtituloDocumento()
+                    : (dto.getUnidade() != null ? dto.getUnidade() : "");
+
+            // Metadados do documento PDF
+            document.addTitle(tituloPrincipal);
+            if (!subtitulo.isBlank()) {
+                document.addSubject(subtitulo);
+            }
+            document.addAuthor("PlayBox");
+            document.addCreator("PlayBox Gestão Inteligente");
+
             // Fontes
             Font fontDocTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13.5f, Color.BLACK);
-            Font fontDocSubtitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12f, Color.BLACK);
+            Font fontDocSubtitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11f, Color.BLACK);
 
             // 1. TÍTULO DO DOCUMENTO
-            Paragraph titlePara = new Paragraph(dto.getTituloPeriodo(), fontDocTitle);
+            Paragraph titlePara = new Paragraph(tituloPrincipal, fontDocTitle);
             titlePara.setAlignment(Element.ALIGN_CENTER);
             titlePara.setSpacingAfter(2f);
             document.add(titlePara);
 
-            Paragraph unitPara = new Paragraph(dto.getUnidade(), fontDocSubtitle);
+            Paragraph unitPara = new Paragraph(subtitulo, fontDocSubtitle);
             unitPara.setAlignment(Element.ALIGN_CENTER);
             unitPara.setSpacingAfter(10f);
             document.add(unitPara);

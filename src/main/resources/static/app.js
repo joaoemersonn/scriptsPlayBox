@@ -3319,7 +3319,7 @@ async function previewRelatorioOperacoes() {
   try {
     const data = await apiRequest(url);
 
-    document.getElementById('pdf-preview-title').textContent = data.tituloUnidade || data.unidade || 'Consolidado Geral';
+    document.getElementById('pdf-preview-title').textContent = data.tituloDocumento || data.tituloUnidade || data.unidade || 'Consolidado Geral';
     
     // Entradas (compatível com objeto estruturado e campos planos)
     const ent = data.entradas || {};
@@ -3390,9 +3390,9 @@ async function downloadRelatorioPdf() {
   let url = `/api/relatorios/pdf?periodo=${periodo}&valorUnitarioPelucia=${pelucia}&taxaMaquininhaPercentual=${taxa}&mensalidadeTelemetria=${telemetria}&visitasManutencao=${visitas}&percentualRepasse=${repasse}&incluirIdentificador=${incluirIdentificador}&incluirRepasse=${incluirRepasse}`;
   if (estabId) url += `&estabelecimentoId=${estabId}`;
 
+  const dataInicio = document.getElementById('pdf-param-data-inicio')?.value;
+  const dataFim = document.getElementById('pdf-param-data-fim')?.value;
   if (periodo === 'custom') {
-    const dataInicio = document.getElementById('pdf-param-data-inicio')?.value;
-    const dataFim = document.getElementById('pdf-param-data-fim')?.value;
     if (dataInicio) url += `&dataInicio=${dataInicio}`;
     if (dataFim) url += `&dataFim=${dataFim}`;
   }
@@ -3400,19 +3400,104 @@ async function downloadRelatorioPdf() {
   showToast('Gerando documento PDF oficial...', 'info');
 
   try {
-    const blob = await apiRequest(url);
+    const headers = {};
+    if (state.authToken) {
+      headers['Authorization'] = `Bearer ${state.authToken}`;
+    } else if (state.apiKey) {
+      headers['X-API-KEY'] = state.apiKey;
+    }
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMsg = `Erro ${response.status}: ${response.statusText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) errorMsg = errorJson.message;
+        if (errorJson.erro) errorMsg = errorJson.erro;
+      } catch (e) {}
+      throw new Error(errorMsg);
+    }
+
+    // Extrair o nome do arquivo a partir dos cabeçalhos da resposta
+    let filename = '';
+    const xFilename = response.headers.get('x-filename');
+    if (xFilename) {
+      try {
+        filename = decodeURIComponent(xFilename.replace(/\+/g, ' '));
+      } catch (e) {
+        filename = xFilename;
+      }
+    }
+
+    if (!filename) {
+      const disposition = response.headers.get('content-disposition');
+      if (disposition) {
+        const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match && utf8Match[1]) {
+          try {
+            filename = decodeURIComponent(utf8Match[1].trim().replace(/^["']|["']$/g, ''));
+          } catch (e) {}
+        }
+        if (!filename) {
+          const match = disposition.match(/filename=["']?([^"';]+)["']?/i);
+          if (match && match[1]) {
+            filename = match[1].trim();
+          }
+        }
+      }
+    }
+
+    if (!filename) {
+      filename = gerarNomeArquivoPdfFallback(estabId, periodo, dataInicio, dataFim);
+    }
+
+    const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = downloadUrl;
-    a.download = `relatorio-operacoes-${periodo}.pdf`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(downloadUrl);
-    showToast('Download do PDF iniciado!', 'success');
+    showToast(`Download de "${filename}" concluído!`, 'success');
   } catch (err) {
     showToast('Erro ao baixar PDF: ' + err.message, 'error');
   }
+}
+
+function gerarNomeArquivoPdfFallback(estabId, periodo, dataInicio, dataFim) {
+  let nomeEstab = 'Geral';
+  if (estabId && state.estabelecimentos && state.estabelecimentos.length > 0) {
+    const est = state.estabelecimentos.find(e => String(e.id) === String(estabId));
+    if (est && est.nome) {
+      nomeEstab = est.nome.trim();
+    }
+  }
+
+  const now = new Date();
+  let periodoStr = '';
+  if (periodo === 'mes-anterior') {
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const mm = String(prevMonth.getMonth() + 1).padStart(2, '0');
+    periodoStr = `${mm}-${prevMonth.getFullYear()}`;
+  } else if (periodo === 'mes') {
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    periodoStr = `${mm}-${now.getFullYear()}`;
+  } else if (periodo === 'custom' && dataInicio && dataFim) {
+    periodoStr = `${dataInicio} a ${dataFim}`;
+  } else {
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    periodoStr = `${dd}-${mm}-${now.getFullYear()}`;
+  }
+
+  if (nomeEstab === 'Geral') {
+    return `Relatório Geral ${periodoStr}.pdf`;
+  }
+  return `Relatório ${nomeEstab} - ${periodoStr}.pdf`;
 }
 
 function openPdfModal() {

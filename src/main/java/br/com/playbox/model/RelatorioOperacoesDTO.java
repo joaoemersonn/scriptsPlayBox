@@ -9,6 +9,9 @@ public class RelatorioOperacoesDTO {
     private String unidade;
     private String estabelecimentoNome;
     private String cidade;
+    private String tituloDocumento;
+    private String subtituloDocumento;
+    private String nomeArquivo;
 
     // Métricas
     private int quantidadePremios;
@@ -101,6 +104,30 @@ public class RelatorioOperacoesDTO {
 
     public void setCidade(String cidade) {
         this.cidade = cidade;
+    }
+
+    public String getTituloDocumento() {
+        return tituloDocumento;
+    }
+
+    public void setTituloDocumento(String tituloDocumento) {
+        this.tituloDocumento = tituloDocumento;
+    }
+
+    public String getSubtituloDocumento() {
+        return subtituloDocumento;
+    }
+
+    public void setSubtituloDocumento(String subtituloDocumento) {
+        this.subtituloDocumento = subtituloDocumento;
+    }
+
+    public String getNomeArquivo() {
+        return nomeArquivo;
+    }
+
+    public void setNomeArquivo(String nomeArquivo) {
+        this.nomeArquivo = nomeArquivo;
     }
 
     public int getQuantidadePremios() {
